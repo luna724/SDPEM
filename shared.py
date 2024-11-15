@@ -1,0 +1,1 @@
+sd_webui_exists: bool = False
