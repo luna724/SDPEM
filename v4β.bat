@@ -1,6 +1,0 @@
-rem echo off
-call .venv/Scripts/Activate
-
-python webui.py
-
-pause

@@ -140,6 +140,8 @@ def make_ui() -> gr.Blocks:
 
 def launch():
     shared.sd_webui_exists = search_sd_webui_at1()
+    shared.driver_path = auto_install_chromedriver_for_selenium()
+    os.environ["PATH"] += os.pathsep + shared.driver_path
 
     ui = make_ui()
     ui.queue(64)

@@ -3,17 +3,17 @@ import os
 
 from webui import UiTabs
 
-class Generate(UiTabs):
+class Installer(UiTabs):
     def __init__(self, path):
         super().__init__(path)
 
-        self.child_path = os.path.join(UiTabs.PATH, "models_child")
+        self.child_path = os.path.join(UiTabs.PATH, "installer_child")
 
     def title(self):
-        return "Models"
+        return "Model-Installer"
 
     def index(self):
-        return 0
+        return 999
 
     def ui(self, outlet):
         with gr.Blocks():

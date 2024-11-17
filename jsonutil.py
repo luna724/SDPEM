@@ -11,14 +11,12 @@ class BuilderConfig:
 class JsonUtilities:
     def __init__(self, path, builderConfig: BuilderConfig=BuilderConfig()):
         self.loadable = False
-        real = os.path.realpath(path)
-        if os.path.exists(real):
+        real = os.path.abspath(path)
+        if not os.path.exists(real):
             if builderConfig.required:
                 raise FileNotFoundError(f"at {path}")
             return
-        if os.path.splitext(real)[1].lower() == ".json":
-            return
-        elif os.path.splitext(real)[1].lower != ".json":
+        if os.path.splitext(real)[1].lower() != ".json":
             if builderConfig.required:
                 raise FileNotFoundError(f"at {path}")
             return
@@ -33,14 +31,12 @@ class JsonUtilities:
         else:
             raise RuntimeError("初期化に失敗した場合、リフレッシュにはbuilderConfigが必要です")
         self.loadable = False
-        real = os.path.realpath(path)
-        if os.path.exists(real):
+        real = os.path.abspath(path)
+        if not os.path.exists(real):
             if builderConfig.required:
                 raise FileNotFoundError(f"at {path}")
             return
-        if os.path.splitext(real)[1].lower() == ".json":
-            return
-        elif os.path.splitext(real)[1].lower != ".json":
+        if os.path.splitext(real)[1].lower() != ".json":
             if builderConfig.required:
                 raise FileNotFoundError(f"at {path}")
             return
@@ -51,7 +47,7 @@ class JsonUtilities:
 
     def read(self):
         if not self.loadable:
-            raise ValueError("File Cannot readable while called read()")
+            raise ValueError("File Cannot readable bur called read()")
 
         self.refresh(self.path)
         try:
@@ -63,3 +59,23 @@ class JsonUtilities:
             print(f"File Reading failed. ({self.path})")
             return None
         return json_obj
+
+    def save(self, data):
+        if not self.loadable:
+            base = os.path.join(self.path, "..\\")
+            if os.path.exists(base) and os.path.isdir(base):
+                pass
+            elif os.path.exists(os.path.join(base, "..\\")):
+                os.makedirs(base, exist_ok=True)
+                pass
+            else:
+                raise ValueError("File cannot readable&directory trees not found")
+
+        self.refresh(self.path)
+        try:
+            with open(self.path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2) # type: ignore
+        except IOError as e:
+            if self.builderConfig.required:
+                raise e
+            print(f"File Writing failed. ({self.path})")
