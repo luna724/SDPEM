@@ -56,6 +56,8 @@ class Generator(UiTabs):
             adding_lora_weight = gr.Textbox(label="selected LoRA weight", value="0.75:lbw=OUTALL:stop=14", max_lines=1, placeholder="<lora:example:{this}>")
             disallow_duplicate = gr.Checkbox(label="Disallow tag Duplication", value=True)
 
+        header = gr.Textbox(label="Header prompt", placeholder="this prompts always add and not affect max tags limit", max_lines=3)
+
         with gr.Row():
             output = gr.Textbox(
                 label="Output prompt", show_copy_button=True, lines=5
@@ -76,13 +78,13 @@ class Generator(UiTabs):
             target_lora, meta_mode, blacklists, blacklist_multiply,
                 weight_multiply, target_weight_min, target_weight_max,
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
-                add_lora_to_last, adding_lora_weight, disallow_duplicate
+                add_lora_to_last, adding_lora_weight, disallow_duplicate, header
         ) -> str:
             return generator.gen_from_lora(
                 target_lora, meta_mode, blacklists, blacklist_multiply,
                 weight_multiply, target_weight_min, target_weight_max,
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
-                add_lora_to_last, adding_lora_weight, disallow_duplicate
+                add_lora_to_last, adding_lora_weight, disallow_duplicate, header
             )
 
         infer.click(
@@ -91,7 +93,7 @@ class Generator(UiTabs):
                 target_lora, meta_mode, blacklists, blacklist_multiply,
                 weight_multiply, target_weight_min, target_weight_max,
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
-                add_lora_to_last, adding_lora_weight, disallow_duplicate
+                add_lora_to_last, adding_lora_weight, disallow_duplicate, header
             ],
             outputs=[output]
         )

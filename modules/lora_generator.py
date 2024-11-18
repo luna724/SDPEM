@@ -68,7 +68,8 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                       blacklists:str, blacklist_multiply:float,
                       weight_multiply:float, target_weight_min:float, target_weight_max:float,
                       use_lora:bool, lora_weight:float, lbw_toggle:bool, max_tags:float, tags_base_chance:float,
-                      add_lora_to_last:bool, add_lora_weight:str, disallow_duplicate:bool
+                      add_lora_to_last:bool, add_lora_weight:str, disallow_duplicate:bool,
+                      header:str
                       ) -> str:
         if len(target_lora) < 1:
             raise gr.Error("No LoRA Selected")
@@ -133,5 +134,5 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                         tag = f"({tag}:{random.randrange(1, 160, 1)/100})" #崩壊しない範囲
                     prompts.append(tag)
 
-        prompts += lora_triggers
+        prompts = [h.strip() for h in header.split(",") if h != ""] + prompts + lora_triggers
         return ", ".join(prompts)
