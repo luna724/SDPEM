@@ -143,6 +143,9 @@ def launch():
     shared.driver_path = auto_install_chromedriver_for_selenium()
     os.environ["PATH"] += os.pathsep + shared.driver_path
 
+    if not shared.sd_webui_exists:
+        raise ValueError("REQUIRED AUTOMATIC1111/stable-diffusion-webui (see README for more information)")
+
     ui = make_ui()
     ui.queue(64)
     ui.launch(inbrowser=True)

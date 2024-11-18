@@ -3,17 +3,17 @@ import os
 
 from webui import UiTabs
 
-class Database(UiTabs):
+class Generator(UiTabs):
     def __init__(self, path):
         super().__init__(path)
 
-        self.child_path = os.path.join(UiTabs.PATH, "database_child")
+        self.child_path = os.path.join(UiTabs.PATH, "generator_child")
 
     def title(self):
-        return "Database-Viewer"
+        return "Generation"
 
     def index(self):
-        return 9999
+        return 0
 
     def ui(self, outlet):
         with gr.Blocks():

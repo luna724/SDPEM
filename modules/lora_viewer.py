@@ -136,3 +136,24 @@ class LoRADatabaseViewer:
                     print(f"[ERROR]: Unknown Exception in LoraDatabaseViewer.add_filter() \n(lora: {lora} / text: {text})")
 
         self.name_filter = text.strip()
+
+    """
+    データベースに存在するLoRAの名前またはトリガーまたはファイル名を返す
+    """
+    def all_lora(self, mode:Literal["name", "trigger", "fn"]):
+        lists = self.load()
+        rtl = []
+        for c in lists.values():
+            c = c[0]
+            if mode.lower() == "name":
+                add2 = c.get('name', None)
+            elif mode.lower() == "trigger":
+                add2 = c.get('lora', None)
+            elif mode.lower() == "fn":
+                add2 = c.get('file_name', None)
+            else:
+                break
+
+            if add2 is None: continue
+            rtl.append(add2)
+        return rtl

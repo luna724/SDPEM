@@ -2,6 +2,7 @@ import os
 
 import chromedriver_autoinstaller
 
+import shared
 from jsonutil import JsonUtilities, BuilderConfig
 
 """
@@ -20,6 +21,7 @@ def search_sd_webui_at1() -> bool:
 
     path = data["path"]
     if os.path.exists(path) and os.path.isdir(path):
+        shared.a1111_webui_path = path
         return True
 
 def auto_install_chromedriver_for_selenium():

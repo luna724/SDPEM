@@ -1,4 +1,5 @@
-| i | uiName    |
-| --- |-----------|
-| 999 | Installer |
-| -1 | Database-Viewer |
+| i    | uiName    |
+|------|-----------|
+| 0    | Generation |
+| 999  | Installer |
+| 9999 | Database-Viewer |

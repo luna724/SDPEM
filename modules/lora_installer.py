@@ -332,6 +332,7 @@ class LoRAModelInstaller:
             print(f"[INFO]: Model data saved successfully: {sh}")
             print(f"[DEV]: Completed Task: {i+1}")
         print("ALL Processes done.")
+        driver.quit()
         return
 
     def push(self, url: str, fn: str, api: bool):
