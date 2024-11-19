@@ -177,7 +177,7 @@ class _save(generatorTypes):
       
     all_db.update(db)
     jsoncfg.write(
-      all_db, os.path.join(self.config.get_data_path(), "lora_template.json")
+      all_db, os.path.join(self.config.get_data_path(), "chara_template.json")
     )
     
     

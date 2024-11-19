@@ -23,9 +23,15 @@ class Generator(UiTabs):
 
         gr.Markdown("Generate from LoRA Safetensors weight <br/>"
                     "(using metadata in 'ss_tag_frequency', 'tag_frequency' if exists)")
-        target_lora = gr.Dropdown(
-            choices=viewer.all_lora("fn")+generator.try_sd_webui_lora_models(True), multiselect=True, label="Target LoRA",
-        )
+        def update_target_lora(): return gr.update(choices=viewer.all_lora("fn")+generator.try_sd_webui_lora_models(True))
+        with gr.Row():
+            target_lora = gr.Dropdown(
+                choices=viewer.all_lora("fn")+generator.try_sd_webui_lora_models(True), multiselect=True, label="Target LoRA",
+                scale=9
+            )
+            target_lora_refresh = gr.Button("🔄")
+            target_lora_refresh.click(update_target_lora, outputs=target_lora)
+
         meta_mode = gr.Dropdown(
             choices=["ss_tag_frequency", "tag_frequency"],
             multiselect=True, value=["ss_tag_frequency", "tag_frequency"], label="Metadata allow"
@@ -68,12 +74,13 @@ class Generator(UiTabs):
                 lora_weight = gr.Slider(label="LoRA Weight", minimum=-1, maximum=1, step=0.01, value=0.75, interactive=False)
                 lbw_toggle = gr.Checkbox(label="Add Randomly LBW trigger (eg. lbw=OUTALL)", value=True, interactive=False)
 
-                max_tags = gr.Slider(label="Max tags", minimum=1, maximum=255, step=1, value=75)
-                tags_base_chance = gr.Slider(label="base chance (high to more randomize)", minimum=0.01, maximum=1000, step=0.01, value=1)
+                max_tags = gr.Slider(label="Max tags", minimum=1, maximum=999, step=1, value=75)
+                tags_base_chance = gr.Slider(label="base chance (high to more randomize)", minimum=0.01, maximum=10, step=0.01, value=1)
 
         infer = gr.Button(
             "Infer", variant="primary"
         )
+
         def infer_run(
             target_lora, meta_mode, blacklists, blacklist_multiply,
                 weight_multiply, target_weight_min, target_weight_max,

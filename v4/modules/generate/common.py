@@ -13,7 +13,7 @@ class obtain_lora_list(collectorTypes ):
   
   def initialize(self):
     self.lora_raw = jsoncfg.read(
-      os.path.join(self.cfg_root, "lora_template.json")
+      os.path.join(self.cfg_root, "chara_template.json")
     )
   
   def manual(self, parse:bool=False, name:str=None, method:None=None, include_version:bool=False) -> Tuple[str, str, str, str, str] | List[str]:

@@ -8,11 +8,18 @@ class BuilderConfig:
         # 帰り値が必要かどうか
         self.required:bool = True
 
+        # 新規生成を許可するか
+        self.allow_make_new:bool = True
+
 class JsonUtilities:
     def __init__(self, path, builderConfig: BuilderConfig=BuilderConfig()):
         self.loadable = False
         real = os.path.abspath(path)
         if not os.path.exists(real):
+            if os.path.exists(os.path.join(real, "..\\")) and builderConfig.allow_make_new:
+                with open(real, "w", encoding="utf-8") as f:
+                    json.dump({}, f) # type: ignore
+                print("[JsonUtilities]: Files not exists. making new..")
             if builderConfig.required:
                 raise FileNotFoundError(f"at {path}")
             return

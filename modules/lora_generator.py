@@ -134,5 +134,5 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                         tag = f"({tag}:{random.randrange(1, 160, 1)/100})" #崩壊しない範囲
                     prompts.append(tag)
 
-        prompts = [h.strip() for h in header.split(",") if h != ""] + prompts + lora_triggers
+        prompts = [h.strip() for h in header.split(",") if h != "" and add_lora_to_last] + prompts + lora_triggers
         return ", ".join(prompts)
