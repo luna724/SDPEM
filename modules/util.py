@@ -1,3 +1,4 @@
+import hashlib
 import re
 from datetime import datetime
 from typing import *
@@ -21,3 +22,10 @@ class Util:
                 rtl.append(r[0])
 
         return rtl
+
+    """sha256を計算"""
+    @staticmethod
+    def calculate_sha256(obj: Any) -> str:
+        hash_obj = hashlib.sha256()
+        hash_obj.update(obj)
+        return hash_obj.hexdigest()

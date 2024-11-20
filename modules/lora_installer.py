@@ -226,57 +226,54 @@ class LoRAModelInstaller:
                 format = ".safetensors"
             print(f"[DEV]: detected format: {format}")
 
-            header = {
-                "Cookie": f"{self.get_cookie()}"
-            }
-            response = requests.get(url, headers=header, stream=True, allow_redirects=True)
+            response = requests.get(url, cookies=self.get_requests_cookie(), stream=True, allow_redirects=True)
             if response.status_code != 200:
                 if response.status_code == 401:
-                    print(f"[FATAL]: login needed models aren't supported on v5.0.0")
+                    print(f"[FATAL]: respones == 401, if that models requires login, try refresh your cookies (to delete /civitai_cookies.json)")
                     continue
-                    #TODO: 401もパスできるようにする
-                    print(f"[ERROR]: 401 Unauthorized\n[INFO]: Switching Selenium model scraping..")
-                    # リクエスト失敗 (401) の時、Seleniumに切り替える
-                    prv_files = [
-                        x
-                        for x in os.listdir(download_path)
-                        if not os.path.splitext(x)[1].lower() in [".crdownload", ".tmp"]
-                    ]
-                    driver.get(url)
-                    print(f"[DEV]: starting download..")
-                    if file_edited_mode: # デフォルト: True
-                        # ファイル監視によってダウンロード完了を検出する
-                        while len(prv_files) == len([x for x in os.listdir(download_path) if not os.path.splitext(x)[1].lower() in [".crdownload", ".tmp"]]):
-                            time.sleep(0.5)
-                    else:
-                        time.sleep(15) # LoRA なのでそこまでかからない
-                    new_files = [
-                        x
-                        for x in os.listdir(download_path)
-                        if not os.path.splitext(x)[1].lower() in [".crdownload", ".tmp"]
-                    ]
-                    if len(prv_files) == len(new_files):
-                        # ダウンロードが検出されなかったら
-                        RuntimeError(f"[FATAL]: unHandled exception: files not changed")
-                    try:
-                        new_file = [
-                            x
-                            for x in new_files
-                            if not x in prv_files
-                        ][0]
-                    except IndexError as e:
-                        raise IndexError("[FATAL]: No new files detected. Some files might have been deleted or moved.")
-
-                    fn += os.path.splitext(new_file)[1].lower()
-                    os.rename(
-                        os.path.join(download_path, new_file),
-                        os.path.join(download_path, fn)
-                    )
-                    print("[INFO]: Selenium API scraping done")
-                    print(f"[INFO]: saved at {download_path}/{fn}")
-                else:
-                    print(f"[CRITICAL]: request failed: {response.status_code}")
-                    continue
+                #
+                #     print(f"[ERROR]: 401 Unauthorized\n[INFO]: Switching Selenium model scraping..")
+                #     # リクエスト失敗 (401) の時、Seleniumに切り替える
+                #     prv_files = [
+                #         x
+                #         for x in os.listdir(download_path)
+                #         if not os.path.splitext(x)[1].lower() in [".crdownload", ".tmp"]
+                #     ]
+                #     driver.get(url)
+                #     print(f"[DEV]: starting download..")
+                #     if file_edited_mode: # デフォルト: True
+                #         # ファイル監視によってダウンロード完了を検出する
+                #         while len(prv_files) == len([x for x in os.listdir(download_path) if not os.path.splitext(x)[1].lower() in [".crdownload", ".tmp"]]):
+                #             time.sleep(0.5)
+                #     else:
+                #         time.sleep(15) # LoRA なのでそこまでかからない
+                #     new_files = [
+                #         x
+                #         for x in os.listdir(download_path)
+                #         if not os.path.splitext(x)[1].lower() in [".crdownload", ".tmp"]
+                #     ]
+                #     if len(prv_files) == len(new_files):
+                #         # ダウンロードが検出されなかったら
+                #         RuntimeError(f"[FATAL]: unHandled exception: files not changed")
+                #     try:
+                #         new_file = [
+                #             x
+                #             for x in new_files
+                #             if not x in prv_files
+                #         ][0]
+                #     except IndexError as e:
+                #         raise IndexError("[FATAL]: No new files detected. Some files might have been deleted or moved.")
+                #
+                #     fn += os.path.splitext(new_file)[1].lower()
+                #     os.rename(
+                #         os.path.join(download_path, new_file),
+                #         os.path.join(download_path, fn)
+                #     )
+                #     print("[INFO]: Selenium API scraping done")
+                #     print(f"[INFO]: saved at {download_path}/{fn}")
+                # else:
+                #     print(f"[CRITICAL]: request failed: {response.status_code}")
+                #     continue
             else:
                 # リクエスト成功時の処理
                 file_size = int(response.headers.get("Content-Length", 0))
@@ -338,6 +335,20 @@ class LoRAModelInstaller:
     def push(self, url: str, fn: str, api: bool):
         self.urls.add(url)
         self.data[url] = (fn, api)
+
+    def get_requests_cookie(self):
+        if os.path.exists(self.COOKIE_PATH):
+            with open(self.COOKIE_PATH, "r") as f:
+                cookies = json.load(f)
+
+            cookie_dict = {}
+            for cookie in cookies:
+                name = cookie.get("name")
+                value = cookie.get("value")
+                if name and value:
+                    cookie_dict[name] = value
+
+            return cookie_dict
 
 
 """

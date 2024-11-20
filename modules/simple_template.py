@@ -3,9 +3,12 @@ from typing import *
 import gradio as gr
 import PIL.Image
 import json
+import pyperclip
+from PIL import Image
 
 from jsonutil import BuilderConfig, JsonUtilities
 from modules.character_exchanger import CharacterExchanger
+from modules.character_template import CharacterTemplate
 from modules.image_param import ImageParamUtil
 from modules.util import Util
 
@@ -14,10 +17,11 @@ class SimpleTemplate(Util):
     def  __init__(self):
         self.parser = ImageParamUtil()
         self.ce = CharacterExchanger()
+        self.characters = CharacterTemplate()
 
         # Jsonインスタンス
         bcfg = BuilderConfig()
-        self.file = JsonUtilities("./configs/simple_template.json", bcfg)
+        self.file = JsonUtilities(os.path.join(os.getcwd(), "configs/simple_template.json"), bcfg)
         if not self.file.loadable:
             raise ValueError("Unknown Exception at initialize JsonUtilities (SimpleTemplate.init)")
 
@@ -59,7 +63,7 @@ class SimpleTemplate(Util):
         if param == "" and image_param is None:
             raise gr.Error("which one parameters needed")
 
-        data_obj, param_raw = self.convert_from_param(param, image_param)
+        (data_obj, param_raw), _ = self.convert_from_param(param, image_param)
         print("[INFO]: Parsed obj: ", data_obj)
         current = self.load()
         current_keys = current.keys()
@@ -83,7 +87,7 @@ class SimpleTemplate(Util):
         new["prompt"] = prompt
         new["negative"] = negative
         new["others"] = data_obj
-        new["raw"] = param_raw
+        new["paraw"] = param_raw
         current[key] = [new]
         self.save(current)
 
@@ -93,3 +97,55 @@ class SimpleTemplate(Util):
     """テンプレートのキーを返す"""
     def list_templates(self):
         return self.file.read().keys()
+
+    """テンプレートを読み取る"""
+    def load_template(self, target) -> dict:
+        return self.load()[target][0]
+
+    def generate(
+            self,
+            target_template, header, lower,
+            lora_1, lora_2, lora_weight_1, lora_weight_2,
+            return_type:Literal["WebUI", "Param"] = "WebUI"
+    ):
+        if not target_template in self.list_templates():
+            raise gr.Error("Template cannot found!")
+
+        template = self.load_template(target_template)
+        prompt = template["prompt"]
+        negative = template["negative"]
+        raw = template["paraw"]
+
+        if not lora_1 in self.characters.list_characters():
+            raise gr.Error("LoRA cannot found!")
+
+        prompt = self.characters.convert_all(
+            prompt, lora_1, lora_weight_1, False
+        )
+        if return_type == "WebUI":
+            return prompt, negative
+        else:
+            return prompt + "\nNegative prompt: " + negative + "\n" + raw
+
+    def generate_param_image(
+            self,
+            target_template, header, lower,
+            lora_1, lora_2, lora_weight_1, lora_weight_2,
+            w:int = 32, h:int = 32, color: str = "000000"
+    ):
+        param = self.generate(
+            target_template, header, lower,
+            lora_1, lora_2, lora_weight_1, lora_weight_2, return_type="Param"
+        )
+        img = Image.new("1", (w, h))
+        img.info["parameters"] = param
+        fn = self.calculate_sha256(param)
+
+        dir = os.path.join(
+            os.getcwd(), "param_images", fn+".png"
+        )
+        img.save(
+            dir, "PNG"
+        )
+        pyperclip.copy(dir)
+        gr.Info("Images successfully created!")

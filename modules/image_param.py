@@ -17,7 +17,7 @@ class ImageParamUtil:
             print(f"[WARN]: params Not found")
         return param
 
-    def parse_param(self, param:str) -> dict:
+    def parse_param(self, param:str) -> tuple[dict, str]:
         try:
             print("[INFO]: Parsing parameters..")
             prompt_pattern = re.compile(r'^(Negative prompt): (.+?)(?=\n[A-Z][a-z]+\s|$)', re.DOTALL | re.MULTILINE)
@@ -26,7 +26,7 @@ class ImageParamUtil:
             neg = prompt_pattern.findall(param)
             if len(neg) < 1:
                 print(f"[FATAL]: Parameter parsing failed at Negative (IndexError) (param: {param})")
-                return {}
+                return {}, ""
 
             negative = neg[0][1]
             print("[INFO]: parsed Negative: ", negative)
@@ -49,6 +49,6 @@ class ImageParamUtil:
                 value = parameter[1] if parameter[1] else parameter[2]
                 value = value.strip()
                 return_obj[key] = value
-            return return_obj
+            return return_obj, other_param_text
         except IndexError as e:
             raise IndexError("Failed parsing parameters.")

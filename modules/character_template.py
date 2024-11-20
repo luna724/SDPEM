@@ -1,4 +1,5 @@
 import os
+import re
 from typing import *
 from typing import Tuple, Any
 
@@ -10,6 +11,9 @@ class CharacterTemplate(Util):
     def __init__(self):
         bcfg = BuilderConfig()
         self.file = JsonUtilities(os.path.join(os.getcwd(), "configs/chara_template.json"))
+
+        # 変数
+        self.triggers = ["$lora", "$name", "$prompt", "$extend", "$charadef"]
 
     def load(self) -> dict:
         return self.file.read()
@@ -50,4 +54,31 @@ class CharacterTemplate(Util):
     """$LORAなどのきゃらトリガーを変換
     from_bool が True の場合、p にリストを入れられる
     """
-    def convert_all(self, p:str|List[str], target: str, from_pieces: bool = False):
+    def convert_all(self, prompts:str|List[str], target: str, lora_weights: str, from_pieces: bool = False):
+        if not from_pieces and isinstance(prompts, str):
+            prompts = [
+                x.strip()
+                for x in prompts.split(",")
+            ]
+        lora, name, prompt, default = self.load_character_data(target)
+
+        via = []
+        for p in prompts:
+            p = p.strip()
+            if not p.lower() in self.triggers:
+                via.append(p)
+                continue
+
+            if p.lower() == "$lora":
+                via.append(
+                    re.sub(
+                        r"^<lora:.+:(.*)>", lora_weights, lora, 1
+                    )
+                )
+            elif p.lower() == "$name":
+                via.append(name)
+            elif p.lower() == "$prompt":
+                via.append(prompt)
+            elif p.lower() in ["$extend", "$charadef"]:
+                via.append(default)
+        return ", ".join(via).strip(",")

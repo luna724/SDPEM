@@ -33,6 +33,18 @@ class SimpleTemplateGenerateUI(UiTabs):
                         template_refresh = gr.Button(shared.refresh_button, scale=2)
                         template_refresh.click(template_refresh_click, outputs=template)
 
+                    with gr.Row():
+                        header = gr.Textbox(label="Header", max_lines=3)
+                        lower = gr.Textbox(label="Lower", max_lines=3)
+
+                    with gr.Row():
+                        prompt = gr.Textbox(label="Output prompt", max_lines=100, lines=4, scale=6)
+                        negative = gr.Textbox(label="Output Negative prompt", max_lines=100, lines=4, scale=4)
+
+                    infer = gr.Button("Generate", variant="primary")
+                    generate_param_image = gr.Button("Easy Parameters")
+                    gr.Markdown("[how to use Easy Parameters](/docs/how2usep.md)")
+
                 with gr.Column(scale=4):
                     with gr.Row():
                         lora_1 = gr.Dropdown(
@@ -66,11 +78,15 @@ class SimpleTemplateGenerateUI(UiTabs):
                             lora_refresh.click(lora_refresh_click, outputs=lora_1)
                         gr.Markdown("[Preview]")
                         with gr.Row():
-                            lora_trigger_2 = gr.Textbox(label="Character LoRA trigger", interactive=False)
-                            chara_name_2 = gr.Textbox(label="Character name", interactive=False)
+                            lora_trigger_2 = gr.Textbox(label="Sec. Character LoRA trigger", interactive=False)
+                            chara_name_2 = gr.Textbox(label="Sec. Character name", interactive=False)
                         with gr.Row():
-                            chara_prompt_2 = gr.Textbox(label="Character Prompt", interactive=False)
-                            chara_def_2 = gr.Textbox(label="Character Default", interactive=False)
+                            chara_prompt_2 = gr.Textbox(label="Sec. Character Prompt", interactive=False)
+                            chara_def_2 = gr.Textbox(label="Sec. Character Default", interactive=False)
+
+                    with gr.Row():
+                        lora_weight_1 = gr.Textbox(label="LoRA Weight", max_lines=1, placeholder="insert into <lora:example:{here}>", value="0.75:lbw=ALL")
+                        lora_weight_2 = gr.Textbox(label="Sec. LoRA Weight", max_lines=1, placeholder="insert into <lora:example:{here}>", value="0.75:lbw=ALL", visible=False)
 
                     def preview_lora(lora):
                         try:
@@ -84,3 +100,12 @@ class SimpleTemplateGenerateUI(UiTabs):
                     lora_2.change(
                         preview_lora, lora_2, [lora_trigger_2, chara_name_2, chara_prompt_2, chara_def_2]
                     )
+
+                infer.click(
+                    module.generate,
+                    [
+                        template, header, lower,
+                        lora_1, lora_2, lora_weight_1, lora_weight_2
+                    ],
+                    outputs=[prompt, negative]
+                )
