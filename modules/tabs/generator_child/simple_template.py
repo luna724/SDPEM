@@ -29,7 +29,12 @@ class SimpleTemplateGenerateUI(UiTabs):
                             label="target Template", choices=module.list_templates(),
                             scale=8
                         )
-                        def template_refresh_click(): return gr.update(choices=module.list_templates())
+                        def template_refresh_click():
+                            templates = module.list_templates()
+                            if not isinstance(templates, list) or len(templates) < 1:
+                                print(f"[ERROR]: error in loading templates ({templates})")
+                                raise gr.Error("Templates not found or Any errors occurred!")
+                            return gr.Dropdown.update(choices=templates, value=None)
                         template_refresh = gr.Button(shared.refresh_button, scale=2)
                         template_refresh.click(template_refresh_click, outputs=template)
 

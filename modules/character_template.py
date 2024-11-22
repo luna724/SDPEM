@@ -70,11 +70,18 @@ class CharacterTemplate(Util):
                 continue
 
             if p.lower() == "$lora":
-                via.append(
-                    re.sub(
-                        r"^<lora:.+:(.*)>", lora_weights, lora, 1
+                print(f"[DEV]: $LORA Triggered (p = {p}, lora = {lora}, lora_weights = {lora_weights})")
+                match = re.match(r"^<lora:.*?:(.*?)>$", lora.strip())
+                if match:  # マッチが成功した場合のみ処理
+                    captured_value = match.group(1)  # キャプチャグループから値を取得
+                    replaced_p = lora.replace(
+                            captured_value, lora_weights
+                        )
+                    via.append(
+                        replaced_p
                     )
-                )
+                else:
+                    print(f"[FATAL]: $LoRA Detection Failed. $LoRA prompt will be deleted")
             elif p.lower() == "$name":
                 via.append(name)
             elif p.lower() == "$prompt":

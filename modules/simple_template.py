@@ -95,8 +95,8 @@ class SimpleTemplate(Util):
         return gr.update()
 
     """テンプレートのキーを返す"""
-    def list_templates(self):
-        return self.file.read().keys()
+    def list_templates(self) -> list:
+        return list(self.file.read().keys())
 
     """テンプレートを読み取る"""
     def load_template(self, target) -> dict:

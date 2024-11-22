@@ -28,8 +28,7 @@ from modules.yield_util import new_yield, yielding_util
 
 class LoRAModelInstaller:
     def __init__(self):
-        self.urls: Set[str] = set()
-        self.data: Dict[str:tuple] = {}
+        self.data: Dict[str, Tuple[str, bool]] = {}
 
         self.obtained_data: list = list()
 
@@ -80,7 +79,7 @@ class LoRAModelInstaller:
         messagebox.showinfo(title, message)
 
     def run(self, file_edited_mode: bool = True):
-        print(f"[LoRA-Model-Installer]: Starting.. (target: {len(self.urls)} / Batch: 1)")
+        print(f"[LoRA-Model-Installer]: Starting.. (target: {len(self.data.keys())} / Batch: 1)")
         print("[INFO]: Starting Selenium/Chrome..", end=" ")
         chrome_options = Options()
         # chrome_options.add_argument("--user-data-dir=./selenium_profile")
@@ -127,7 +126,8 @@ class LoRAModelInstaller:
         database = LoRADatabaseProcessor()
         print("done")
 
-        for (i, url) in enumerate(self.urls):
+        urls = list(self.data.keys())
+        for (i, url) in enumerate(urls):
             print(f"[PHASE]: Phase 1/3 - Resize Download data (Target: {i + 1})")
             keys = list(self.data.keys())
             key = keys[i]
@@ -333,7 +333,6 @@ class LoRAModelInstaller:
         return
 
     def push(self, url: str, fn: str, api: bool):
-        self.urls.add(url)
         self.data[url] = (fn, api)
 
     def get_requests_cookie(self):
