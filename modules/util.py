@@ -3,6 +3,9 @@ import re
 from datetime import datetime
 from typing import *
 
+from jsonutil import BuilderConfig
+
+
 class Util:
     """現在時刻を isoformat で返す"""
     @staticmethod
@@ -27,5 +30,5 @@ class Util:
     @staticmethod
     def calculate_sha256(obj: Any) -> str:
         hash_obj = hashlib.sha256()
-        hash_obj.update(obj)
+        hash_obj.update(obj.encode('utf-8'))
         return hash_obj.hexdigest()

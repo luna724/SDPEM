@@ -1,18 +1,22 @@
+import base64
 import json
 import os
 import random
 import re
+from datetime import datetime
 from typing import *
 import gradio as gr
 from safetensors.torch import safe_open
 
 import shared
+from modules.api.txt2img import txt2img_api
 from modules.lora_viewer import LoRADatabaseViewer
 
 
 class LoRAGeneratingUtil(LoRADatabaseViewer):
     def __init__(self):
-         super().__init__()
+        super().__init__()
+        self.forever_generation = False
 
     @staticmethod
     def try_sd_webui_lora_models(only_sft:bool=False) -> list:
@@ -136,3 +140,98 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
 
         prompts = [h.strip() for h in header.split(",") if h != "" and add_lora_to_last] + prompts + lora_triggers
         return ", ".join(prompts)
+
+    """Generate Forever"""
+    def generate_forever(
+            self,
+            target_lora, meta_mode, blacklists, blacklist_multiply,
+            weight_multiply, target_weight_min, target_weight_max,
+            use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
+            add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
+            ## above ^ gen_from_lora options ^ above
+            ## below v txt2img options v below
+            negative, ad_prompt, ad_negative, sampling_method, steps,
+            cfg_scale, width, height, bcount, bsize, seed, hires_step,
+            denoising, hires_sampler, upscale_by, restore_face, tiling, clip_skip,
+            ad_model, ui_port
+    ) -> str:
+        gr.Info("Generation Forever started!")
+        gr.Warning("Yielding are currently not supported.")
+        # デフォルトペイロードを定義
+        txt2img = txt2img_api(int(ui_port),
+            **{
+                "negative_prompt": negative,
+                "seed": int(seed),
+                "sampler_name": sampling_method,
+                "scheduler": "Automatic",
+                "batch_size": int(bsize),
+                "n_iter": int(bcount),
+                "steps": int(steps),
+                "cfg_scale": int(cfg_scale),
+                "width": int(width),
+                "height": int(height),
+                "restore_faces": restore_face,
+                "tiling": tiling,
+                "denoising_strength": denoising,
+                "enable_hr": hires_step != 0,
+                "hr_scale": upscale_by,
+                "hr_upscaler": hires_sampler,
+                "override_settings": {
+                    "CLIP_stop_at_last_layers": int(clip_skip),
+                },
+                "alwayson_scripts": {
+                    "ADetailer": {
+                        "args": [
+                            True,
+                            False,
+                            {
+                                "ad_model": ad_model,
+                                "ad_prompt": ad_prompt,
+                                "ad_negative_prompt": ad_negative,
+                                "ad_denoising_strength": denoising
+                            }
+                        ]
+                    }
+                }
+            }
+        )
+
+        # ユーザーが止めるまで
+        self.forever_generation = True
+        while self.forever_generation:
+            try:
+                prompt = self.gen_from_lora(
+                    target_lora, meta_mode, blacklists, blacklist_multiply,
+                    weight_multiply, target_weight_min, target_weight_max,
+                    use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
+                    add_lora_to_last, adding_lora_weight, disallow_duplicate, header
+                )
+            except gr.Error:
+                self.forever_generation = False
+                raise gr.Error("Current randomization options are incorrect. Forever Generations stopped.")
+
+            print(f"[INFO]: Processing for prompt ({prompt})")
+            response = txt2img.generate(**{"prompt": prompt})
+            print("[INFO]: Generation finished.")
+
+            formatted_date = datetime.now().strftime("%Y-%m-%d")
+            output_dir = os.path.join(
+                shared.a1111_webui_path, f"outputs/txt2img-images/{formatted_date}"
+            )
+            os.makedirs(output_dir, exist_ok=True)
+            param = json.loads(response.get("info"))
+            default_seed = param["seed"]
+            for (index, image) in enumerate(response.get("images")):
+                fc = len([x for x in os.listdir(output_dir) if os.path.splitext(x)[1].lower() == ".png"])
+                save_path = os.path.join(
+                    output_dir, f"{fc+1:05d}-{default_seed+index}.png"
+                )
+                with open(save_path, "wb") as file:
+                    file.write(base64.b64decode(image))
+                    print(f"[INFO]: saving image to {save_path}")
+            print(f"[INFO]: Processed for prompt ({prompt})")
+            if not self.forever_generation:
+                break
+        gr.Info("Forever Generation Stopped!")
+        print("[INFO]: Generation Forever ended.")
+        return ""

@@ -20,9 +20,10 @@ class JsonUtilities:
                 with open(real, "w", encoding="utf-8") as f:
                     json.dump({}, f) # type: ignore
                 print("[JsonUtilities]: Files not exists. making new..")
-            if builderConfig.required:
-                raise FileNotFoundError(f"at {path}")
-            return
+            else:
+                if builderConfig.required:
+                    raise FileNotFoundError(f"at {path}")
+                return
         if os.path.splitext(real)[1].lower() != ".json":
             if builderConfig.required:
                 raise FileNotFoundError(f"at {path}")

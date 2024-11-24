@@ -26,7 +26,15 @@ class Lora(UiTabs):
 
         def get_html():
             if i.every:
-                return i.instance.generate_html()
+                try:
+                    html = i.instance.generate_html()
+                except Exception as e:
+                    print(f"[WARN]: Failed generating HTML ({e})")
+                    return f"Exception on converting to HTML ({e})"
+                if isinstance(html, str):
+                    return html
+                else:
+                    return "Unknown Error"
             return "Not initialized"
 
         def load_run():
@@ -63,7 +71,7 @@ class Lora(UiTabs):
         with gr.Group(
             elem_id="lora_models_viewer_html_element"
         ):
-            html = gr.HTML(every=3, value=get_html)
+            html = gr.HTML(value=get_html, every=10)
 
         search_text.input(
             search, search_text, html
