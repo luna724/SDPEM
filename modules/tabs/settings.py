@@ -7,10 +7,10 @@ class Generator(UiTabs):
     def __init__(self, path):
         super().__init__(path)
 
-        self.child_path = os.path.join(UiTabs.PATH, "generator_child")
+        self.child_path = os.path.join(UiTabs.PATH, "settings_child")
 
     def title(self):
-        return "Generation"
+        return "Settings"
 
     def index(self):
-        return 0
+        return 99999

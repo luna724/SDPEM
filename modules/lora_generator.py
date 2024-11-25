@@ -1,10 +1,13 @@
 import base64
+import io
 import json
 import os
 import random
 import re
 from datetime import datetime
 from typing import *
+
+import PIL.Image
 import gradio as gr
 from safetensors.torch import safe_open
 
@@ -73,7 +76,7 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                       weight_multiply:float, target_weight_min:float, target_weight_max:float,
                       use_lora:bool, lora_weight:float, lbw_toggle:bool, max_tags:float, tags_base_chance:float,
                       add_lora_to_last:bool, add_lora_weight:str, disallow_duplicate:bool,
-                      header:str
+                      header:str, lower:str
                       ) -> str:
         if len(target_lora) < 1:
             raise gr.Error("No LoRA Selected")
@@ -138,7 +141,9 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                         tag = f"({tag}:{random.randrange(1, 160, 1)/100})" #崩壊しない範囲
                     prompts.append(tag)
 
-        prompts = [h.strip() for h in header.split(",") if h != "" and add_lora_to_last] + prompts + lora_triggers
+        if not add_lora_to_last:
+            lora_triggers = []
+        prompts = [h.strip() for h in header.split(",") if h.strip() != ""] + prompts + lora_triggers + [l.strip() for l in lower.split(",") if l.strip() != ""]
         return ", ".join(prompts)
 
     """Generate Forever"""
@@ -148,6 +153,7 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             weight_multiply, target_weight_min, target_weight_max,
             use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
             add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
+            lower,
             ## above ^ gen_from_lora options ^ above
             ## below v txt2img options v below
             negative, ad_prompt, ad_negative, sampling_method, steps,
@@ -204,7 +210,8 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                     target_lora, meta_mode, blacklists, blacklist_multiply,
                     weight_multiply, target_weight_min, target_weight_max,
                     use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
-                    add_lora_to_last, adding_lora_weight, disallow_duplicate, header
+                    add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
+                    lower
                 )
             except gr.Error:
                 self.forever_generation = False
@@ -219,16 +226,18 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                 shared.a1111_webui_path, f"outputs/txt2img-images/{formatted_date}"
             )
             os.makedirs(output_dir, exist_ok=True)
-            param = json.loads(response.get("info"))
+            infotxt = response.get("info")
+            param = json.loads(infotxt)
             default_seed = param["seed"]
             for (index, image) in enumerate(response.get("images")):
                 fc = len([x for x in os.listdir(output_dir) if os.path.splitext(x)[1].lower() == ".png"])
+                current_seed = default_seed+index
                 save_path = os.path.join(
-                    output_dir, f"{fc+1:05d}-{default_seed+index}.png"
+                    output_dir, f"{fc+1:05d}-{current_seed}.png"
                 )
                 with open(save_path, "wb") as file:
                     file.write(base64.b64decode(image))
-                    print(f"[INFO]: saving image to {save_path}")
+                print(f"[INFO]: saving image to {save_path}")
             print(f"[INFO]: Processed for prompt ({prompt})")
             if not self.forever_generation:
                 break

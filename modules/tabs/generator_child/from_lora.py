@@ -1,9 +1,16 @@
+import inspect
+import shutil
+
 import gradio as gr
 import os
 
 import shared
+from jsonutil import JsonUtilities
+from modules.ui_util import checkbox_default, isInOrNull
 from modules.lora_generator import LoRAGeneratingUtil
 from modules.lora_viewer import LoRADatabaseViewer
+from modules.ui_util import ItemRegister
+from modules.util import Util
 from webui import UiTabs
 
 class Generator(UiTabs):
@@ -19,51 +26,100 @@ class Generator(UiTabs):
         return 0
 
     def ui(self, outlet):
+        def setter(d, k, i):
+            return ItemRegister.dynamic_setter(d, k, i, "Generation", self.title())
+
         viewer = LoRADatabaseViewer()
         generator = LoRAGeneratingUtil()
+        register = ItemRegister(setter=setter)
+        default_fp = os.path.join(os.getcwd(), "configs/default/generator-from_lora.json")
+        if not os.path.exists(default_fp):
+            shutil.copy(
+                os.path.join(os.getcwd(), "configs/default/default/generator-from_lora.json"),
+                default_fp
+            )
+        default_file = JsonUtilities(default_fp)
+        default = default_file.make_dynamic_data()
 
         gr.Markdown("Generate from LoRA Safetensors weight <br/>"
                     "(using metadata in 'ss_tag_frequency', 'tag_frequency' if exists)")
-        def update_target_lora(): return gr.update(choices=viewer.all_lora("fn")+generator.try_sd_webui_lora_models(True))
+        def select_all_target_lora(): return viewer.all_lora("fn")+generator.try_sd_webui_lora_models(True)
+        def update_target_lora(): return gr.update(choices=select_all_target_lora())
         with gr.Row():
-            target_lora = gr.Dropdown(
-                choices=viewer.all_lora("fn")+generator.try_sd_webui_lora_models(True), multiselect=True, label="Target LoRA",
-                scale=9
+            @register.register("target_lora")
+            def func_target_lora():
+                init_value = viewer.all_lora("fn")+generator.try_sd_webui_lora_models(True)
+                return gr.Dropdown(
+                choices=init_value, multiselect=True, label="Target LoRA",
+                scale=26, elem_id="generate-from_lora-target_lora",
+                value=Util.resize_is_in(init_value, default.target_lora)
             )
-            target_lora_refresh = gr.Button(shared.refresh_button)
+            target_lora = func_target_lora()
+            target_lora_refresh = gr.Button(shared.refresh_button, scale=3, elem_classes="refresh-btn")
+            target_lora_select_all = gr.Button(shared.select_all_button, size="sm", scale=1, elem_classes="select-all-btn")
+            target_lora_select_all.click(select_all_target_lora, outputs=target_lora)
             target_lora_refresh.click(update_target_lora, outputs=target_lora)
 
-        meta_mode = gr.Dropdown(
-            choices=["ss_tag_frequency", "tag_frequency"],
-            multiselect=True, value=["ss_tag_frequency", "tag_frequency"], label="Metadata allow"
-        )
-        blacklists = gr.Textbox(
-            label="tag blacklist", value="", lines=4, placeholder="separate with comma (,)\nYou can use $regex={regex_pattern} $includes={text}\neg. $regex=^white == blacklisted starts white\neg. $includes=thighhighs == blacklisted includes thighhighs (instead. $regex=thighhighs)"
-        )
-        blacklist_multiply = gr.Slider(
-            label="blacklisted tags weight multiply", maximum=10, minimum=0, step=0.01, value=0
-        )
+        @register.register("meta_mode", "blacklists", "blacklist_multiply")
+        def func_meta_and_blacklist():
+            available_meta = ["ss_tag_frequency", "tag_frequency"]
+            return (
+                gr.Dropdown(
+                    choices=available_meta,
+                    multiselect=True, label="Metadata allow",
+                    elem_id="generate-from_lora-metadata_mode",
+                    value=Util.resize_is_in(available_meta, default.meta_mode)
+                ),
+                gr.Textbox(
+                    label="tag blacklist",lines=4, placeholder="separate with comma (,)\nYou can use $regex={regex_pattern} $includes={text}\neg. $regex=^white == blacklisted starts white\neg. $includes=thighhighs == blacklisted includes thighhighs (instead. $regex=thighhighs)",
+                    elem_id="generate-from_lora-tag_blacklist", value=default.blacklists
+                ),
+                gr.Slider(
+                    label="blacklisted tags weight multiply", maximum=10, minimum=0, step=0.01,
+                    elem_id="generate-from_lora-blacklist_multiply", value=default.blacklist_multiply
+            ))
+        meta_mode, blacklists, blacklist_multiply = func_meta_and_blacklist()
 
         with gr.Row():
             gr.HTML("tag_chance = ({tag_strength}*{weight_multiply})/(100*{base_change})")
-            weight_multiply = gr.Slider(
-                label="Weight Multiply", maximum=10, minimum=0, step=0.01, value=1.75
-            )
+            @register.register("weight_multiply")
+            def func_weight_multiply():
+                return gr.Slider(
+                    label="Weight Multiply", maximum=10, minimum=0, step=0.01, elem_id="generate-from_lora-weight_multiply",
+                    value=default.weight_multiply
+                )
+            weight_multiply = func_weight_multiply()
             with gr.Column():
-                target_weight_min = gr.Slider(
-                    label="Multiply Target strength MIN",
-                    maximum=100, minimum=1, step=1, value=1
-                )
-                target_weight_max = gr.Slider(
-                    label="Multiply Target strength MAX",
-                    maximum=100, minimum=1, step=1, value=12
-                )
+                @register.register("target_weight_min", "target_weight_max")
+                def func_target_weights():
+                    return (
+                        gr.Slider(
+                            label="Multiply Target strength MIN",
+                            maximum=100, minimum=1, step=1, elem_id="generate-from_lora-multiply_strength_min",
+                            value=default.target_weight_min
+                        ),
+                        gr.Slider(
+                            label="Multiply Target strength MAX",
+                            maximum=100, minimum=1, step=1, elem_id="generate-from_lora-multiply_strength_max",
+                            value=default.target_weight_max
+                    ))
+                target_weight_min, target_weight_max = func_target_weights()
         with gr.Row():
-            add_lora_to_last = gr.Checkbox(label="add selected LoRA trigger to last")
-            adding_lora_weight = gr.Textbox(label="selected LoRA weight", value="0.75:lbw=OUTALL:stop=14", max_lines=1, placeholder="<lora:example:{this}>")
-            disallow_duplicate = gr.Checkbox(label="Disallow tag Duplication", value=True)
+            @register.register("add_lora_to_last", "adding_lora_weight", "disallow_duplicate")
+            def func_row001():
+                return (
+                    gr.Checkbox(label="add selected LoRA trigger to last", elem_id="generate-from_lora-selected_lora_to_last", value=checkbox_default(default.add_lora_to_last)),
+                    gr.Textbox(label="selected LoRA weight", value=default.adding_lora_weight, max_lines=1, placeholder="<lora:example:{this}>", elem_id="generate-from_lora-selected_lora_weight"),
+                    gr.Checkbox(label="Disallow tag Duplication", value=checkbox_default(default.disallow_duplicate), elem_id="generate-from_lora-disallow_tag_dupe")
+                )
+            add_lora_to_last, adding_lora_weight, disallow_duplicate = func_row001()
 
-        header = gr.Textbox(label="Header prompt", placeholder="this prompts always add and not affect max tags limit", max_lines=3)
+        def func_head_and_low():
+            return (
+                gr.Textbox(label="Header prompt", placeholder="this prompts always add and not affect max tags limit", max_lines=3, elem_id="generate-from_lora-header_prompt", value=default.header),
+                gr.Textbox(label="Lower prompt", placeholder="this prompts always add and not affect max tags limit", max_lines=3, elem_id="generate-from_lora-lower_prompt", value=default.lower)
+            )
+        header, lower = func_head_and_low()
 
         with gr.Row():
             output = gr.Textbox(
@@ -71,12 +127,20 @@ class Generator(UiTabs):
             )
             with gr.Column():
                 # TODO: use_lora関係の実装
-                use_lora = gr.Checkbox(label="use LoRA from Database (using trigger words)", interactive=False)
-                lora_weight = gr.Slider(label="LoRA Weight", minimum=-1, maximum=1, step=0.01, value=0.75, interactive=False)
-                lbw_toggle = gr.Checkbox(label="Add Randomly LBW trigger (eg. lbw=OUTALL)", value=True, interactive=False)
+                def func_use_lora_related():
+                    return (
+                        gr.Checkbox(label="use LoRA from Database (using trigger words)", interactive=False, elem_id="generate-from_lora-use_lora_from_db", value=checkbox_default(default.use_lora)),
+                        gr.Slider(label="LoRA Weight", minimum=-1, maximum=1, step=0.01, value=default.lora_weight, interactive=False, elem_id="generate-from_lora-lora_weight"),
+                        gr.Checkbox(label="Add Randomly LBW trigger (eg. lbw=OUTALL)", value=checkbox_default(default.lbw_toggle), interactive=False, elem_id="generate-from_lora-add_random_lbw")
+                    )
+                use_lora, lora_weight, lbw_toggle = func_use_lora_related()
 
-                max_tags = gr.Slider(label="Max tags", minimum=1, maximum=999, step=1, value=75)
-                tags_base_chance = gr.Slider(label="base chance (high to more randomize)", minimum=0.01, maximum=10, step=0.01, value=1)
+                def func_use_tags_related():
+                    return (
+                        gr.Slider(label="Max tags", minimum=1, maximum=999, step=1, value=default.max_tags, elem_id="generate-from_lora-max_tags"),
+                        gr.Slider(label="base chance (high to more randomize)", minimum=0.01, maximum=10, step=0.01, value=default.tags_base_chance, elem_id="generate-from_lora-base_chance")
+                    )
+                max_tags, tags_base_chance = func_use_tags_related()
 
         infer = gr.Button(
             "Infer", variant="primary"
@@ -86,13 +150,15 @@ class Generator(UiTabs):
             target_lora, meta_mode, blacklists, blacklist_multiply,
                 weight_multiply, target_weight_min, target_weight_max,
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
-                add_lora_to_last, adding_lora_weight, disallow_duplicate, header
+                add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
+                lower
         ) -> str:
             return generator.gen_from_lora(
                 target_lora, meta_mode, blacklists, blacklist_multiply,
                 weight_multiply, target_weight_min, target_weight_max,
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
-                add_lora_to_last, adding_lora_weight, disallow_duplicate, header
+                add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
+                lower
             )
 
         infer.click(
@@ -101,7 +167,8 @@ class Generator(UiTabs):
                 target_lora, meta_mode, blacklists, blacklist_multiply,
                 weight_multiply, target_weight_min, target_weight_max,
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
-                add_lora_to_last, adding_lora_weight, disallow_duplicate, header
+                add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
+                lower
             ],
             outputs=[output]
         )
@@ -111,49 +178,111 @@ class Generator(UiTabs):
                         "[Wiki](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/API)")
 
             gr.Markdown("[WARNING]: this features currently beta, some features cannot usable (eg. result-preview, refiner, model selection, etc..)<br/>")
-            ui_port = gr.Number(label="SD-WebUI Port (127.0.0.1:7860 -> 7860)", value=7860)
+            def func_ui_port():
+                return gr.Number(label="SD-WebUI Port (127.0.0.1:7860 -> 7860)", value=int(default.ui_port), elem_id="generate-from_lora-ui_port")
+            ui_port = func_ui_port()
+
             with gr.Row():
-                ad_model = gr.Dropdown(
-                    label="ADetailer detector",
-                    choices=["face_yolov8n.pt", "face_yolov8s.pt", "hand_yolov8n.pt"],
-                    value="face_yolov8n.pt"
-                )
-                _ = gr.Textbox(label="Prompt", interactive=False, visible=False)
-                negative = gr.Textbox(label="Negative", value="", lines=4) # TODO: 値の保持機能
+                def func_adm_neg():
+                    adetailer_models = ["face_yolov8n.pt", "face_yolov8s.pt", "hand_yolov8n.pt", "None"]
+                    return (
+                        gr.Dropdown(
+                            label="ADetailer detector",
+                            choices=adetailer_models,
+                            value=isInOrNull(adetailer_models, default.ad_model, "face_yolov8n.pt"),
+                            elem_id="generate-from_lora-adetailer_model"
+                        ),
+                        gr.Textbox(label="Negative", value=default.negative, lines=4, elem_id="generate-from_lora-negative")
+                    )
+                ad_model, negative = func_adm_neg()
+
             with gr.Row():
-                ad_prompt = gr.Textbox(label="ADetailer Prompt", lines=2)
-                ad_negative = gr.Textbox(label="ADetailer Negative", lines=2)
+                def func_adetailer():
+                    return (
+                        gr.Textbox(
+                            label="ADetailer Prompt", lines=2, elem_id="generate-from_lora-adetailer_prompt",
+                            value=default.ad_prompt
+                        ),
+                        gr.Textbox(
+                            label="ADetailer Negative", lines=2, elem_id="generate-from_lora-adetailer_negative",
+                            value=default.ad_negative
+                        )
+                    )
+                ad_prompt, ad_negative = func_adetailer()
             with gr.Row():
-                sampling_method = gr.Dropdown(
-                    choices=["DPM++ 2M", "DPM++ SDE", "DPM++ 2M SDE", "Euler a", "Euler"],
-                    value="Euler a", label="Sampling Method (Schedule type are Automatic)"
-                )
-                steps = gr.Slider(1, 150, step=1, label="Steps", value=30)
-                cfg_scale = gr.Slider(1, 30, step=0.5, label="CFG Scale", value=7)
+                def func_sampler_step_cfg():
+                    sampling_methods = ["DPM++ 2M", "DPM++ SDE", "DPM++ 2M SDE", "Euler a", "Euler"]
+                    return (
+                        gr.Dropdown(
+                            choices=sampling_methods,
+                            value=isInOrNull(sampling_methods, default.sampling_method, "Euler a"), label="Sampling Method (Schedule type are Automatic)", elem_id="generate-from_lora-sampling_method"
+                        ),
+                        gr.Slider(1, 150, step=1, label="Steps", value=default.steps, elem_id="generate-from_lora-steps"),
+                        gr.Slider(1, 30, step=0.5, label="CFG Scale", value=default.cfg_scale, elem_id="generate-from_lora-cfg_scale")
+                    )
+                sampling_method, steps, cfg_scale = func_sampler_step_cfg()
             with gr.Row():
                 with gr.Column():
-                    width = gr.Slider(512, 2048, step=1, label="Width", value=1024)
-                    height = gr.Slider(512, 2048, step=1, label="Height", value=1360)
+                    with gr.Row():
+                        with gr.Column(scale=8):
+                            def func_resolution():
+                                return (
+                                    gr.Slider(512, 2048, step=1, label="Width", value=default.width, elem_id="generate-from_lora-width"),
+                                    gr.Slider(512, 2048, step=1, label="Height", value=default.height, elem_id="generate-from_lora-height")
+                                )
+                            width, height = func_resolution()
+                        def invert_wh(w, h): return h, w
+                        invert_w_h = gr.Button(shared.circular_button, scale=2)
+                        invert_w_h.click(
+                            invert_wh, [width, height], [width, height]
+                        )
                 with gr.Column():
-                    bcount = gr.Slider(1, 100, step=1, label="Batch Count", value=1)
-                    bsize = gr.Slider(1, 8, step=1, label="Batch Size", value=8)
-            seed = gr.Number(label="Seed (-1 to randomize)", value=-1)
+                    def func_batch():
+                        return (
+                                gr.Slider(1, 100, step=1, label="Batch Count", value=default.bcount, elem_id="generate-from_lora-batch_count"),
+                                gr.Slider(1, 8, step=1, label="Batch Size", value=default.bsize, elem_id="generate-from_lora-batch_size")
+                            )
+                    bcount, bsize = func_batch()
+            def func_seed():
+                return gr.Number(label="Seed (-1 to randomize)", value=int(default.seed), elem_id="generate-from_lora-seed")
+            seed = func_seed()
 
             with gr.Accordion("Hires.fix", open=True):
                 with gr.Row():
-                    hires_step = gr.Slider(0, 150, step=1, label="Hires Step (0 to disable Hires.fix)", value=0)
-                    denoising = gr.Slider(0, 1, step=0.01, label="Denoising Strength", value=0.2)
+                    def func_hires_001():
+                        return (
+                            gr.Slider(
+                                0, 150, step=1, label="Hires Step (0 to disable Hires.fix)",
+                                elem_id="generate-from_lora-hires_step", value=default.hires_step
+                            ),
+                            gr.Slider(
+                                0, 1, step=0.01, label="Denoising Strength",
+                                elem_id="generate-from_lora-denoising", value=default.denoising
+                            )
+                        )
+                    hires_step, denoising = func_hires_001()
                 with gr.Row():
-                    hires_sampler = gr.Dropdown(
-                        choices=["Latent", "Lanczos", "DAT x4", "DAT_x4", "ESRGAN_4x", "R-ESRGAN 4x+", "R-ESRGAN 4x+ Anime6B", "ScuNET", "ScuNET PSNR", "SwinIR 4x"],
-                        value="R-ESRGAN 4x+ Anime6B", label="Hires Upscaler"
-                    )
-                    upscale_by = gr.Slider(1, 8, step=0.05, label="Upscale by")
-
+                    def func_hires_002():
+                        hires_upscaler_list = ["Latent", "Lanczos", "DAT x4", "DAT_x4", "ESRGAN_4x", "R-ESRGAN 4x+", "R-ESRGAN 4x+ Anime6B", "ScuNET", "ScuNET PSNR", "SwinIR 4x"]
+                        return (
+                            gr.Dropdown(
+                                choices=hires_upscaler_list, value=isInOrNull(hires_upscaler_list, default.hires_upscaler,
+                                "R-ESRGAN 4x+ Anime6B"), label="Hires Upscaler", elem_id="generate-from_lora-hires_upscaler"
+                            ),
+                            gr.Slider(
+                                1, 8, step=0.05, label="Upscale by", elem_id="generate-from_lora-upscale_by",
+                                value=default.upscale_by
+                            )
+                        )
+                    hires_upscaler, upscale_by = func_hires_002()
             with gr.Row():
-                restore_face = gr.Checkbox(label="Restore face", value=False)
-                tiling = gr.Checkbox(label="Tiling", value=False)
-                clip_skip = gr.Slider(1, 12, step=1, label="Clip skip", value=2)
+                def func_sd_others():
+                    return (
+                        gr.Checkbox(label="Restore face", value=checkbox_default(default.restore_face), elem_id="generate-from_lora-restore_face"),
+                        gr.Checkbox(label="Tiling", value=checkbox_default(default.tiling), elem_id="generate-from_lora-tiling"),
+                        gr.Slider(1, 12, step=1, label="Clip skip", value=default.clip_skip, elem_id="generate-from_lora-clip_skip")
+                    )
+                restore_face, tiling, clip_skip = func_sd_others()
 
             start_infini_generation = gr.Button("Start Generate Forever", variant="primary")
             stop_infini_generation = gr.Button("Stop Generate Forever")
@@ -167,11 +296,12 @@ class Generator(UiTabs):
                 weight_multiply, target_weight_min, target_weight_max,
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
                 add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
+                lower,
                 ## above ^ gen_from_lora options ^ above
                 ## below v txt2img options v below
                 negative, ad_prompt, ad_negative, sampling_method, steps,
                 cfg_scale, width, height, bcount, bsize, seed, hires_step,
-                denoising, hires_sampler, upscale_by, restore_face, tiling, clip_skip,
+                denoising, hires_upscaler, upscale_by, restore_face, tiling, clip_skip,
                 ad_model, ui_port
             ]
         )
@@ -181,4 +311,38 @@ class Generator(UiTabs):
             return "Forever Generation stopped. (its still working while last-image generation)"
         stop_infini_generation.click(
             fn=stop_forever_generation
+        )
+
+        def save_default(
+                target_lora, meta_mode, blacklists, blacklist_multiply,
+                weight_multiply, target_weight_min, target_weight_max,
+                use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
+                add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
+                lower,
+                negative, ad_prompt, ad_negative, sampling_method, steps,
+                cfg_scale, width, height, bcount, bsize, seed, hires_step,
+                denoising, hires_upscaler, upscale_by, restore_face, tiling, clip_skip,
+                ad_model, ui_port
+        ):
+            frame = inspect.currentframe()
+            args, _, _, values = inspect.getargvalues(frame)
+            data = {arg: values[arg] for arg in args}
+            default_file.save(data)
+            gr.Info("Successfully saved!")
+
+        save_as_default = gr.Button(
+            "Save current value as default"
+        )
+        save_as_default.click(
+            save_default, [
+                target_lora, meta_mode, blacklists, blacklist_multiply,
+                weight_multiply, target_weight_min, target_weight_max,
+                use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
+                add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
+                lower,
+                negative, ad_prompt, ad_negative, sampling_method, steps,
+                cfg_scale, width, height, bcount, bsize, seed, hires_step,
+                denoising, hires_upscaler, upscale_by, restore_face, tiling, clip_skip,
+                ad_model, ui_port
+            ]
         )

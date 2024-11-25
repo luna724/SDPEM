@@ -14,11 +14,3 @@ class Define(UiTabs):
 
     def index(self):
         return 9
-
-    def ui(self, outlet):
-        with gr.Blocks():
-            with gr.Tabs():
-                tabs = self.get_ui()
-                for tab in tabs:
-                    with gr.Tab(tab.title()):
-                        tab()

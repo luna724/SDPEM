@@ -50,53 +50,30 @@ class UiTabs:
     def ui(self, outlet: Callable):
         """ make ui data
         don't return """
-        pass
+        tab_elements = {}
+        with gr.Blocks():
+            with gr.Tabs():
+                tabs = self.get_ui()
+                for tab in tabs:
+                    with gr.Tab(tab.title()):
+                        tab_ui_elements = {}
+
+                        # タブ内のUIを生成し、そのエレメントを辞書に格納
+                        def capture_ui(component_name, component):
+                            print(f"Captured UI: {component_name}, {component}")
+                            tab_ui_elements[component_name] = component
+
+                        # 実際のUI生成
+                        tab.ui(lambda component_name, component: capture_ui(component_name, component))
+
+                        # タブ全体のエレメントを保存
+                        tab_elements[tab.title()] = tab_ui_elements
+        #shared.ui_obj[self.title()] = tab_elements
 
     # def has_child(self):
     #   return [rootID, child_rel_import_path, importlib's Path]
 
-    def __call__(self):
-        child_dir = self.filepath[:-3]  # .py を取り除く子ディレクトリの検出
-        children = []
-        tabs = []
-
-        if os.path.isdir(child_dir):
-            for file in [file for file in os.listdir(child_dir) if file.endswith(".py")]:
-                module_name = file[:-3]
-
-                parent = os.path.relpath(
-                    UiTabs.PATH, UiTabs.PATH
-                ).replace(
-                    "/", "."
-                ).strip(".")
-                print("parent: ", parent)
-
-                children.append(
-                    importlib.import_module(
-                        f"modules.tabs.{parent}.{module_name}"
-                    )  # インポートしていたものを children に追加
-                )
-
-        children = sorted(children, key=lambda x: x.index())
-
-        for child in children:
-            # 辞書として変数の値を取得
-            # このクラスのサブクラスを発見したら最初のものを追加
-            attrs = child.__dict__
-            tab = [x for x in attrs.values() if issubclass(x, UiTabs)]
-            if len(tab) != 0:
-                tabs.append(tab[0])
-
-        def outlet():
-            with gr.Tabs():
-                for tab in tabs:
-                    tab: UiTabs  # for IDE
-                    with gr.Tab(tab.title()[0]):
-                        tab()
-
-        return self.ui(outlet)
-
-def make_ui() -> gr.Blocks:
+def make_ui() -> tuple[gr.Blocks, dict]:
     def get_ui() -> List[UiTabs]:
         tabs = []
         files = [file for file in os.listdir(UiTabs.PATH) if file.endswith(".py")]
@@ -109,7 +86,7 @@ def make_ui() -> gr.Blocks:
             attrs = module.__dict__
             UiTabs_ref = sys.modules["webui"].UiTabs
             for x in attrs.values():
-                print(f"Checking: {x}, type: {type(x)}")
+                # print(f"Checking: {x}, type: {type(x)}")
                 if isinstance(x, type):
                     print(f"Is subclass of UiTabs: {issubclass(x, UiTabs_ref)}")
             TabClass = [
@@ -127,16 +104,30 @@ def make_ui() -> gr.Blocks:
         tabs = sorted([TabClass(file) for file, TabClass in tabs], key=lambda x: x.index())
         return tabs
 
-    block = gr.Blocks(title="luna724 / SD-PEM Client", analytics_enabled=False)
-
+    with open("style.css", "r", encoding="utf-8") as css_f:
+        css = css_f.read()
+    block = gr.Blocks(title="luna724 / SD-PEM Client", analytics_enabled=False, css=css)
+    #tab_elements = {}
     with block:
         with gr.Tabs():
             tabs = get_ui()
             for tab in tabs:
                 with gr.Tab(tab.title()):
-                    tab()
+                    # 各タブの要素を保存するための辞書
+                    tab_ui_elements = {}
 
-    return block
+                    # タブ内のUIを生成し、そのエレメントを辞書に格納
+                    def capture_ui(component_name, component):
+                        print(f"Captured UI: {component_name}, {component}")
+                        tab_ui_elements[component_name] = component
+
+                    # 実際のUI生成
+                    tab.ui(lambda component_name, component: capture_ui(component_name, component))
+
+                    # タブ全体のエレメントを保存
+                    # tab_elements[tab.title()] = tab_ui_elements
+
+    return block, {}
 
 def launch():
     shared.sd_webui_exists = search_sd_webui_at1()
@@ -146,7 +137,8 @@ def launch():
     if not shared.sd_webui_exists:
         raise ValueError("REQUIRED AUTOMATIC1111/stable-diffusion-webui (see README for more information)")
 
-    ui = make_ui()
+    ui, _ = make_ui()
+    print(f"maked ui_obj: {shared.ui_obj}")
     ui.queue(64)
     ui.launch(inbrowser=True)
     return

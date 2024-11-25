@@ -2,8 +2,8 @@ import json
 import os
 from json import JSONDecodeError
 
-"""JsonUtilities用の構築コンフィグ"""
 class BuilderConfig:
+    """JsonUtilities用の構築コンフィグ"""
     def __init__(self):
         # 帰り値が必要かどうか
         self.required:bool = True
@@ -87,3 +87,24 @@ class JsonUtilities:
             if self.builderConfig.required:
                 raise e
             print(f"File Writing failed. ({self.path})")
+
+    def make_dynamic_data(self, data:dict|None = None):
+        """json、辞書形式のデータをpydanticのようなクラス形式のデータ形式に変換する
+        返還後のデータは動的に生成されるため、型チェックなどには適していない"""
+        class DynamicObject:
+            def __init__(self, dictionary):
+                self.raw = dictionary
+                for key, value in dictionary.items():
+                    if isinstance(value, dict):
+                        # ネストされた辞書があれば再帰的にDynamicObjectに変換
+                        value = DynamicObject(value)
+                    setattr(self, key, value)
+
+            def __repr__(self):
+                return f"<DynamicObject {self.__dict__}>"
+
+            def __call__(self):
+                return self.raw
+        if data is None:
+            data = self.read()
+        return DynamicObject(data)
