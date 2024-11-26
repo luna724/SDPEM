@@ -189,8 +189,8 @@ class Generator(UiTabs):
                         gr.Dropdown(
                             label="ADetailer detector",
                             choices=adetailer_models,
-                            value=isInOrNull(adetailer_models, default.ad_model, "face_yolov8n.pt"),
-                            elem_id="generate-from_lora-adetailer_model"
+                            value=default.ad_model,
+                            elem_id="generate-from_lora-adetailer_model", allow_custom_value=True
                         ),
                         gr.Textbox(label="Negative", value=default.negative, lines=4, elem_id="generate-from_lora-negative")
                     )
@@ -212,15 +212,26 @@ class Generator(UiTabs):
             with gr.Row():
                 def func_sampler_step_cfg():
                     sampling_methods = ["DPM++ 2M", "DPM++ SDE", "DPM++ 2M SDE", "Euler a", "Euler"]
+                    return gr.Dropdown(
+                            choices=sampling_methods, multiselect=True,
+                            value=Util.resize_is_in(sampling_methods, default.sampling_method), label="Sampling Method (Schedule type are Automatic)", elem_id="generate-from_lora-sampling_method")
+                def func_steps():
                     return (
-                        gr.Dropdown(
-                            choices=sampling_methods,
-                            value=isInOrNull(sampling_methods, default.sampling_method, "Euler a"), label="Sampling Method (Schedule type are Automatic)", elem_id="generate-from_lora-sampling_method"
-                        ),
-                        gr.Slider(1, 150, step=1, label="Steps", value=default.steps, elem_id="generate-from_lora-steps"),
-                        gr.Slider(1, 30, step=0.5, label="CFG Scale", value=default.cfg_scale, elem_id="generate-from_lora-cfg_scale")
+                        gr.Slider(
+                            1, 150, step=1, label="Steps MIN", value=default.step_min,
+                            elem_id="generate-from_lora-steps"),
+                        gr.Slider(
+                            1, 150, step=1, label="Steps MAX", value=default.step_max,
+                            )
                     )
-                sampling_method, steps, cfg_scale = func_sampler_step_cfg()
+                def func_cfg_scale():
+                    return gr.Slider(1, 30, step=0.5, label="CFG Scale", value=default.cfg_scale, elem_id="generate-from_lora-cfg_scale")
+
+                sampling_method = func_sampler_step_cfg()
+                with gr.Column():
+                    step_min, step_max = func_steps()
+                cfg_scale = func_cfg_scale()
+
             with gr.Row():
                 with gr.Column():
                     with gr.Row():
@@ -266,8 +277,9 @@ class Generator(UiTabs):
                         hires_upscaler_list = ["Latent", "Lanczos", "DAT x4", "DAT_x4", "ESRGAN_4x", "R-ESRGAN 4x+", "R-ESRGAN 4x+ Anime6B", "ScuNET", "ScuNET PSNR", "SwinIR 4x"]
                         return (
                             gr.Dropdown(
-                                choices=hires_upscaler_list, value=isInOrNull(hires_upscaler_list, default.hires_upscaler,
-                                "R-ESRGAN 4x+ Anime6B"), label="Hires Upscaler", elem_id="generate-from_lora-hires_upscaler"
+                                choices=hires_upscaler_list, value=default.hires_upscaler,
+                                label="Hires Upscaler", elem_id="generate-from_lora-hires_upscaler",
+                                allow_custom_value=True
                             ),
                             gr.Slider(
                                 1, 8, step=0.05, label="Upscale by", elem_id="generate-from_lora-upscale_by",
@@ -299,11 +311,11 @@ class Generator(UiTabs):
                 lower,
                 ## above ^ gen_from_lora options ^ above
                 ## below v txt2img options v below
-                negative, ad_prompt, ad_negative, sampling_method, steps,
+                negative, ad_prompt, ad_negative, sampling_method, step_min, step_max,
                 cfg_scale, width, height, bcount, bsize, seed, hires_step,
                 denoising, hires_upscaler, upscale_by, restore_face, tiling, clip_skip,
                 ad_model, ui_port
-            ]
+            ], outputs=status
         )
 
         def stop_forever_generation():
@@ -319,7 +331,7 @@ class Generator(UiTabs):
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
                 add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
                 lower,
-                negative, ad_prompt, ad_negative, sampling_method, steps,
+                negative, ad_prompt, ad_negative, sampling_method, step_min, step_max,
                 cfg_scale, width, height, bcount, bsize, seed, hires_step,
                 denoising, hires_upscaler, upscale_by, restore_face, tiling, clip_skip,
                 ad_model, ui_port
@@ -340,7 +352,7 @@ class Generator(UiTabs):
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
                 add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
                 lower,
-                negative, ad_prompt, ad_negative, sampling_method, steps,
+                negative, ad_prompt, ad_negative, sampling_method, step_min, step_max,
                 cfg_scale, width, height, bcount, bsize, seed, hires_step,
                 denoising, hires_upscaler, upscale_by, restore_face, tiling, clip_skip,
                 ad_model, ui_port

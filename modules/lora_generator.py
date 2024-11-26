@@ -4,6 +4,7 @@ import json
 import os
 import random
 import re
+import time
 from datetime import datetime
 from typing import *
 
@@ -13,6 +14,7 @@ from safetensors.torch import safe_open
 
 import shared
 from modules.api.txt2img import txt2img_api
+from modules.lora_metadata_util import LoRAMetadataReader
 from modules.lora_viewer import LoRADatabaseViewer
 
 
@@ -52,8 +54,8 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             if fn != os.path.abspath(os.path.join(shared.a1111_webui_path, "models/Lora", lora_fn)): continue
 
             if os.path.exists(fn):
-                with safe_open(fn, framework="pt") as f:
-                    metadata = f.metadata()
+                reader = LoRAMetadataReader(fn)
+                metadata = reader.metadata
                 tags_data = metadata.get(mode, {})
                 if isinstance(tags_data, str):
                     try:
@@ -102,11 +104,10 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             # LoRAの取得
             path = os.path.abspath(os.path.join(shared.a1111_webui_path, "models/Lora", lora))
             if os.path.exists(path):
-                with safe_open(path, framework="pt") as f:
-                    meta = f.metadata()
-                    trigger = meta.get('ss_output_name', None)
-                    if not trigger is None:
-                        lora_triggers.append(f"<lora:{trigger}:{add_lora_weight}>")
+                reader = LoRAMetadataReader(path)
+                trigger = reader.get_output_name()
+                if not trigger is None:
+                    lora_triggers.append(f"<lora:{trigger}:{add_lora_weight}>")
             for meta in meta_mode:
                 for tag in self.get_tag_frequency(lora, meta):
                     tags.append(tag)
@@ -156,23 +157,20 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             lower,
             ## above ^ gen_from_lora options ^ above
             ## below v txt2img options v below
-            negative, ad_prompt, ad_negative, sampling_method, steps,
+            negative, ad_prompt, ad_negative, sampling_method, step_min, step_max,
             cfg_scale, width, height, bcount, bsize, seed, hires_step,
             denoising, hires_sampler, upscale_by, restore_face, tiling, clip_skip,
             ad_model, ui_port
     ) -> str:
         gr.Info("Generation Forever started!")
-        gr.Warning("Yielding are currently not supported.")
         # デフォルトペイロードを定義
         txt2img = txt2img_api(int(ui_port),
             **{
                 "negative_prompt": negative,
                 "seed": int(seed),
-                "sampler_name": sampling_method,
                 "scheduler": "Automatic",
                 "batch_size": int(bsize),
                 "n_iter": int(bcount),
-                "steps": int(steps),
                 "cfg_scale": int(cfg_scale),
                 "width": int(width),
                 "height": int(height),
@@ -202,6 +200,11 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             }
         )
 
+        if step_min > step_max:
+            raise gr.Error("step MIN > step MAX is not allowed.")
+        if len(sampling_method) == 0:
+            raise gr.Error("Please select sampling method (at least one)")
+
         # ユーザーが止めるまで
         self.forever_generation = True
         while self.forever_generation:
@@ -213,12 +216,17 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                     add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
                     lower
                 )
-            except gr.Error:
+            except gr.Error as e:
                 self.forever_generation = False
-                raise gr.Error("Current randomization options are incorrect. Forever Generations stopped.")
+                gr.Warning("Current randomization options are incorrect. Forever Generations stopped.")
+                return str(e)
 
+            steps = random.randrange(step_min, step_max+1, 1)
+            sampler = random.choice(sampling_method)
             print(f"[INFO]: Processing for prompt ({prompt})")
-            response = txt2img.generate(**{"prompt": prompt})
+            #yield "Started generation with option\n"+f"Prompt: {prompt}\nSteps: {steps} | Sampler: {sampler}"
+            response = txt2img.generate(**{"prompt": prompt, "steps": steps, "sampler_name": sampler})
+            #yield "Generation finished. Saving into A1111/outputs.."
             print("[INFO]: Generation finished.")
 
             formatted_date = datetime.now().strftime("%Y-%m-%d")
@@ -241,6 +249,8 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             print(f"[INFO]: Processed for prompt ({prompt})")
             if not self.forever_generation:
                 break
+            #yield "refreshing session.."
+            time.sleep(0.5)
         gr.Info("Forever Generation Stopped!")
         print("[INFO]: Generation Forever ended.")
-        return ""
+        return "Generation Forever Stopped."

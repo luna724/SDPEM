@@ -13,7 +13,8 @@ def browse_file():
 
     filenames = filedialog.askopenfile()
     if filenames is not None:
-        return filenames
+        root.destroy()
+        return str(filenames.name)
     else:
         filename = "Please select file."
         root.destroy()

@@ -22,34 +22,28 @@ class Lora(UiTabs):
     def ui(self, outlet):
         class i:
             instance:LoRADatabaseViewer = LoRADatabaseViewer()
-            every: bool = False
 
         def get_html():
-            if i.every:
-                try:
-                    html = i.instance.generate_html()
-                except Exception as e:
-                    print(f"[WARN]: Failed generating HTML ({e})")
-                    return f"Exception on converting to HTML ({e})"
-                if isinstance(html, str):
-                    return html
-                else:
-                    return "Unknown Error"
-            return "Not initialized"
+            try:
+                html = i.instance.generate_html()
+            except Exception as e:
+                print(f"[WARN]: Failed generating HTML ({e})")
+                return f"Exception on converting to HTML ({e})"
+            if isinstance(html, str):
+                return html
+            else:
+                return "Unknown Error"
 
         def load_run():
-            i.every = True
-            return gr.update(visible=False), gr.update(visible=True)
+            return gr.update(visible=False), gr.update(visible=True), get_html()
 
         def stop_run():
-            i.every = False
-            return gr.update(visible=True), gr.update(visible=False)
+            return get_html()
 
         def search(text):
-            if i.every:
-                i.instance.add_filter(
-                    text, keyword_enable=True
-                )
+            i.instance.add_filter(
+                text, keyword_enable=True
+            )
             return get_html()
 
         with gr.Row():
@@ -59,20 +53,20 @@ class Lora(UiTabs):
             )
 
         load = gr.Button("Load", variant="primary")
-        stop = gr.Button("Stop", visible=False)
-
-        load.click(
-            load_run, outputs=[load, stop]
-        )
-        stop.click(
-            stop_run, outputs=[load, stop]
-        )
+        stop = gr.Button("Refresh", visible=False)
 
         with gr.Group(
             elem_id="lora_models_viewer_html_element"
         ):
-            html = gr.HTML(value=get_html, every=10)
+            html = gr.HTML(value="Not Initialized")
 
         search_text.input(
             search, search_text, html
+        )
+
+        load.click(
+            load_run, outputs=[load, stop, html]
+        )
+        stop.click(
+            stop_run, outputs=html
         )

@@ -23,6 +23,7 @@ from selenium.webdriver.common.by import By
 
 import shared
 from jsonutil import JsonUtilities, BuilderConfig
+from modules.lora_metadata_util import LoRAMetadataReader
 from modules.yield_util import new_yield, yielding_util
 
 
@@ -295,11 +296,12 @@ class LoRAModelInstaller:
             lora = ""
             if format.lower() == ".safetensors":
                 try:
-                    with safe_open(os.path.join(download_path, fn), framework="pt") as sft:
-                        metadata = sft.metadata()
-                        if "ss_output_name" in metadata.keys():
-                            lora = f"<lora:{metadata['ss_output_name']}:1>"
-                            print(f"Detected lora trigger: {lora}")
+                    sft_path = os.path.join(download_path, fn)
+                    reader = LoRAMetadataReader(sft_path)
+                    lora_name = reader.get_output_name()
+                    if lora_name is not None:
+                        lora = f"<lora:{lora_name}:1>"
+                        print(f"[DEV]: Detected lora trigger: {lora}")
                 except Exception as e:
                     print("Error occurred in parse safetensors: ", end="")
                     print(e)
