@@ -6,9 +6,11 @@ class ImageParamUtil:
     def __init__(self):
         pass
 
-    def add_param(self, image: Image, param: str) -> Image:
+    def replace_param(self, image: Image, param: str) -> Image:
         ##TODO: add function
-        raise ValueError("todo")
+        if not isinstance(image, Image.Image):
+            raise ValueError("add_param are can only accept PIL.Image.Image")
+        image.info["parameters"] = param
         return image
 
     def read_param(self, image: Image) -> str:

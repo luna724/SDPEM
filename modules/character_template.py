@@ -38,6 +38,12 @@ class CharacterTemplate(Util):
             data.get("extend", "")
         )
 
+    def new_chara(
+            self,
+            key, lora, name, prompt, default, overwrite
+    ):
+        return
+
     """Supports up: v3, v4, v5, v6"""
     def load_character_data(self, target: str) -> tuple[str, str, str, str] | tuple:
         if not target in self.list_characters():
@@ -49,6 +55,8 @@ class CharacterTemplate(Util):
         data = chara[1]
         if version in ["v3", "v4", "v5"]:
             return self.load_v3(data)
+        elif version in ["v6"]:
+            return ()
         return ()
 
     """$LORAなどのきゃらトリガーを変換

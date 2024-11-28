@@ -20,6 +20,20 @@ def browse_file():
         root.destroy()
         return str(filename)
 
+def browse_directory():
+    root = Tk()
+    root.attributes("-topmost", True)
+    root.withdraw()
+
+    filenames = filedialog.askdirectory()
+    if filenames is not None:
+        root.destroy()
+        return str(filenames)
+    else:
+        filename = "Please select file."
+        root.destroy()
+        return str(filename)
+
 class ItemRegister:
     def __init__(self, setter: Callable = None):
         """
