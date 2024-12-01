@@ -29,3 +29,22 @@ def auto_install_chromedriver_for_selenium():
     return chromedriver_autoinstaller.install(path=os.path.join(
         os.getcwd(), "bin"
     ))
+
+def load_default_model():
+    bcfg = BuilderConfig()
+    bcfg.required = False
+    json = JsonUtilities("./default_model.json", bcfg)
+    if not json.loadable:
+        return None
+
+    data = json.read()
+    if data is None:
+        return None
+
+    return data
+
+def file_cleaner():
+    if os.path.exists("cc.en.300.bin.gz"):
+        os.remove("cc.en.300.bin.gz")
+    if os.path.exists("GoogleNews-vectors-negative300.bin.gz"):
+        os.remove("GoogleNews-vectors-negative300.bin.gz")

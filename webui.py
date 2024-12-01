@@ -132,12 +132,15 @@ def make_ui() -> tuple[gr.Blocks, dict]:
 def launch():
     shared.sd_webui_exists = search_sd_webui_at1()
     shared.driver_path = auto_install_chromedriver_for_selenium()
+    default_model = load_default_model()
+    if default_model is not None: shared.model_file = default_model
     os.environ["PATH"] += os.pathsep + shared.driver_path
 
     if not shared.sd_webui_exists:
         raise ValueError("REQUIRED AUTOMATIC1111/stable-diffusion-webui (see README for more information)")
 
     ui, _ = make_ui()
+    file_cleaner()
     print(f"maked ui_obj: {shared.ui_obj}")
     ui.queue(64)
     ui.launch(inbrowser=True)

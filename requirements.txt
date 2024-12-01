@@ -1,7 +1,16 @@
-gradio==3.41.0
+gradio
 selenium
 beautifulsoup4
 requests
 chromedriver-autoinstaller
 safetensors
 pyperclip
+transformers
+pydantic
+pillow
+torch
+sentence-transformers
+gensim
+fasttext-wheel
+numpy
+gdown

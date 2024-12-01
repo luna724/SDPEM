@@ -71,14 +71,22 @@ class Generator(UiTabs):
                     value=Util.resize_is_in(available_meta, default.meta_mode)
                 ),
                 gr.Textbox(
-                    label="tag blacklist",lines=4, placeholder="separate with comma (,)\nYou can use $regex={regex_pattern} $includes={text}\neg. $regex=^white == blacklisted starts white\neg. $includes=thighhighs == blacklisted includes thighhighs (instead. $regex=thighhighs)",
+                    label="tag blacklist",lines=4, placeholder="separate with comma (,)\nYou can use $regex={regex_pattern} $includes={text}\neg. $regex=^white == blacklisted starts white\neg. $includes=thighhighs == blacklisted includes thighhighs (instead. $regex=thighhighs). $type=fruits == blacklisted fruits related fruits",
                     elem_id="generate-from_lora-tag_blacklist", value=default.blacklists
                 ),
                 gr.Slider(
                     label="blacklisted tags weight multiply", maximum=10, minimum=0, step=0.01,
                     elem_id="generate-from_lora-blacklist_multiply", value=default.blacklist_multiply
             ))
+
+        @register.register("threshold")
+        def func_threshold():
+            return (
+                gr.Slider(0, 1, step=0.05, value=0.75, label="Blacklist Threshold")
+            )
+        
         meta_mode, blacklists, blacklist_multiply = func_meta_and_blacklist()
+        threshold = func_threshold()
 
         with gr.Row():
             gr.HTML("tag_chance = ({tag_strength}*{weight_multiply})/(100*{base_change})")
@@ -113,7 +121,7 @@ class Generator(UiTabs):
                     gr.Checkbox(label="Disallow tag Duplication", value=checkbox_default(default.disallow_duplicate), elem_id="generate-from_lora-disallow_tag_dupe")
                 )
             add_lora_to_last, adding_lora_weight, disallow_duplicate = func_row001()
-
+        @register.register("header", "lower")
         def func_head_and_low():
             return (
                 gr.Textbox(label="Header prompt", placeholder="this prompts always add and not affect max tags limit", max_lines=3, elem_id="generate-from_lora-header_prompt", value=default.header),
@@ -121,12 +129,15 @@ class Generator(UiTabs):
             )
         header, lower = func_head_and_low()
 
+        
+
         with gr.Row():
             output = gr.Textbox(
                 label="Output prompt", show_copy_button=True, lines=5
             )
             with gr.Column():
                 # TODO: use_lora関係の実装
+                @register.register("use_lora", "lora_weight", "lbw_toggle")
                 def func_use_lora_related():
                     return (
                         gr.Checkbox(label="use LoRA from Database (using trigger words)", interactive=False, elem_id="generate-from_lora-use_lora_from_db", value=checkbox_default(default.use_lora)),
@@ -135,12 +146,14 @@ class Generator(UiTabs):
                     )
                 use_lora, lora_weight, lbw_toggle = func_use_lora_related()
 
+                @register.register("max_tags", "tags_base_chance")
                 def func_use_tags_related():
                     return (
                         gr.Slider(label="Max tags", minimum=1, maximum=999, step=1, value=default.max_tags, elem_id="generate-from_lora-max_tags"),
                         gr.Slider(label="base chance (high to more randomize)", minimum=0.01, maximum=10, step=0.01, value=default.tags_base_chance, elem_id="generate-from_lora-base_chance")
                     )
                 max_tags, tags_base_chance = func_use_tags_related()
+
 
         infer = gr.Button(
             "Infer", variant="primary"
@@ -151,14 +164,14 @@ class Generator(UiTabs):
                 weight_multiply, target_weight_min, target_weight_max,
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
                 add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
-                lower
+                lower, threshold
         ) -> str:
             return generator.gen_from_lora(
                 target_lora, meta_mode, blacklists, blacklist_multiply,
                 weight_multiply, target_weight_min, target_weight_max,
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
                 add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
-                lower
+                lower, threshold
             )
 
         infer.click(
@@ -168,7 +181,7 @@ class Generator(UiTabs):
                 weight_multiply, target_weight_min, target_weight_max,
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
                 add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
-                lower
+                lower, threshold
             ],
             outputs=[output]
         )
@@ -308,7 +321,7 @@ class Generator(UiTabs):
                 weight_multiply, target_weight_min, target_weight_max,
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
                 add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
-                lower,
+                lower, threshold,
                 ## above ^ gen_from_lora options ^ above
                 ## below v txt2img options v below
                 negative, ad_prompt, ad_negative, sampling_method, step_min, step_max,
@@ -330,7 +343,7 @@ class Generator(UiTabs):
                 weight_multiply, target_weight_min, target_weight_max,
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
                 add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
-                lower,
+                lower, threshold,
                 negative, ad_prompt, ad_negative, sampling_method, step_min, step_max,
                 cfg_scale, width, height, bcount, bsize, seed, hires_step,
                 denoising, hires_upscaler, upscale_by, restore_face, tiling, clip_skip,
@@ -351,7 +364,7 @@ class Generator(UiTabs):
                 weight_multiply, target_weight_min, target_weight_max,
                 use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
                 add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
-                lower,
+                lower, threshold,
                 negative, ad_prompt, ad_negative, sampling_method, step_min, step_max,
                 cfg_scale, width, height, bcount, bsize, seed, hires_step,
                 denoising, hires_upscaler, upscale_by, restore_face, tiling, clip_skip,

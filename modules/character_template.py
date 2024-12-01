@@ -1,7 +1,7 @@
 import os
 import re
 from typing import *
-from typing import Tuple, Any
+import gradio as gr
 
 from jsonutil import BuilderConfig, JsonUtilities
 from modules.util import Util
@@ -38,11 +38,51 @@ class CharacterTemplate(Util):
             data.get("extend", "")
         )
 
+    @staticmethod
+    def get_base_v3():
+        return {
+            "lora": "",
+            "name": "",
+            "prompt": "",
+            "extend": ""
+        }
+
+    @staticmethod
+    def check_lora_trigger(lora_trigger) -> bool:
+        pattern = re.compile(
+            r"^<lora:.*:.*>$", re.IGNORECASE
+        )
+        matched = pattern.findall(lora_trigger.strip().lower())
+        if len(matched) > 0: return True
+        return False
+
     def new_chara(
-            self,
-            key, lora, name, prompt, default, overwrite
+            self, version: Literal["v3", "v6"],
+            key, lora, name, prompt, overwrite
     ):
-        return
+        current = self.load()
+        current_keys = list(current.keys())
+
+        if key in current_keys:
+            if not overwrite:
+                raise gr.Error("This display names already taken.")
+        if not self.check_lora_trigger(lora):
+            raise gr.Error("LoRA Trigger validate check failed.")
+
+        ## TODO: Release V6
+        if version == "v6 (NOT RELEASED)":
+            gr.Warning("V6 aren't released! using v3..")
+            version = "v3"
+
+        new = None
+        if version == "v3":
+            new = self.get_base_v3()
+            new["lora"] = lora
+            new["name"] = name
+            new["prompt"] = prompt
+        current[key] = [version, new]
+        self.save(current)
+        gr.Info("Success!")
 
     """Supports up: v3, v4, v5, v6"""
     def load_character_data(self, target: str) -> tuple[str, str, str, str] | tuple:

@@ -16,12 +16,14 @@ import shared
 from modules.api.txt2img import txt2img_api
 from modules.lora_metadata_util import LoRAMetadataReader
 from modules.lora_viewer import LoRADatabaseViewer
+from modules.tag_compare import TagCompareUtilities
 
 
 class LoRAGeneratingUtil(LoRADatabaseViewer):
     def __init__(self):
         super().__init__()
         self.forever_generation = False
+        self.tag_compare_util = TagCompareUtilities()
 
     @staticmethod
     def try_sd_webui_lora_models(only_sft:bool=False) -> list:
@@ -78,7 +80,7 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                       weight_multiply:float, target_weight_min:float, target_weight_max:float,
                       use_lora:bool, lora_weight:float, lbw_toggle:bool, max_tags:float, tags_base_chance:float,
                       add_lora_to_last:bool, add_lora_weight:str, disallow_duplicate:bool,
-                      header:str, lower:str
+                      header:str, lower:str, threshold: float
                       ) -> str:
         if len(target_lora) < 1:
             raise gr.Error("No LoRA Selected")
@@ -90,8 +92,9 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
 
         # 変数の処理
         blacklists = [x.lower() for x in blacklists.split(",") if x.strip() != ""]
-        regex_patterns = [re.compile(bl[10:], re.IGNORECASE) for bl in blacklists if bl.startswith("$regex=")]
+        regex_patterns = [re.compile(bl[7:], re.IGNORECASE) for bl in blacklists if bl.startswith("$regex=")]
         includes_patterns = [bl[10:].lower() for bl in blacklists if bl.startswith("$includes=")]
+        type_patterns = [bl[6:].lower() for bl in blacklists if bl.startswith("$type=")]
         target_weight_min = int(target_weight_min)
         target_weight_max = int(target_weight_max)
         max_tags = int(max_tags)
@@ -117,7 +120,8 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
         for (tag, weight) in tags:
             if tag.lower() in blacklists or \
                 any(pattern.search(tag) for pattern in regex_patterns) or \
-                any(include in tag.lower() for include in includes_patterns):
+                any(include in tag.lower() for include in includes_patterns) or \
+                self.tag_compare_util.check_typo_multiply(tag.lower(), type_patterns, threshold):
                     weight *= blacklist_multiply
 
             if target_weight_min <= weight <= target_weight_max:
@@ -154,7 +158,7 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             weight_multiply, target_weight_min, target_weight_max,
             use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
             add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
-            lower,
+            lower, threshold,
             ## above ^ gen_from_lora options ^ above
             ## below v txt2img options v below
             negative, ad_prompt, ad_negative, sampling_method, step_min, step_max,
@@ -214,7 +218,7 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                     weight_multiply, target_weight_min, target_weight_max,
                     use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
                     add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
-                    lower
+                    lower, threshold
                 )
             except gr.Error as e:
                 self.forever_generation = False

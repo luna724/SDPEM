@@ -1,0 +1,7 @@
+{
+  "word2vec": "GoogleNews-vectors-negative300.bin",
+  "fasttext": "cc.en.100.bin",
+  "bert_model": "bert-base-uncased",
+  "bert_tokenizer": "bert-base-uncased",
+  "sentence_name": "all-MiniLM-L6-v2"
+}
