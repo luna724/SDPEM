@@ -26,7 +26,7 @@ class TagCompareUtilities(Util):
             target: str, typos: List[str], threshold: float = 0.75
     ):
         return any(
-            self.compare_is_in(target, typo, threshold) for typo in typos
+            self.compare_is_in(target, typo, threshold)[0] for typo in typos
         )
 
     def compare_multiply_words_for_ui(
