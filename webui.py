@@ -2,9 +2,11 @@ import sys
 from typing import *
 import gradio as gr
 import importlib
+import torch
 
 from initialize import *
 import shared
+from modules.argparser import parse_args
 
 
 class UiTabs:
@@ -106,6 +108,10 @@ def make_ui() -> tuple[gr.Blocks, dict]:
 
     with open("style.css", "r", encoding="utf-8") as css_f:
         css = css_f.read()
+    with open("luna724.css", "r", encoding="utf-8") as my_css_f:
+        my_css = my_css_f.read()
+        if shared.args.luna_theme:
+            css += "\n"+my_css
     block = gr.Blocks(title="luna724 / SD-PEM Client", analytics_enabled=False, css=css)
     #tab_elements = {}
     with block:
@@ -130,6 +136,7 @@ def make_ui() -> tuple[gr.Blocks, dict]:
     return block, {}
 
 def launch():
+    parse_args()
     shared.sd_webui_exists = search_sd_webui_at1()
     shared.driver_path = auto_install_chromedriver_for_selenium()
     default_model = load_default_model()
@@ -139,6 +146,10 @@ def launch():
     if not shared.sd_webui_exists:
         raise ValueError("REQUIRED AUTOMATIC1111/stable-diffusion-webui (see README for more information)")
 
+    if not shared.args.ignore_cuda:
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA isn't Available. may features ALWAYS throw critical errors.\n(--ignore_cuda to bypass check. errors keep occurred.)")
+    
     ui, _ = make_ui()
     file_cleaner()
     print(f"maked ui_obj: {shared.ui_obj}")

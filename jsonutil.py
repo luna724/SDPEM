@@ -99,6 +99,9 @@ class JsonUtilities:
                         # ネストされた辞書があれば再帰的にDynamicObjectに変換
                         value = DynamicObject(value)
                     setattr(self, key, value)
+            def __getattr__(self, name) -> None:
+                print(f"[WARNING]: Unknown default value keys: {name}. please re-save default value")
+                return None
 
             def __repr__(self):
                 return f"<DynamicObject {self.__dict__}>"

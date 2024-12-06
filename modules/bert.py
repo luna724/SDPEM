@@ -5,20 +5,36 @@ from sentence_transformers import SentenceTransformer, util
 import torch
 from typing import *
 
-class BERT:
+import shared
+from modules.model_loader import ModelLoaderClassUtil
+
+
+class BERT(ModelLoaderClassUtil):
     def __init__(
             self,
-            model_name = 'bert-base-uncased',
-            tokenizer_name = 'bert-base-uncased',
-            sentence_name = 'all-MiniLM-L6-v2'
+            model_name = None,
+            tokenizer_name = None,
+            sentence_name = None
     ):
-        print("Loading BERT model.. ", end="")
-        self.model = BertModel.from_pretrained(model_name)
-        self.tokenizer = BertTokenizer.from_pretrained(tokenizer_name)
-        self.sentence = SentenceTransformer(sentence_name)
-        print("done")
+        super().__init__("BERT")
+        load_state = not (shared.args.no_bert or shared.args.nolm)
+        if load_state:
+            if model_name is None:
+                model_name = shared.model_file["bert_model"]
+            if tokenizer_name is None:
+                tokenizer_name = shared.model_file["bert_tokenizer"]
+            if sentence_name is None:
+                sentence_name = shared.model_file["sentence_name"]
 
-    def get_word_embeddings_with_normal_bert(
+            print("Loading BERT model.. ", end="")
+            self.model = BertModel.from_pretrained(model_name)
+            self.tokenizer = BertTokenizer.from_pretrained(tokenizer_name)
+            self._sentence = SentenceTransformer(sentence_name)
+            print("done")
+        else:
+            print("[BERT]: Specify Arguments accepted. BERT disabled.")
+
+    def __get_word_embeddings_with_normal_bert(
             self,
             word, tokenizer: PreTrainedTokenizerBase = None,
             model: PreTrainedModel = None
@@ -40,7 +56,7 @@ class BERT:
         # [CLS]と[SEP]トークンを除外し、残りのトークンの平均を計算
         embedding = embeddings[0][1:-1].mean(dim=0)
 
-        return (embedding, embeddings)
+        return embedding, embeddings
 
     def compare_words(
             self,
@@ -52,9 +68,13 @@ class BERT:
         """
         :return: (is_similarity, similarity)
         """
+        model_state = self.model_null_safe(model)
+        if not model_state:
+            return False, 0
+
         if compare_mode == "normal":
-            emb1 = self.get_word_embeddings_with_normal_bert(word1, tokenizer, model)[0]
-            emb2 = self.get_word_embeddings_with_normal_bert(word2, tokenizer, model)[0]
+            emb1 = self.__get_word_embeddings_with_normal_bert(word1, tokenizer, model)[0]
+            emb2 = self.__get_word_embeddings_with_normal_bert(word2, tokenizer, model)[0]
         else:
             raise ValueError("Unknown compare mode in BERT:compare_words")
 
@@ -62,7 +82,7 @@ class BERT:
         cos = torch.nn.CosineSimilarity(dim=0)
         similarity = cos(emb1, emb2).item()
         matched = similarity >= threshold
-        return (matched, similarity)
+        return matched, similarity
 
     def compare_multiply_words(
             self,
@@ -72,6 +92,9 @@ class BERT:
     ) -> str:
         """for UI function"""
         strs = ""
+        if not self.model_null_safe(model):
+            return "--noLM or --noBERT arguments given.\nthis features was disabled."
+
         for target_word, compare_word in itertools.combinations(words, 2):
             result = self.compare_words(
                 target_word, compare_word, threshold, "normal", tokenizer, model

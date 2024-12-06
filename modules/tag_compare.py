@@ -6,14 +6,12 @@ from modules.bert import default as bert
 from modules.gensim import default as gensim
 from modules.util import Util
 
-import fasttext as fasttext_module
-
 class TagCompareUtilities(Util):
     def __init__(self):
         pass
 
+    @staticmethod
     def compare_is_in(
-            self,
             word1: str, word2: str, threshold: float = 0.75
     ) -> tuple[bool, float]:
         is_matched, similarity = gensim.compare_words(word1, word2, threshold)

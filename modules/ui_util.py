@@ -1,5 +1,6 @@
 from tkinter import Tk, filedialog
 import inspect
+import gradio as gr
 from typing import Callable
 
 import shared
@@ -20,6 +21,7 @@ def browse_file():
         root.destroy()
         return str(filename)
 
+
 def browse_directory():
     root = Tk()
     root.attributes("-topmost", True)
@@ -34,6 +36,11 @@ def browse_directory():
         root.destroy()
         return str(filename)
 
+
+def bool2visible(x: bool):
+    return gr.update(visible=x)
+
+
 class ItemRegister:
     def __init__(self, setter: Callable = None):
         """
@@ -47,9 +54,11 @@ class ItemRegister:
         つまりsetterは辞書、キー、値を受け取り、その辞書に適用する関数を返す
         Noneが渡された場合は例の関数が使用される
         """
+
         def default_setter(d, k, i):
             d[k] = i
             return d
+
         self.setter = setter or default_setter
 
     @staticmethod
@@ -77,6 +86,7 @@ class ItemRegister:
         明示的に複数の変数名を指定して登録するデコレータ
         :param names: 各オブジェクトに対するユニークな名前のリスト
         """
+
         def decorator(func):
             def wrapper(*args, **kwargs):
                 # 関数を実行して戻り値を取得
@@ -101,8 +111,11 @@ class ItemRegister:
                     print(f"Auto-registered: {names[0]} -> {result}")
 
                 return result  # 元の戻り値を返す
+
             return wrapper
+
         return decorator
+
 
 def checkbox_default(v):
     if Util.isbool(v):
@@ -110,7 +123,9 @@ def checkbox_default(v):
     else:
         return None
 
+
 def isInOrNull(base, target, default=None):
     if target in base:
         return target
-    else: return default
+    else:
+        return default
