@@ -61,6 +61,9 @@ def parse_args():
     parser.add(
         ["--ignore_cuda"], arg_type=bool
     )
+    parser.add(
+        ["--nojsk"], arg_type=bool
+    )
 
     args = parser.parse()
     shared.args = args

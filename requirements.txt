@@ -1,4 +1,4 @@
-gradio
+gradio==3.41.0
 selenium
 beautifulsoup4
 requests
@@ -14,3 +14,9 @@ gensim
 fasttext-wheel
 numpy
 gdown
+discord.py
+jishaku
+psutil
+GPUtil
+py-cpuinfo
+pynvml

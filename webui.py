@@ -1,4 +1,7 @@
+import asyncio
+import subprocess
 import sys
+import threading
 from typing import *
 import gradio as gr
 import importlib
@@ -7,7 +10,6 @@ import torch
 from initialize import *
 import shared
 from modules.argparser import parse_args
-
 
 class UiTabs:
     PATH = os.path.join(os.getcwd(), "modules/tabs")
@@ -82,7 +84,7 @@ def make_ui() -> tuple[gr.Blocks, dict]:
 
         for file in files:
             module_name = file[:-3]
-            print(f"Loading tab ({module_name})..")
+            # print(f"Loading tab ({module_name})..")
             module = importlib.import_module(f"modules.tabs.{module_name}")
 
             attrs = module.__dict__
@@ -90,18 +92,19 @@ def make_ui() -> tuple[gr.Blocks, dict]:
             for x in attrs.values():
                 # print(f"Checking: {x}, type: {type(x)}")
                 if isinstance(x, type):
-                    print(f"Is subclass of UiTabs: {issubclass(x, UiTabs_ref)}")
+                    # print(f"Is subclass of UiTabs: {issubclass(x, UiTabs_ref)}")
+                    pass
             TabClass = [
                 x for x in attrs.values()
                 if isinstance(x, type) and issubclass(x, UiTabs_ref) and not x == UiTabs_ref
             ]
-            print(f"UiTabs reference in webui: {UiTabs}")
-            print(f"UiTabs reference in module: {sys.modules['webui'].UiTabs}")
-            print(f"Is same reference: {UiTabs is sys.modules['webui'].UiTabs}")
+            # print(f"UiTabs reference in webui: {UiTabs}")
+            # print(f"UiTabs reference in module: {sys.modules['webui'].UiTabs}")
+            # print(f"Is same reference: {UiTabs is sys.modules['webui'].UiTabs}")
 
             if len(TabClass) > 0:
                 tabs.append((file, TabClass[0]))
-                print(f"tab module found in ({module_name})")
+                # print(f"tab module found in ({module_name})")
 
         tabs = sorted([TabClass(file) for file, TabClass in tabs], key=lambda x: x.index())
         return tabs
@@ -135,11 +138,51 @@ def make_ui() -> tuple[gr.Blocks, dict]:
 
     return block, {}
 
+def jishaku_launcher():
+    def read_output(process):
+        """
+        サブプロセスの出力をリアルタイムで読み取り、コンソールに表示します。
+        """
+        try:
+            with process.stdout:
+                for line in iter(process.stdout.readline, ''):
+                    print(f"[JSK-Launcher]: {line}", end='')
+        except Exception as e:
+            print(f"[JSK-Launcher]: 出力の読み取り中にエラーが発生しました: {e}")
+
+    if os.name == 'nt':
+        # Windowsの場合
+        venv_python = os.path.join(".venv", "Scripts", "python.exe")
+    else:
+        # Unix/Linux/Macの場合
+        venv_python = os.path.join(".venv", "bin", "python")
+
+        # 実行したいコマンドのリスト
+    commands = [venv_python, "-u", "pem_jsk.py"]
+    try:
+        proc = subprocess.Popen(
+            commands,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        # 出力読み取り用のスレッドを開始
+        thread = threading.Thread(target=read_output, args=(proc,), daemon=True)
+        thread.start()
+
+    except subprocess.CalledProcessError as e:
+        print(f"[JSK-Launcher]: Error in pem_jsk.py:\n{e.stderr}")
+
+    except Exception as e:
+        print(f"[JSK-Launcher]: Error while launching: {e}")
+
+
 def launch():
-    parse_args()
+    parse_args()  # ArgumentParser
+    default_model = load_default_model() # Load Model
+
     shared.sd_webui_exists = search_sd_webui_at1()
     shared.driver_path = auto_install_chromedriver_for_selenium()
-    default_model = load_default_model()
     if default_model is not None: shared.model_file = default_model
     os.environ["PATH"] += os.pathsep + shared.driver_path
 
@@ -149,7 +192,15 @@ def launch():
     if not shared.args.ignore_cuda:
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA isn't Available. may features ALWAYS throw critical errors.\n(--ignore_cuda to bypass check. errors keep occurred.)")
-    
+
+    if not shared.args.nojsk:
+        # Jishaku
+        thread = threading.Thread(target=jishaku_launcher)
+        thread.start()
+
+    else:
+        print("[Jishaku]: --nojsk accepted. Jishaku was disabled.")
+
     ui, _ = make_ui()
     file_cleaner()
     print(f"maked ui_obj: {shared.ui_obj}")

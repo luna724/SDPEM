@@ -10,6 +10,7 @@ ui_obj: dict = {}
 model_file: dict = {}
 
 args: Namespace = None
+jsk = None # modules.discord.jsk.py:Jishaku
 
 ## BETA Opts
 # 1. Deepbooru don't keep models in memory

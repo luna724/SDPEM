@@ -341,8 +341,7 @@ class Generator(UiTabs):
                 max_tags, tags_base_chance = func_use_tags_related()
 
         infer = gr.Button("Infer", variant="primary")
-
-        def infer_run(
+        base_inference_variables = [
             target_lora,
             meta_mode,
             blacklists,
@@ -360,51 +359,12 @@ class Generator(UiTabs):
             disallow_duplicate,
             header,
             lower,
-            threshold,
-        ) -> str:
-            return generator.gen_from_lora(
-                target_lora,
-                meta_mode,
-                blacklists,
-                blacklist_multiply,
-                weight_multiply,
-                target_weight_min,
-                target_weight_max,
-                use_lora,
-                lora_weight,
-                lbw_toggle,
-                max_tags,
-                tags_base_chance,
-                add_lora_to_last,
-                adding_lora_weight,
-                disallow_duplicate,
-                header,
-                lower,
-                threshold,
-            )
-
+            threshold
+        ]
+        
         infer.click(
-            infer_run,
-            inputs=[
-                target_lora,
-                meta_mode,
-                blacklists,
-                blacklist_multiply,
-                weight_multiply,
-                target_weight_min,
-                target_weight_max,
-                use_lora,
-                lora_weight,
-                lbw_toggle,
-                max_tags,
-                tags_base_chance,
-                add_lora_to_last,
-                adding_lora_weight,
-                disallow_duplicate,
-                header,
-                lower,
-                threshold,
-            ],
+            generator.gen_from_lora,
+            inputs=base_inference_variables,
             outputs=[output],
         )
 
@@ -684,29 +644,7 @@ class Generator(UiTabs):
                 label="Generating Info", interactive=False, max_lines=12, lines=12
             )
 
-        start_infini_generation.click(
-            fn=generator.generate_forever,
-            inputs=[
-                target_lora,
-                meta_mode,
-                blacklists,
-                blacklist_multiply,
-                weight_multiply,
-                target_weight_min,
-                target_weight_max,
-                use_lora,
-                lora_weight,
-                lbw_toggle,
-                max_tags,
-                tags_base_chance,
-                add_lora_to_last,
-                adding_lora_weight,
-                disallow_duplicate,
-                header,
-                lower,
-                threshold,
-                ## above ^ gen_from_lora options ^ above
-                ## below v txt2img options v below
+        txt2img_variables = [
                 negative,
                 ad_prompt,
                 ad_negative,
@@ -726,7 +664,11 @@ class Generator(UiTabs):
                 restore_face,
                 tiling,
                 clip_skip,
-                ad_model,
+                ad_model
+                ]
+        start_infini_generation.click(
+            fn=generator.generate_forever,
+            inputs=base_inference_variables+txt2img_variables+[
                 ui_port,
             ],
             outputs=status,
@@ -788,45 +730,7 @@ class Generator(UiTabs):
         save_as_default = gr.Button("Save current value as default")
         save_as_default.click(
             save_default,
-            [
-                target_lora,
-                meta_mode,
-                blacklists,
-                blacklist_multiply,
-                weight_multiply,
-                target_weight_min,
-                target_weight_max,
-                use_lora,
-                lora_weight,
-                lbw_toggle,
-                max_tags,
-                tags_base_chance,
-                add_lora_to_last,
-                adding_lora_weight,
-                disallow_duplicate,
-                header,
-                lower,
-                threshold,
-                negative,
-                ad_prompt,
-                ad_negative,
-                sampling_method,
-                step_min,
-                step_max,
-                cfg_scale,
-                width,
-                height,
-                bcount,
-                bsize,
-                seed,
-                hires_step,
-                denoising,
-                hires_upscaler,
-                upscale_by,
-                restore_face,
-                tiling,
-                clip_skip,
-                ad_model,
+            base_inference_variables+txt2img_variables+[
                 ui_port,
             ],
         )

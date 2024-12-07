@@ -1,5 +1,5 @@
 @echo off
-set PYTHON_ARGS=--nolm
+set PYTHON_ARGS=
 
 rem DON'T EDIT FROM BELOW
 :venv
@@ -9,6 +9,7 @@ if exist venv (
     python -m venv .venv
 )
 :pip_ins
+pip3 install -U jishaku
 call ./.venv/Scripts/activate
 python -m pip install --upgrade pip setuptools
 pip install -r requirements.txt

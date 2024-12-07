@@ -18,3 +18,4 @@ Scripts/auto_chrome/tokyo_shoseki/login_data.json
 civitai_cookies.json
 *.bin
 *.gz
+MY=ENV
