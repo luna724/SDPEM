@@ -204,6 +204,7 @@ def launch():
     ui, _ = make_ui()
     file_cleaner()
     #print(f"maked ui_obj: {shared.ui_obj}")
+    ui.queue(64)
     ui.launch(inbrowser=True)
     return
 
