@@ -23,7 +23,7 @@ class Define(UiTabs):
         module = StaticGenerator()
         def show_available_templates(onInit: bool = False):
             if onInit: return list(module.load().keys())
-            else: return gr.Dropdown.update(choices=list(module.load().keys()))
+            else: return gr.update(choices=list(module.load().keys()))
 
         def copy_image_path(template):
             _, _, _, _, directory = module.generate(template)
@@ -82,16 +82,16 @@ class Define(UiTabs):
                 negative_count = len([
                     x for x in negative.split(",") if x != ""
                 ])
-                prompt_obj = gr.Textbox.update(
+                prompt_obj = gr.update(
                     label=f"Prompt ({prompt_count})", value=prompt
                 )
-                negative_obj = gr.Textbox.update(
+                negative_obj = gr.update(
                     label=f"Negative ({negative_count})", value=negative
                 )
-                image_obj = gr.Image.update(
+                image_obj = gr.update(
                     height=div_img(image.size[1]), width=div_img(image.size[0]), value=image
                 )
-                author_obj = gr.Textbox.update(
+                author_obj = gr.update(
                     value=author, visible = author != ""
                 )
                 return prompt_obj, negative_obj, "UNSUPPORTED", "UNSUPPORTED", image_obj, author_obj

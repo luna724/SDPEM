@@ -71,7 +71,7 @@ class Lora(UiTabs):
 
             urls = list(dict.fromkeys(prv_urls))
             url_input = ",".join(url_input.split(",")[1:]).strip(",")
-            return url_input, gr.Dropdown.update(choices=urls,value=urls_value)
+            return url_input, gr.update(choices=urls,value=urls_value)
 
         url_input.input(
             url_input_resizer, [url_input, urls],

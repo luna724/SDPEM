@@ -36,7 +36,7 @@ class SimpleTemplateGenerateUI(UiTabs):
                             if not isinstance(templates, list) or len(templates) < 1:
                                 print(f"[ERROR]: error in loading templates ({templates})")
                                 raise gr.Error("Templates not found or Any errors occurred!")
-                            return gr.Dropdown.update(choices=templates, value=None)
+                            return gr.update(choices=templates, value=None)
                         template_refresh = gr.Button(shared.refresh_button, scale=2)
                         template_refresh.click(template_refresh_click, outputs=template)
 
@@ -119,7 +119,7 @@ class SimpleTemplateGenerateUI(UiTabs):
 
                 enable_xy_plot = gr.Checkbox(label="Enable XY Plot", value=False)
                 with gr.Row():
-                    step = gr.Slider(0, 150, step=1, label="Steps", default=30)
+                    step = gr.Slider(0, 150, step=1, label="Steps", value=30)
                     sampler = gr.Dropdown(
                         choices=["DPM++ 2M", "DPM++ SDE", "DPM++ 2M SDE", "Euler a", "Euler"], multiselect=True,
                         value="Euler a",
@@ -131,7 +131,7 @@ class SimpleTemplateGenerateUI(UiTabs):
                 with gr.Row():
                     hires_enable = gr.Checkbox(value=False, label="Hires.fix enable")
                     clip_skip = gr.Slider(1, 12, step=1, value=2, label="Clip skip")
-                    seed = gr.Number(label="Seed", value=-1, placeholder="-1 to randomize")
+                    seed = gr.Number(label="Seed", value=-1)
 
                 infer = gr.Button("Generate image with template", variant="primary")
                 infer.click(

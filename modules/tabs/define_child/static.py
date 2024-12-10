@@ -27,7 +27,7 @@ class Define(UiTabs):
 
             with gr.Row():
                 text_params = gr.Textbox(label="Parameters", lines=6, max_lines=999)
-                param_image = gr.Image(label="Generated Image", source="upload", type="pil")
+                param_image = gr.Image(label="Generated Image", sources=["upload", "clipboard"], type="pil")
             with gr.Row():
                 from_json = gr.Textbox(label="From json", lines=1, scale=9)
                 json_browse = gr.Button(shared.refresh_button, scale=1)
