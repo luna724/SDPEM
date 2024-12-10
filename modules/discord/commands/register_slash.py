@@ -46,4 +46,5 @@ def register_slash_commands(bot: commands.Bot, guild: discord.Object | None):
         description="run txt2img with prompt & PEM's Default",
         guild=guild
     )
-    async def txt2img(interaction: interaction)
+    async def txt2img(interaction: Interaction):
+        return

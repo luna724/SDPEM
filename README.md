@@ -2,13 +2,17 @@
 #### Stable-Diffusion Prompt-EasyMaker
 
 ## インストール / Installation
-0. `MS-BuildTools`をダウンロード / Install `MS-BuildTools` ([MS-BuildTools](https://aka.ms/vs/17/release/vs_BuildTools.exe))
-1. リポジトリをダウンロード / clone repository
-2. `a1111_webui_pth.json`にて`AUTOMATIC1111/Stable-Diffusion-WebUI`の位置を設定 (Forgeも使用可) / edit `a1111_webui_pth.json` for your opt (forge supported)
-3. `v5β.bat`を実行 / launch `v5β.bat`
+1. ([VisualStudio-BuildTools](https://aka.ms/vs/17/release/vs_BuildTools.exe)) をダウンロード
+2. リポジトリをクローン 
+```shell
+git clone https://github.com/luna724/SDPEM SDPEM
+```
+3. `a1111_webui_pth.json`にて`Stable-Diffusion-WebUI`の位置を設定 (Forgeも使用可)
+4. `Stable-Diffusion-Webui`を`webui-api.bat`にて実行する
+5. PEM側の`v5β-full.bat`を実行
 
 ## ヘルプ / help
-- [RAMが使われすぎる / my RAMs overheated!](/docs/ram.md)
+- [使用可能な引数](/docs/arguments.md)
 
 ## 各機能使用方法 / features
 `DISCLAIMER: All documentations are ja-JP`
