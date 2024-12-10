@@ -103,8 +103,8 @@ class save(generatorTypes):
     """return: (activate.change, disable.change, accordion.change)"""
     if activater:
       return (
-        gr.Checkbox.update(visible=False, value=False),
-        gr. Checkbox.update(visible=True, value=False),
+        gr.update(visible=False, value=False),
+        gr.update(visible=True, value=False),
         gr.update(visible=True)
       )
   
@@ -112,8 +112,8 @@ class save(generatorTypes):
     """return: (activate.change, disable.change, accordion.change)"""
     if deactivater:
       return (
-        gr.Checkbox.update(visible=True, value=False),
-        gr.Checkbox.update(visible=False,value=False),
+        gr.update(visible=True, value=False),
+        gr.update(visible=False,value=False),
         gr.update(visible=False)
       )
   

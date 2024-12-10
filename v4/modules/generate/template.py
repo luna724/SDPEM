@@ -209,7 +209,7 @@ class Templates(generatorTypes):
     lv1_active = lvs[0][0]
     if lv1_active:
       lv1_infos = lvs[0][1]
-      lv1_checkbox = gr.Checkbox.update(
+      lv1_checkbox = gr.update(
         label=lv1_infos[0], value=False, interactive=True)
       lv1_info = lv1_infos[1]
     else:
@@ -219,7 +219,7 @@ class Templates(generatorTypes):
     lv2_active = lvs[1][0]
     if lv2_active:
       lv2_infos = lvs[1][1]
-      lv2_checkbox = gr.Checkbox.update(
+      lv2_checkbox = gr.update(
         label=lv2_infos[0], value=False, interactive=True
       )
       lv2_info = lv2_infos[1]
