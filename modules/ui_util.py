@@ -101,14 +101,14 @@ class ItemRegister:
                     # 名前を対応付けて登録
                     for name, item in zip(names, result):
                         self.setter(shared.ui_obj, name, item)
-                        print(f"Auto-registered: {name} -> {item}")
+                        # print(f"Auto-registered: {name} -> {item}")
                 else:
                     if len(names) != 1:
                         raise ValueError(
                             f"Single return value but multiple names provided: {names}"
                         )
                     self.setter(shared.ui_obj, names[0], result)
-                    print(f"Auto-registered: {names[0]} -> {result}")
+                    # print(f"Auto-registered: {names[0]} -> {result}")
 
                 return result  # 元の戻り値を返す
 

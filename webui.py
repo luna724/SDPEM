@@ -31,14 +31,14 @@ class UiTabs:
     def get_ui(self) -> list:
         tabs = []
         files = [file for file in os.listdir(self.child_path) if file.endswith(".py")]
-        print(f"Child path: {self.child_path} ({files})")
+        #print(f"Child path: {self.child_path} ({files})")
 
         for file in files:
             module_name = file[:-3]
             module_path = os.path.relpath(
                 self.child_path, UiTabs.PATH
             ).replace("/", ".").replace("\\", ".").strip(".")
-            print(f"Loading {module_path}'s child tab ({module_name})..")
+            #print(f"Loading {module_path}'s child tab ({module_name})..")
             module = importlib.import_module(f"modules.tabs.{module_path}.{module_name}")
 
             attrs = module.__dict__
@@ -127,7 +127,7 @@ def make_ui() -> tuple[gr.Blocks, dict]:
 
                     # タブ内のUIを生成し、そのエレメントを辞書に格納
                     def capture_ui(component_name, component):
-                        print(f"Captured UI: {component_name}, {component}")
+                        #print(f"Captured UI: {component_name}, {component}")
                         tab_ui_elements[component_name] = component
 
                     # 実際のUI生成
@@ -203,8 +203,7 @@ def launch():
 
     ui, _ = make_ui()
     file_cleaner()
-    print(f"maked ui_obj: {shared.ui_obj}")
-    ui.queue(64)
+    #print(f"maked ui_obj: {shared.ui_obj}")
     ui.launch(inbrowser=True)
     return
 

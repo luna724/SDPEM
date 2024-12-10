@@ -194,8 +194,7 @@ class Generator(UiTabs):
 
         with gr.Row():
             gr.HTML(
-                "tag_chance = ({tag_strength}*{weight_multiply})/(100*{base_change})",
-                scale=1,
+                "tag_chance = ({tag_strength}*{weight_multiply})/(100*{base_change})"
             )
 
             @register.register("weight_multiply")
@@ -434,7 +433,7 @@ class Generator(UiTabs):
 
                 ad_prompt, ad_negative = func_adetailer()
             with gr.Row():
-
+                @register.register("sampling_method")
                 def func_sampler_step_cfg():
                     sampling_methods = [
                         "DPM++ 2M",
