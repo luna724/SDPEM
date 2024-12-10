@@ -13,10 +13,12 @@ import gradio as gr
 from safetensors.torch import safe_open
 
 import shared
+from modules import deepbooru
 from modules.api.txt2img import txt2img_api
 from modules.lora_metadata_util import LoRAMetadataReader
 from modules.lora_viewer import LoRADatabaseViewer
 from modules.tag_compare import TagCompareUtilities
+from modules.yield_util import new_yield
 
 
 class LoRAGeneratingUtil(LoRADatabaseViewer):
@@ -80,7 +82,7 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                       weight_multiply:float, target_weight_min:float, target_weight_max:float,
                       use_lora:bool, lora_weight:float, lbw_toggle:bool, max_tags:float, tags_base_chance:float,
                       add_lora_to_last:bool, add_lora_weight:str, disallow_duplicate:bool,
-                      header:str, lower:str, threshold: float
+                      header:str, lower:str, threshold: float,
                       ) -> str:
         if len(target_lora) < 1:
             raise gr.Error("No LoRA Selected")
@@ -95,6 +97,7 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
         regex_patterns = [re.compile(bl[7:], re.IGNORECASE) for bl in blacklists if bl.startswith("$regex=")]
         includes_patterns = [bl[10:].lower() for bl in blacklists if bl.startswith("$includes=")]
         type_patterns = [bl[6:].lower() for bl in blacklists if bl.startswith("$type=")]
+
         target_weight_min = int(target_weight_min)
         target_weight_max = int(target_weight_max)
         max_tags = int(max_tags)
@@ -158,7 +161,8 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             weight_multiply, target_weight_min, target_weight_max,
             use_lora, lora_weight, lbw_toggle, max_tags, tags_base_chance,
             add_lora_to_last, adding_lora_weight, disallow_duplicate, header,
-            lower, threshold,
+            lower, threshold, separate_blacklist, bcf_blacklist, booru_threshold,
+            bcf_dont_discard, bcf_invert, bcf_filtered_path, bcf_enable,
             ## above ^ gen_from_lora options ^ above
             ## below v txt2img options v below
             negative, ad_prompt, ad_negative, sampling_method, step_min, step_max,
@@ -204,12 +208,27 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             }
         )
 
+        if separate_blacklist:
+            booru_blacklists = [x.lower() for x in bcf_blacklist.split(",") if x.strip() != ""]
+            booru_regex_patterns = [re.compile(bl[7:], re.IGNORECASE) for bl in booru_blacklists if
+                                    bl.startswith("$regex=")]
+            booru_includes_patterns = [bl[10:].lower() for bl in booru_blacklists if bl.startswith("$includes=")]
+            booru_type_patterns = [bl[6:].lower() for bl in booru_blacklists if bl.startswith("$type=")]
+        else:
+            booru_blacklists = [x.lower() for x in blacklists.split(",") if x.strip() != ""]
+            booru_regex_patterns = [re.compile(bl[7:], re.IGNORECASE) for bl in blacklists if bl.startswith("$regex=")]
+            booru_includes_patterns = [bl[10:].lower() for bl in blacklists if bl.startswith("$includes=")]
+            booru_type_patterns = [bl[6:].lower() for bl in blacklists if bl.startswith("$type=")]
+
+
         if step_min > step_max:
             raise gr.Error("step MIN > step MAX is not allowed.")
         if len(sampling_method) == 0:
             raise gr.Error("Please select sampling method (at least one)")
 
         # ユーザーが止めるまで
+        sent_text = new_yield("[Forever-Generation]: ")
+        yield sent_text("Starting..")
         self.forever_generation = True
         while self.forever_generation:
             try:
@@ -225,12 +244,13 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                 gr.Warning("Current randomization options are incorrect. Forever Generations stopped.")
                 return str(e)
 
+            yield sent_text("Prompt successfully Created.")
             steps = random.randrange(step_min, step_max+1, 1)
             sampler = random.choice(sampling_method)
             print(f"[INFO]: Processing for prompt ({prompt})")
-            #yield "Started generation with option\n"+f"Prompt: {prompt}\nSteps: {steps} | Sampler: {sampler}"
+            yield sent_text("Started generation with option\n"+f"Prompt: {prompt}\nSteps: {steps} | Sampler: {sampler}")
             response = txt2img.generate(**{"prompt": prompt, "steps": steps, "sampler_name": sampler})
-            #yield "Generation finished. Saving into A1111/outputs.."
+            yield sent_text("Generation finished. validating images..")
             print("[INFO]: Generation finished.")
 
             formatted_date = datetime.now().strftime("%Y-%m-%d")
@@ -243,18 +263,70 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             default_seed = param["seed"]
             for (index, image) in enumerate(response.get("images")):
                 fc = len([x for x in os.listdir(output_dir) if os.path.splitext(x)[1].lower() == ".png"])
-                current_seed = default_seed+index
+                current_seed = default_seed + index
+                fn = f"{fc + 1:05d}-{current_seed}.png"
                 save_path = os.path.join(
-                    output_dir, f"{fc+1:05d}-{current_seed}.png"
+                    output_dir, fn
                 )
+
+                discard_flag = False
+
+                if bcf_enable:
+                    yield sent_text("Starting Deepbooru checking..")
+                    pil_image = PIL.Image.open(
+                        io.BytesIO(base64.b64decode(image))
+                    )
+                    booru_outputs = deepbooru.default.interrogate(
+                        pil_image, booru_threshold
+                    )
+                    booru_keys = list(booru_outputs.keys())
+                    for booru_key in booru_keys:
+                        # ブラックリストに設定されていたら
+                        if (booru_key.lower() in booru_blacklists or
+                                any(pattern.search(booru_key) for pattern in booru_regex_patterns) or
+                                any(include in booru_key.lower() for include in booru_includes_patterns) or
+                                self.tag_compare_util.check_typo_multiply(booru_key.lower(), booru_type_patterns, threshold)):
+                            if not bcf_invert:
+                                # 反転オフ
+                                # 設定されている + 破棄設定
+                                if not bcf_dont_discard:
+                                    discard_flag = True
+                                    break
+                                    # 保存せず無視
+                                else:
+                                    # 特定ディレクトリに保存
+                                    save_path = os.path.join(
+                                        bcf_filtered_path, fn
+                                    )
+                                    break
+                            else:
+                                # 反転オン
+                                # 設定されている場合はパス、設定されていないなら消す
+                                break
+                        elif bcf_invert:
+                            # ブラックリストに設定されていないが、反転がオンなら
+                            if not bcf_dont_discard:
+                                discard_flag = True
+                                break
+                                # 保存せず無視
+                            else:
+                                save_path = os.path.join(
+                                    bcf_filtered_path, fn
+                                ) # ディレクトリ変更
+                                break
+                        continue
+                    yield sent_text(f"Deepbooru checking finished.\nStatus: discard_flag: {discard_flag} | save_path: {save_path}")
+                    if discard_flag:
+                        continue # 破棄ならパス
+                # BCFがオフ、または破棄しない設定ならディレクトリ変更後、股は普通のフォルダでセーブを実行
                 with open(save_path, "wb") as file:
                     file.write(base64.b64decode(image))
-                print(f"[INFO]: saving image to {save_path}")
+                yield sent_text(f"saving image to {save_path}")
             print(f"[INFO]: Processed for prompt ({prompt})")
             if not self.forever_generation:
                 break
-            #yield "refreshing session.."
+            yield sent_text("refreshing session...")
             time.sleep(0.5)
         gr.Info("Forever Generation Stopped!")
         print("[INFO]: Generation Forever ended.")
-        return "Generation Forever Stopped."
+        yield "Generation Forever Stopped."

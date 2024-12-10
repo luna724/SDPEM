@@ -131,8 +131,8 @@ class Generator(UiTabs):
             return gr.Textbox(
                 label="tag blacklist (BooruCaptionFilter)",
                 lines=4,
-                placeholder="separate with comma (,)\nYou can use $regex={regex_pattern} $includes={text}\neg. $regex=^white == blacklisted starts white\neg. $includes=thighhighs == blacklisted includes thighhighs (instead. $regex=thighhighs). BUT you can't use $type in this field",
-                value=default.bcf_blacklist,
+                placeholder="separate with comma (,)\nYou can use $regex={regex_pattern} $includes={text}\neg. $regex=^white == blacklisted starts white\neg. $includes=thighhighs == blacklisted includes thighhighs (instead. $regex=thighhighs). etc..",
+                value=default.bcf_blacklist, visible=default.separate_blacklist
             )
 
         with gr.Group(visible=default.separate_blacklist) as bcf_group:
@@ -165,7 +165,7 @@ class Generator(UiTabs):
         with gr.Row():
             threshold, booru_threshold = func_threshold()
 
-        @register.register("bcf_dont_discard", "bcf_invert", "bcf_filtered_path", "_")
+        @register.register("bcf_dont_discard", "bcf_invert", "bcf_filtered_path")
         def func_bcf_opts():
             return (
                 gr.Checkbox(
@@ -182,14 +182,21 @@ class Generator(UiTabs):
                     label="[BCF] blacklisted image output path",
                     value=default.bcf_filtered_path,
                     scale=6,
-                ),
-                gr.Button(value=shared.refresh_button, size="sm", scale=2),
+                )
             )
 
-        with gr.Row():
-            bcf_dont_discard, bcf_invert, bcf_filtered_path, bcf_browse_dir = (
-                func_bcf_opts()
+        @register.register("bcf_enable")
+        def func_bcf_enable():
+            return gr.Checkbox(
+                label="[BCF] Enable",
+                value=default.bcf_enable,
+                scale=10
             )
+
+        bcf_enable = func_bcf_enable()
+        with gr.Row():
+            bcf_dont_discard, bcf_invert, bcf_filtered_path = func_bcf_opts()
+            bcf_browse_dir = gr.Button(value=shared.refresh_button, size="lg", scale=2)
             bcf_browse_dir.click(browse_directory, outputs=bcf_filtered_path)
 
         with gr.Row():
@@ -358,7 +365,8 @@ class Generator(UiTabs):
             disallow_duplicate,
             header,
             lower,
-            threshold
+            threshold,
+
         ]
         
         infer.click(
@@ -376,7 +384,7 @@ class Generator(UiTabs):
             gr.Markdown(
                 "[WARNING]: this features currently beta, some features cannot usable (eg. result-preview, refiner, model selection, etc..)<br/>"
             )
-
+            @register.register("ui_port")
             def func_ui_port():
                 return gr.Number(
                     label="SD-WebUI Port (127.0.0.1:7860 -> 7860)",
@@ -387,7 +395,7 @@ class Generator(UiTabs):
             ui_port = func_ui_port()
 
             with gr.Row():
-
+                @register.register("ad_model", "negative")
                 def func_adm_neg():
                     adetailer_models = [
                         "face_yolov8n.pt",
@@ -414,7 +422,7 @@ class Generator(UiTabs):
                 ad_model, negative = func_adm_neg()
 
             with gr.Row():
-
+                @register.register("ad_prompt", "ad_negative")
                 def func_adetailer():
                     return (
                         gr.Textbox(
@@ -428,7 +436,7 @@ class Generator(UiTabs):
                             lines=2,
                             elem_id="generate-from_lora-adetailer_negative",
                             value=default.ad_negative,
-                        ),
+                        )
                     )
 
                 ad_prompt, ad_negative = func_adetailer()
@@ -452,6 +460,7 @@ class Generator(UiTabs):
                         elem_id="generate-from_lora-sampling_method",
                     )
 
+                @register.register("step_min", "step_max")
                 def func_steps():
                     return (
                         gr.Slider(
@@ -471,6 +480,7 @@ class Generator(UiTabs):
                         ),
                     )
 
+                @register.register("cfg_scale")
                 def func_cfg_scale():
                     return gr.Slider(
                         1,
@@ -490,7 +500,7 @@ class Generator(UiTabs):
                 with gr.Column():
                     with gr.Row():
                         with gr.Column(scale=8):
-
+                            @register.register("width", "height")
                             def func_resolution():
                                 return (
                                     gr.Slider(
@@ -519,7 +529,7 @@ class Generator(UiTabs):
                         invert_w_h = gr.Button(shared.circular_button, scale=2)
                         invert_w_h.click(invert_wh, [width, height], [width, height])
                 with gr.Column():
-
+                    @register.register("bcount", "bsize")
                     def func_batch():
                         return (
                             gr.Slider(
@@ -537,11 +547,12 @@ class Generator(UiTabs):
                                 label="Batch Size",
                                 value=default.bsize,
                                 elem_id="generate-from_lora-batch_size",
-                            ),
+                            )
                         )
 
                     bcount, bsize = func_batch()
 
+            @register.register("seed")
             def func_seed():
                 return gr.Number(
                     label="Seed (-1 to randomize)",
@@ -553,7 +564,7 @@ class Generator(UiTabs):
 
             with gr.Accordion("Hires.fix", open=True):
                 with gr.Row():
-
+                    @register.register("hires_step", "denoising")
                     def func_hires_001():
                         return (
                             gr.Slider(
@@ -571,12 +582,12 @@ class Generator(UiTabs):
                                 label="Denoising Strength",
                                 elem_id="generate-from_lora-denoising",
                                 value=default.denoising,
-                            ),
+                            )
                         )
 
                     hires_step, denoising = func_hires_001()
                 with gr.Row():
-
+                    @register.register("hires_upscaler", "upscale_by")
                     def func_hires_002():
                         hires_upscaler_list = [
                             "Latent",
@@ -610,7 +621,7 @@ class Generator(UiTabs):
 
                     hires_upscaler, upscale_by = func_hires_002()
             with gr.Row():
-
+                @register.register("restore_face", "tiling", "clip_skip")
                 def func_sd_others():
                     return (
                         gr.Checkbox(
@@ -665,9 +676,18 @@ class Generator(UiTabs):
                 clip_skip,
                 ad_model
                 ]
+        bcfs = [
+            separate_blacklist,
+            bcf_blacklist,
+            booru_threshold,
+            bcf_dont_discard,
+            bcf_invert,
+            bcf_filtered_path,
+            bcf_enable
+        ]
         start_infini_generation.click(
             fn=generator.generate_forever,
-            inputs=base_inference_variables+txt2img_variables+[
+            inputs=base_inference_variables+bcfs+txt2img_variables+[
                 ui_port,
             ],
             outputs=status,
@@ -719,6 +739,8 @@ class Generator(UiTabs):
             clip_skip,
             ad_model,
             ui_port,
+            separate_blacklist, bcf_blacklist, booru_threshold,
+            bcf_dont_discard, bcf_invert, bcf_filtered_path, bcf_enable
         ):
             frame = inspect.currentframe()
             args, _, _, values = inspect.getargvalues(frame)
@@ -731,5 +753,5 @@ class Generator(UiTabs):
             save_default,
             base_inference_variables+txt2img_variables+[
                 ui_port,
-            ],
+            ]+bcfs,
         )

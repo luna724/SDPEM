@@ -14,6 +14,8 @@ class yielding_util:
 
         return self.session_message
 
+    def clear(self):
+        self.session_message = ""
 
 def new_yield(header: str = "", max_line: int = 12) -> yielding_util:
     return yielding_util(header, max_line)

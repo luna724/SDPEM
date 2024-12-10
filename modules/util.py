@@ -32,7 +32,7 @@ class Util:
         return hash_obj.hexdigest()
 
     @staticmethod
-    def resize_is_in(base: Iterable, resize_target: Iterable, ignoreCase: bool = False) -> list:
+    def resize_is_in(base: Iterable, resize_target: Iterable, ignoreCase: bool = False) -> Sequence[str]:
         """resize_targetの値がbaseに含まれるかをチェックし、 ## TODO: ignoreCase の追加
         含まれなかった値を削除した物を返す"""
         return [
