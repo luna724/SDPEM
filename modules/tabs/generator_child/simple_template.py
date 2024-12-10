@@ -119,7 +119,7 @@ class SimpleTemplateGenerateUI(UiTabs):
 
                 enable_xy_plot = gr.Checkbox(label="Enable XY Plot", value=False)
                 with gr.Row():
-                    step = gr.Slider(0, 150, step=1, label="Steps", default=30)
+                    step = gr.Slider(0, 150, step=1, label="Steps", value=30)
                     sampler = gr.Dropdown(
                         choices=["DPM++ 2M", "DPM++ SDE", "DPM++ 2M SDE", "Euler a", "Euler"], multiselect=True,
                         value="Euler a",
@@ -131,7 +131,7 @@ class SimpleTemplateGenerateUI(UiTabs):
                 with gr.Row():
                     hires_enable = gr.Checkbox(value=False, label="Hires.fix enable")
                     clip_skip = gr.Slider(1, 12, step=1, value=2, label="Clip skip")
-                    seed = gr.Number(label="Seed", value=-1, placeholder="-1 to randomize")
+                    seed = gr.Number(label="Seed", value=-1)
 
                 infer = gr.Button("Generate image with template", variant="primary")
                 infer.click(
