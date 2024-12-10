@@ -26,11 +26,13 @@ class BERT(ModelLoaderClassUtil):
             if sentence_name is None:
                 sentence_name = shared.model_file["sentence_name"]
 
-            print("Loading BERT model.. ", end="")
+            print("[BERT]: Loading BERT model.. ", end="")
             self.model = BertModel.from_pretrained(model_name)
             self.tokenizer = BertTokenizer.from_pretrained(tokenizer_name)
             self._sentence = SentenceTransformer(sentence_name)
             print("done")
+
+            self._send_model_to_cpu()
         else:
             print("[BERT]: Specify Arguments accepted. BERT disabled.")
 
@@ -72,6 +74,7 @@ class BERT(ModelLoaderClassUtil):
         if not model_state:
             return False, 0
 
+        self._send_model_to_cuda()
         if compare_mode == "normal":
             emb1 = self.__get_word_embeddings_with_normal_bert(word1, tokenizer, model)[0]
             emb2 = self.__get_word_embeddings_with_normal_bert(word2, tokenizer, model)[0]

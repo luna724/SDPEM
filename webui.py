@@ -64,7 +64,7 @@ class UiTabs:
 
                         # タブ内のUIを生成し、そのエレメントを辞書に格納
                         def capture_ui(component_name, component):
-                            print(f"Captured UI: {component_name}, {component}")
+                            #print(f"Captured UI: {component_name}, {component}")
                             tab_ui_elements[component_name] = component
 
                         # 実際のUI生成

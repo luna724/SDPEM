@@ -131,7 +131,6 @@ class Deepbooru(ModelLoaderClassUtil):
         if shared.deepbooru_dont_keep_models_in_ram:
             self.model.to("cpu")
             torch.cuda.empty_cache()
-            gc.collect()
 
     def cache_vram(self) -> DeepDanbooruModel:
         """

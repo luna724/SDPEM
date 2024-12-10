@@ -64,6 +64,15 @@ def parse_args():
     parser.add(
         ["--nojsk"], arg_type=bool
     )
+    parser.add(
+        ["--nogpt2"], arg_type=bool
+    )
+    parser.add(
+        ["--high_vram"], arg_type=bool
+    )
+    parser.add(
+        ["--cpu"], arg_type=bool
+    )
 
     args = parser.parse()
     shared.args = args
