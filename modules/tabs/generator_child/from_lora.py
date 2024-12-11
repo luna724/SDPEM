@@ -132,7 +132,7 @@ class Generator(UiTabs):
                 label="tag blacklist (BooruCaptionFilter)",
                 lines=4,
                 placeholder="separate with comma (,)\nYou can use $regex={regex_pattern} $includes={text}\neg. $regex=^white == blacklisted starts white\neg. $includes=thighhighs == blacklisted includes thighhighs (instead. $regex=thighhighs). etc..",
-                value=default.bcf_blacklist, visible=default.separate_blacklist
+                value=default.bcf_blacklist, visible=True
             )
 
         with gr.Group(visible=default.separate_blacklist) as bcf_group:

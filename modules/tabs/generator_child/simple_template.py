@@ -48,7 +48,7 @@ class SimpleTemplateGenerateUI(UiTabs):
                         prompt = gr.Textbox(label="Output prompt", max_lines=100, lines=4, scale=6)
                         negative = gr.Textbox(label="Output Negative prompt", max_lines=100, lines=4, scale=4)
 
-                    infer = gr.Button("Generate", variant="primary")
+                    generate = gr.Button("Generate", variant="primary")
                     generate_param_image = gr.Button("Easy Parameters")
                     gr.Markdown("[how to use Easy Parameters](/docs/how2usep.md)")
 
@@ -154,7 +154,7 @@ class SimpleTemplateGenerateUI(UiTabs):
                     preview_lora, lora_2, [lora_trigger_2, chara_name_2, chara_prompt_2, chara_def_2]
                 )
 
-                infer.click(
+                generate.click(
                     module.generate,
                     [
                         template, header, lower,

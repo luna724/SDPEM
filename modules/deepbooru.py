@@ -24,19 +24,20 @@ class Deepbooru(ModelLoaderClassUtil):
             if deepbooru_model_name is None:
                 deepbooru_model_name = shared.model_file["deepbooru"]
             if deepbooru_model_name == "a1111_model-resnet_custom_v3.pt":
-                print("[Deepbooru]: Deepbooru model not found. downloading...", end=" ")
-                url = "https://github.com/AUTOMATIC1111/TorchDeepDanbooru/releases/download/v1/model-resnet_custom_v3.pt"
-                output_path = deepbooru_model_name
-                try:
-                    content = requests.get(url, stream=True)
-                    content.raise_for_status()
-                    with open(output_path, "wb") as f:
-                        for chunk in content.iter_content(chunk_size=8192):
-                            f.write(chunk)
-                    print("done")
-                except requests.RequestException as e:
-                    print(f"error\n[Deepbooru]: Exception in Model downloading: {e}")
-                    return  # モデルのダウンロードに失敗した場合、初期化を中断
+                if not os.path.exists(deepbooru_model_name):
+                    print("[Deepbooru]: Deepbooru model not found. downloading...", end=" ")
+                    url = "https://github.com/AUTOMATIC1111/TorchDeepDanbooru/releases/download/v1/model-resnet_custom_v3.pt"
+                    output_path = deepbooru_model_name
+                    try:
+                        content = requests.get(url, stream=True)
+                        content.raise_for_status()
+                        with open(output_path, "wb") as f:
+                            for chunk in content.iter_content(chunk_size=8192):
+                                f.write(chunk)
+                        print("done")
+                    except requests.RequestException as e:
+                        print(f"error\n[Deepbooru]: Exception in Model downloading: {e}")
+                        return  # モデルのダウンロードに失敗した場合、初期化を中断
             print("[Deepbooru]: Loading Deepbooru models..", end=" ")
             self.model.load_state_dict(torch.load(deepbooru_model_name))
             self.model.eval()

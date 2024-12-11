@@ -90,7 +90,7 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             raise gr.Error("Metadata cannot found")
 
         ## TODO:
-        if use_lora: gr.Warning("use LoRA aren't Supported on v5.0.0!")
+        if use_lora: gr.Warning("use LoRA aren't Supported on v1.0!")
 
         # 変数の処理
         blacklists = [x.lower() for x in blacklists.split(",") if x.strip() != ""]

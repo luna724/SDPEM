@@ -1,6 +1,10 @@
 # SD-PEM
 #### Stable-Diffusion Prompt-EasyMaker
 
+| Current   | v1.0-preview |
+|-----------|--------------|
+| Recommend | v1.0-preview |
+
 ## インストール / Installation
 1. ([VisualStudio-BuildTools](https://aka.ms/vs/17/release/vs_BuildTools.exe)) をダウンロード
 2. リポジトリをクローン 
