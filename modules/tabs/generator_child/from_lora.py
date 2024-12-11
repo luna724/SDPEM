@@ -695,7 +695,7 @@ class Generator(UiTabs):
 
         def stop_forever_generation():
             generator.forever_generation = False
-            return "Forever Generation stopped. (its still working while last-image generation)"
+            gr.Warning("Forever Generation stopped. (its still working while last-image generation)")
 
         stop_infini_generation.click(fn=stop_forever_generation)
 

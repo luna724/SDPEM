@@ -280,12 +280,14 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                         pil_image, booru_threshold
                     )
                     booru_keys = list(booru_outputs.keys())
+                    yield sent_text(f"Deepbooru outputs: {', '.join(booru_keys)}")
                     for booru_key in booru_keys:
                         # ブラックリストに設定されていたら
                         if (booru_key.lower() in booru_blacklists or
                                 any(pattern.search(booru_key) for pattern in booru_regex_patterns) or
                                 any(include in booru_key.lower() for include in booru_includes_patterns) or
                                 self.tag_compare_util.check_typo_multiply(booru_key.lower(), booru_type_patterns, threshold)):
+                            yield sent_text(f"Image Blacklisted by. {booru_key}")
                             if not bcf_invert:
                                 # 反転オフ
                                 # 設定されている + 破棄設定
@@ -295,8 +297,11 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                                     # 保存せず無視
                                 else:
                                     # 特定ディレクトリに保存
+                                    invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+                                    for char in invalid_chars:
+                                        booru_key = booru_key.replace(char, '_')
                                     save_path = os.path.join(
-                                        bcf_filtered_path, fn
+                                        bcf_filtered_path, fn + f" - {booru_key}.png"
                                     )
                                     break
                             else:
@@ -304,14 +309,18 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                                 # 設定されている場合はパス、設定されていないなら消す
                                 break
                         elif bcf_invert:
+                            yield sent_text(f"Image Whitelisted (not matched & Inverted)")
                             # ブラックリストに設定されていないが、反転がオンなら
                             if not bcf_dont_discard:
                                 discard_flag = True
                                 break
                                 # 保存せず無視
                             else:
+                                invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+                                for char in invalid_chars:
+                                    booru_key = booru_key.replace(char, '_')
                                 save_path = os.path.join(
-                                    bcf_filtered_path, fn
+                                    bcf_filtered_path, fn + f" - {booru_key}.png"
                                 ) # ディレクトリ変更
                                 break
                         continue
@@ -326,7 +335,7 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             if not self.forever_generation:
                 break
             yield sent_text("refreshing session...")
-            time.sleep(0.5)
+            time.sleep(1)
         gr.Info("Forever Generation Stopped!")
         print("[INFO]: Generation Forever ended.")
         yield "Generation Forever Stopped."
