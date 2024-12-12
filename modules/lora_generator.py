@@ -172,7 +172,7 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
     ) -> str:
         gr.Info("Generation Forever started!")
         # デフォルトペイロードを定義
-        txt2img = txt2img_api(int(ui_port),
+        txt2img = txt2img_api(
             **{
                 "negative_prompt": negative,
                 "seed": int(seed),
