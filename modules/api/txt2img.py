@@ -85,10 +85,16 @@ class txt2img_api(Util):
         progress = response["progress"]
         eta = response["eta_relative"]
         state = response["state"]
+
+        current_image = None
         try:
-            current_image = Image.open(BytesIO(base64.b64decode(response["current_image"])))
+            image_b64 = response["current_image"]
+            if image_b64 is not None:
+                current_image = Image.open(BytesIO(base64.b64decode(image_b64)))
+        except TypeError:
+            pass
         except Exception as e:
             print(f"[txt2img]: An Error occurred in preview image: {e}")
-            current_image = None
+
         textinfo = response["textinfo"]
         return progress, eta, state, current_image, textinfo
