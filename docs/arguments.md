@@ -12,3 +12,5 @@
 | `--nogpt2`      | bool | No | False | GPT-2の読み込みを無効化        |
 | `--high_vram`   | bool | No | False | モデルを常にVRAMに読みこむ       |
 | `--cpu`         | bool | No | False | モデルの実行にGPUを使わない       |
+| `--server_ip` | str | No | 127.0.0.1 | PEM Client実行のIPを指定する |
+| `--server_port` | int | No | 7855 | PEM Client実行のポートを指定する |

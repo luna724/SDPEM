@@ -73,6 +73,14 @@ def parse_args():
     parser.add(
         ["--cpu"], arg_type=bool
     )
+    parser.add(
+        ["--server_ip"], arg_type=str,
+        default="127.0.0.1", required=False
+    )
+    parser.add(
+        ["--server_port"], arg_type=int,
+        default=7855, required=False
+    )
 
     args = parser.parse()
     shared.args = args

@@ -54,8 +54,9 @@ class UiTabs:
     def ui(self, outlet: Callable):
         """ make ui data
         don't return """
-        tab_elements = {}
         with gr.Blocks():
+
+
             with gr.Tabs():
                 tabs = self.get_ui()
                 for tab in tabs:
@@ -71,7 +72,7 @@ class UiTabs:
                         tab.ui(lambda component_name, component: capture_ui(component_name, component))
 
                         # タブ全体のエレメントを保存
-                        tab_elements[tab.title()] = tab_ui_elements
+                        # tab_ui_elements
         #shared.ui_obj[self.title()] = tab_elements
 
     # def has_child(self):
@@ -118,6 +119,17 @@ def make_ui() -> tuple[gr.Blocks, dict]:
     block = gr.Blocks(title="luna724 / SD-PEM Client", analytics_enabled=False, css=css)
     #tab_elements = {}
     with block:
+        # IPのデフォルトを取得
+        from modules.api.server_ip import server_ip
+        with gr.Row():
+            sdui_ip = gr.Textbox(label="SD-WebUI(--api) IP", value=server_ip.ip)
+            sdui_port = gr.Number(label="SD-WebUI(--api) Port", value=server_ip.port)
+            sdui_apply = gr.Button("Apply", variant="primary")
+            sdui_apply.click(
+                server_ip.new,
+                inputs=[sdui_ip, sdui_port]
+            )
+
         with gr.Tabs():
             tabs = get_ui()
             for tab in tabs:
@@ -204,7 +216,12 @@ def launch():
     ui, _ = make_ui()
     file_cleaner()
     ui.queue(64)
-    ui.launch(inbrowser=True)
+    ui.launch(
+        inbrowser=True,
+        server_name=shared.args.server_ip,
+        server_port=shared.args.server_port,
+        favicon_path="favicon.png"
+    )
     return
 
 if __name__ == "__main__":

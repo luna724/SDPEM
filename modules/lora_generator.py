@@ -220,6 +220,10 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             booru_includes_patterns = [bl[10:].lower() for bl in blacklists if bl.startswith("$includes=")]
             booru_type_patterns = [bl[6:].lower() for bl in blacklists if bl.startswith("$type=")]
 
+        # BCF出力パスがないのに Don't Discard がオンなら、デフォルトフォルダを使用
+        if bcf_enable and bcf_dont_discard and bcf_filtered_path == "":
+            bcf_filtered_path = os.path.join(shared.a1111_webui_path, "outputs/txt2img-images/bcf-filtered")
+        os.makedirs(bcf_filtered_path, exist_ok=True)
 
         if step_min > step_max:
             raise gr.Error("step MIN > step MAX is not allowed.")
@@ -227,7 +231,7 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             raise gr.Error("Please select sampling method (at least one)")
 
         # ユーザーが止めるまで
-        sent_text = new_yield("[Forever-Generation]: ")
+        sent_text = new_yield("[Forever-Generation]: ", max_line=200)
         yield sent_text("Starting..")
         self.forever_generation = True
         while self.forever_generation:
