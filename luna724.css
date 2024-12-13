@@ -1,1 +1,20 @@
 /** ALL luna724 CSS Styles by. ChatGPT (o1-mini) */
+.luna724_green_button {
+    background-color: #4CAF50; /* ボタンの背景色を緑色に設定 */
+    color: white; /* ボタンの文字色を白色に設定 */
+    transition: background-color 0.3s; /* ホバー時のエフェクトをスムーズに */
+}
+
+.luna724_green_button:hover {
+    background-color: #45a049; /* ホバー時に背景色を少し暗くする */
+}
+
+.luna724_red_button {
+    background-color: #fb3333; /* ボタンの背景色を緑色に設定 */
+    color: #ffffff; /* ボタンの文字色を白色に設定 */
+    transition: background-color 0.3s; /* ホバー時のエフェクトをスムーズに */
+}
+
+.luna724_red_button:hover {
+    background-color: #d0314e; /* ホバー時に背景色を少し暗くする */
+}

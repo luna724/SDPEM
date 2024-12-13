@@ -1,5 +1,5 @@
 @echo off
-set PYTHON_ARGS=
+set PYTHON_ARGS=--luna_theme
 
 rem DON'T EDIT FROM BELOW
 :venv

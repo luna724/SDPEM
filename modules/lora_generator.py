@@ -154,6 +154,45 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
         prompts = [h.strip() for h in header.split(",") if h.strip() != ""] + prompts + lora_triggers + [l.strip() for l in lower.split(",") if l.strip() != ""]
         return ", ".join(prompts)
 
+    @staticmethod
+    def resize_eta(eta: float) -> str:
+        """ETA を h/m/s の形式に変換する"""
+        if eta == -1:
+            return "N/A"
+
+        converted = int(eta)
+        h = converted // 3600
+        converted -= h * 3600
+        m = converted // 60
+        converted -= m * 60
+        s = converted
+
+        eta = f""
+        if h > 0:
+            eta += f"{h}h "
+        if m > 0:
+            eta += f"{m}m "
+        if s > 0:
+            eta += f"{s}s"
+
+        return eta.strip()
+
+    def progress_bar_html(self, progress: int, eta: float) -> str:
+        """UIのプログレスバーのHTML"""
+        eta = self.resize_eta(eta)
+        return f"""
+        <div style="width: 100%; background-color: #e0e0e0; border-radius: 8px; overflow: hidden;">
+            <div style="width: {progress}%; height: 30px; background-color: #76c7c0; transition: width 0.3s;"></div>
+        </div>
+        <p style="text-align: center;">ETA: {eta} ({progress}%)</p>
+        """
+
+    @staticmethod
+    def status_text(s: int, total_s: int) -> str:
+        """受け取った引数を (s/total_s (steps)) (s/total_s%) に変換する"""
+        percentage = "{:.1f}".format(s / total_s * 100)
+        return f"({s}/{total_s} (steps)) ({percentage}%)"
+
     """Generate Forever"""
     def generate_forever(
             self,
@@ -168,11 +207,11 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             negative, ad_prompt, ad_negative, sampling_method, step_min, step_max,
             cfg_scale, width, height, bcount, bsize, seed, hires_step,
             denoising, hires_sampler, upscale_by, restore_face, tiling, clip_skip,
-            ad_model, ui_port
+            ad_model, refresh_rate, dont_discard_interrupted_image
     ) -> str:
         gr.Info("Generation Forever started!")
         # デフォルトペイロードを定義
-        txt2img = txt2img_api(
+        txt2img = txt2img_api(refresh_rate,
             **{
                 "negative_prompt": negative,
                 "seed": int(seed),
@@ -231,8 +270,10 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             raise gr.Error("Please select sampling method (at least one)")
 
         # ユーザーが止めるまで
-        sent_text = new_yield("[Forever-Generation]: ", max_line=200)
-        yield sent_text("Starting..")
+        self.sent_text = new_yield("[Forever-Generation]: ", max_line=200)
+        empty = ("N/A", "N/A", None, self.progress_bar_html(0, -1), False)
+        final_value = empty
+        yield self.sent_text("Starting.."), *empty
         self.forever_generation = True
         while self.forever_generation:
             try:
@@ -248,13 +289,19 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                 gr.Warning("Current randomization options are incorrect. Forever Generations stopped.")
                 return str(e)
 
-            yield sent_text("Prompt successfully Created.")
+            yield self.sent_text("Prompt successfully Created."), *empty
             steps = random.randrange(step_min, step_max+1, 1)
             sampler = random.choice(sampling_method)
             print(f"[INFO]: Processing for prompt ({prompt})")
-            yield sent_text("Started generation with option\n"+f"Prompt: {prompt}\nSteps: {steps} | Sampler: {sampler}")
-            response = txt2img.generate(**{"prompt": prompt, "steps": steps, "sampler_name": sampler})
-            yield sent_text("Generation finished. validating images..")
+            yield self.sent_text("Started generation with option\n"+f"Prompt: {prompt}\nSteps: {steps} | Sampler: {sampler}"), self.status_text(0, steps), "N/A", None, self.progress_bar_html(0, -1), False
+            response, final_value = yield from txt2img.generate(self, **{"prompt": prompt, "steps": steps, "sampler_name": sampler})
+            interrupted = final_value[4]
+            if interrupted:
+                if not dont_discard_interrupted_image:
+                    yield self.sent_text("Detected Interrupt, skip saving.."), *final_value
+                    continue
+
+            yield self.sent_text("Generation finished. validating images.."), *final_value
             print("[INFO]: Generation finished.")
 
             formatted_date = datetime.now().strftime("%Y-%m-%d")
@@ -276,7 +323,7 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                 discard_flag = False
 
                 if bcf_enable:
-                    yield sent_text("Starting Deepbooru checking..")
+                    yield self.sent_text("Starting Deepbooru checking.."), *final_value
                     pil_image = PIL.Image.open(
                         io.BytesIO(base64.b64decode(image))
                     )
@@ -284,14 +331,14 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                         pil_image, booru_threshold
                     )
                     booru_keys = list(booru_outputs.keys())
-                    yield sent_text(f"Deepbooru outputs: {', '.join(booru_keys)}")
+                    yield self.sent_text(f"Deepbooru outputs: {', '.join(booru_keys)}"), *final_value
                     for booru_key in booru_keys:
                         # ブラックリストに設定されていたら
                         if (booru_key.lower() in booru_blacklists or
                                 any(pattern.search(booru_key) for pattern in booru_regex_patterns) or
                                 any(include in booru_key.lower() for include in booru_includes_patterns) or
                                 self.tag_compare_util.check_typo_multiply(booru_key.lower(), booru_type_patterns, threshold)):
-                            yield sent_text(f"Image Blacklisted by. {booru_key}")
+                            yield self.sent_text(f"Image Blacklisted by. {booru_key}"), *final_value
                             if not bcf_invert:
                                 # 反転オフ
                                 # 設定されている + 破棄設定
@@ -313,7 +360,7 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                                 # 設定されている場合はパス、設定されていないなら消す
                                 break
                         elif bcf_invert:
-                            yield sent_text(f"Image Whitelisted (not matched & Inverted)")
+                            yield self.sent_text(f"Image Whitelisted (not matched & Inverted)"), *final_value
                             # ブラックリストに設定されていないが、反転がオンなら
                             if not bcf_dont_discard:
                                 discard_flag = True
@@ -328,18 +375,18 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                                 ) # ディレクトリ変更
                                 break
                         continue
-                    yield sent_text(f"Deepbooru checking finished.\nStatus: discard_flag: {discard_flag} | save_path: {save_path}")
+                    yield self.sent_text(f"Deepbooru checking finished.\nStatus: discard_flag: {discard_flag} | save_path: {save_path}"), *final_value
                     if discard_flag:
                         continue # 破棄ならパス
                 # BCFがオフ、または破棄しない設定ならディレクトリ変更後、股は普通のフォルダでセーブを実行
                 with open(save_path, "wb") as file:
                     file.write(base64.b64decode(image))
-                yield sent_text(f"saving image to {save_path}")
+                yield self.sent_text(f"saving image to {save_path}"), *final_value
             print(f"[INFO]: Processed for prompt ({prompt})")
             if not self.forever_generation:
                 break
-            yield sent_text("refreshing session...")
+            yield self.sent_text("refreshing session..."), *final_value
             time.sleep(1)
         gr.Info("Forever Generation Stopped!")
         print("[INFO]: Generation Forever ended.")
-        yield "Generation Forever Stopped."
+        yield "Generation Forever Stopped.", *final_value

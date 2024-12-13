@@ -1,5 +1,5 @@
 @echo off
-set PYTHON_ARGS=--nolm --nojsk
+set PYTHON_ARGS=--nolm --nojsk --luna_theme
 
 rem DON'T EDIT FROM BELOW
 :venv

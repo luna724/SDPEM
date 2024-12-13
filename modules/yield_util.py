@@ -4,8 +4,9 @@ class yielding_util:
         self.session_message = ""
         self.max_line = session_max
 
-    def __call__(self, *args: str, end="\n"):
-        text = self.header + "".join(args)
+    def __call__(self, *args: str, end="\n", override_header: str=None):
+        header = self.header if override_header is None else override_header
+        text = header + "".join(args)
         print(text)
 
         self.session_message += text + end

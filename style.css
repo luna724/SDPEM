@@ -53,3 +53,10 @@
   opacity: 1;
   visibility: visible;
 }
+
+.img1024 {
+    max-width: 1024px;
+    max-height: 1024px;
+    width: auto;
+    height: auto;
+}

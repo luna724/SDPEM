@@ -41,29 +41,51 @@ class txt2img_api(Util):
             print(f"URL error: {e.reason}.\nre-check custom IP and try again.")
             return None
 
-    def __init__(self, *args, **payload):
+    def __init__(self, refresh_rate = 1.5, *args, **payload):
         self.default_payload = payload
+        self.refresh_rate = refresh_rate
         self.executor = ThreadPoolExecutor(max_workers=2) # メインと progress まで並列実行可
 
-    def generate(self, **override_payload):
+    def generate(self, instance, **override_payload) -> tuple:
         """
         generateリクエストをスレッドで実行し、
         リクエストの応答待ち中に他のバックグラウンド処理を続ける。
         """
         payload = self.default_payload | override_payload
+        step = override_payload.get("steps", None) or self.default_payload.get("steps", None)
         data = payload
 
         # スレッドでリクエストを実行
         future = self.executor.submit(self._txt2img_api, data)
 
         # リクエスト中に他の処理を実行
+        last = None
         while not future.done():
-            self.get_progress()
-            time.sleep(2.5)  # CPU負荷を避けるためウェイトを挟む
+            prog, eta, state, image, _ = self.get_progress()
+            if state is None:
+                #print("state is none, skipping,,")
+                time.sleep(self.refresh_rate)  # WinError 10048を防ぐ
+                continue
+            current_step = state["sampling_step"]
+            steps = state["sampling_steps"]
+            if steps == 0: # Prevents ZeroDivisionError
+                time.sleep(self.refresh_rate)
+                continue
+
+            if step is not None and step != steps:
+                # ADetailer であることの検出
+                pass
+
+            last = (
+                instance.status_text(current_step, steps), instance.resize_eta(eta), image, instance.progress_bar_html(int((current_step/steps)*100), eta), state["interrupted"]
+            )
+            #print("yielding..")
+            yield instance.sent_text(end="", override_header=""), *last
+            time.sleep(self.refresh_rate)  # WinError 10048を防ぐ
 
         # 結果を取得する
         response = future.result()
-        return json.loads(response)
+        return json.loads(response), last
 
     def _txt2img_api(self, data):
         """
@@ -81,6 +103,7 @@ class txt2img_api(Util):
         response = self._send_request(
             "/sdapi/v1/progress", {}, "GET"
         )
+        #print(f"Full server response: {response}")  # デバッグ用
         response = json.loads(response)
         progress = response["progress"]
         eta = response["eta_relative"]

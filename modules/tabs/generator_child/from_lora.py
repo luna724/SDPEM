@@ -6,6 +6,7 @@ import os
 
 import shared
 from jsonutil import JsonUtilities
+from modules.api.txt2img import txt2img_api
 from modules.lora_generator import LoRAGeneratingUtil
 from modules.lora_viewer import LoRADatabaseViewer
 from modules.ui_util import (
@@ -384,15 +385,6 @@ class Generator(UiTabs):
             gr.Markdown(
                 "[WARNING]: this features currently beta, some features cannot usable (eg. result-preview, refiner, model selection, etc..)<br/>"
             )
-            @register.register("ui_port")
-            def func_ui_port():
-                return gr.Number(
-                    label="SD-WebUI Port (127.0.0.1:7860 -> 7860)",
-                    value=int(default.ui_port),
-                    elem_id="generate-from_lora-ui_port",
-                )
-
-            ui_port = func_ui_port()
 
             with gr.Row():
                 @register.register("ad_model", "negative")
@@ -643,16 +635,56 @@ class Generator(UiTabs):
                             elem_id="generate-from_lora-clip_skip",
                         ),
                     )
-
                 restore_face, tiling, clip_skip = func_sd_others()
+            with gr.Row():
+                @register.register("discard_interrupted_image")
+                def fun_sd_other2():
+                    return gr.Checkbox(
+                        label="Don't Discard Interrupted Image",
+                        value=checkbox_default(default.discard_interrupted_image),
+                        elem_id="generate-from_lora-discard_interrupted_image",
+                    )
+                dont_discard_interrupted = fun_sd_other2()
+
+            @register.register("refresh_rate")
+            def fun_rr():
+                return gr.Slider(
+                    0.5,
+                    10,
+                    step=0.1,
+                    label="Preview Refresh Rate (seconds) -= Image Refresh rates Depend on SD-WebUI Settings! =-",
+                    value=default.refresh_rate,
+                )
+            refresh_rate = fun_rr()
 
             start_infini_generation = gr.Button(
-                "Start Generate Forever", variant="primary"
+                "Start Generate Forever", variant="primary", elem_classes="luna724_green_button"
             )
-            stop_infini_generation = gr.Button("Stop Generate Forever")
+            stop_infini_generation = gr.Button("Stop Generate Forever", visible=False, variant="primary", elem_classes="luna724_red_button")
             status = gr.Textbox(
                 label="Generating Info", interactive=False, max_lines=12, lines=12
             )
+
+            with gr.Row():
+                with gr.Column(scale=3):
+                    interrupt = gr.Button(
+                        "Interrupt", elem_classes="luna724_red_button"
+                    )
+                    progress_text = gr.Textbox(
+                        label="Progress", interactive=False, max_lines=1, lines=1
+                    )
+                    eta = gr.Textbox(
+                        label="ETA", interactive=False, max_lines=1, lines=1
+                    )
+                    interrupted = gr.Checkbox(interactive=False, label="Interrupted")
+                with gr.Column(scale=7):
+                    status_bar = gr.HTML(
+                        show_label=False, elem_id="generate-from_lora-status_bar"
+                    )
+                    current_image = gr.Image(
+                        type="pil", interactive=False, show_label=False,
+                        label="Current Image", elem_classes="img1024"
+                    )
 
         txt2img_variables = [
                 negative,
@@ -674,7 +706,9 @@ class Generator(UiTabs):
                 restore_face,
                 tiling,
                 clip_skip,
-                ad_model
+                ad_model,
+                refresh_rate,
+                dont_discard_interrupted
                 ]
         bcfs = [
             separate_blacklist,
@@ -687,17 +721,36 @@ class Generator(UiTabs):
         ]
         start_infini_generation.click(
             fn=generator.generate_forever,
-            inputs=base_inference_variables+bcfs+txt2img_variables+[
-                ui_port,
+            inputs=base_inference_variables+bcfs+txt2img_variables,
+            outputs=[
+                status, progress_text, eta, current_image, status_bar, interrupted
             ],
-            outputs=status,
+        )
+
+        txt2img_instance = txt2img_api()
+        interrupt.click(
+            txt2img_instance.interrupt,
+        )
+
+        def visible_stop_infini_generation():
+            return (
+                gr.update(visible=False), gr.update(visible=True)
+            )
+        start_infini_generation.click(
+            fn=visible_stop_infini_generation,
+            outputs=[start_infini_generation, stop_infini_generation],
         )
 
         def stop_forever_generation():
             generator.forever_generation = False
             gr.Warning("Forever Generation stopped. (its still working while last-image generation)")
-
-        stop_infini_generation.click(fn=stop_forever_generation)
+            return (
+                    gr.update(visible=True), gr.update(visible=False)
+                )
+        stop_infini_generation.click(
+            fn=stop_forever_generation,
+            outputs=[start_infini_generation, stop_infini_generation],
+        )
 
         def save_default(
             target_lora,
@@ -738,7 +791,8 @@ class Generator(UiTabs):
             tiling,
             clip_skip,
             ad_model,
-            ui_port,
+            refresh_rate,
+                dont_discard_interrupted,
             separate_blacklist, bcf_blacklist, booru_threshold,
             bcf_dont_discard, bcf_invert, bcf_filtered_path, bcf_enable
         ):
@@ -751,7 +805,5 @@ class Generator(UiTabs):
         save_as_default = gr.Button("Save current value as default")
         save_as_default.click(
             save_default,
-            base_inference_variables+txt2img_variables+[
-                ui_port,
-            ]+bcfs,
+            base_inference_variables+txt2img_variables+bcfs,
         )

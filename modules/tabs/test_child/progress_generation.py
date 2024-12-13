@@ -33,12 +33,12 @@ class Template(UiTabs):
             with gr.Row():
                 progress = gr.Number(label="Progress", precision=2)
                 eta = gr.Textbox(label="ETA", lines=1)
-                textinfo = gr.Textbox(label="Text Info", lines=1)
+                state = gr.Textbox(label="State", lines=1)
 
-            image = gr.Image(type="pil", sources=["upload"], label="Image")
-            state = gr.Json(label="State")
+            image = gr.Image(type="pil", sources=["upload"], label="Image", elem_classes="img1024")
+            textinfo = gr.Textbox(label="TextInfo")
 
             check.click(
                 txt2img_api_instance.get_progress,
-                outputs=[progress, eta, textinfo, image, state]
+                outputs=[progress, eta, state, image, textinfo]
             )
