@@ -27,12 +27,12 @@ class Define(UiTabs):
 
         register = ItemRegister(setter=setter)
         default_fp = os.path.join(
-            os.getcwd(), "configs/default/generator-ai_generation.json"
+            os.getcwd(), "configs/default/gen_param.json"
         )
         if not os.path.exists(default_fp):
             shutil.copy(
                 os.path.join(
-                    os.getcwd(), "configs/default/default/generator-ai_generation.json"
+                    os.getcwd(), "configs/default/default/gen_param.json"
                 ),
                 default_fp,
             )
@@ -136,7 +136,41 @@ class Define(UiTabs):
                 @register.register("hr_upscale")
                 def fun_hr_upscale():
                     return gr.Slider(
+                        1, 8, step=0.01, value=default.hr_upscale,
+                        label="Upscale by.", scale=10
+                    )
 
+                @register.register("separate_upscaling_method")
+                def fun_separate_upscaling_method():
+                    return gr.Checkbox(
+                        label="Separate Upscale Method",
+                        value=default.separate_upscaling_method
+                    )
+
+                @register.register("hr_sampler_name", "hr_scheduler", "hr_negative")
+                def fun_hr_separation():
+                    return (
+                        gr.Dropdown(
+                            label="Hr.Sampler (blank = use main", value=default.hr_sampler_name,
+                            multiselect=True, scale=10,
+                            choices=[
+                                "DPM++ 2M", "DPM++ SDE", "DPM++ 2M SDE", "Euler a", "Euler"
+                            ]
+                        ),
+                        gr.Dropdown(
+                            label="Hr.Scheduler (blank = use main)", value=default.hr_scheduler,
+                            multiselect=True, scale=10,
+                            choices=[
+                                "Automatic", "Uniform", "Karras", "Exponential", "Polyexponential",
+                                "SGM Uniform", "KL Optimal", "Align Your Steps", "Simple", "Normal",
+                                "DDIM", "Beta"
+                            ]
+                        ),
+                        gr.Textbox(
+                            label="Hr.Negative prompt",
+                            lines=3, placeholder="if blank, use main negative",
+                            value=default.hr_negative
+                        )
                     )
 
                 with gr.Row():
@@ -148,3 +182,22 @@ class Define(UiTabs):
 
                 with gr.Row():
                     hr_upscale = fun_hr_upscale()
+                    separate_upscaling_method = fun_separate_upscaling_method()
+
+                with gr.Row():
+                    hr_sampler_name, hr_scheduler, hr_negative = fun_hr_separation()
+
+            with gr.Accordion("Refiner", open=False):
+                @register.register("refiner_checkpoint", "refiner_switch_at")
+                def fun_refiners():
+                    return (
+                        gr.Dropdown(
+                            label="Refiner checkpoint", value=default.refiner_checkpoint,
+
+                        ),
+                        gr.Slider(
+                            0, 1, step=0.01, value=default.refiner_switch_at,
+                            label="Refiner switch at"
+                        )
+                    )
+                refiner_checkpoint, refiner_switch_at = fun_refiners()
