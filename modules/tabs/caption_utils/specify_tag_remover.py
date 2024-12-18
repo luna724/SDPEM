@@ -28,7 +28,7 @@ class Define(UiTabs):
             )
 
             with gr.Row():
-                target_col = gr.Textbox("Target Column (wildcard available) (separate comma to multiselect)", value="1")
+                target_col = gr.Textbox("Target Column (wildcard available) (separate comma to multiselect) (not supported unchained-line eg. 1,3)", value="1")
                 if_contained = gr.Textbox("If contained (separate with comma)", value="1girl,solo")
 
             with gr.Row():
@@ -58,7 +58,8 @@ class Define(UiTabs):
                 visibility_cm, [contain_mode], [cm_percentage, cm_count]
             )
 
-            warn_mode = gr.Checkbox(label="WARNING Mode (only notice, don't auto-resize caption)", value=True)
+            warn_mode = gr.Checkbox(label="WARNING Mode (only notice, don't auto-resize caption)", value=True, interactive=False)
+            output = gr.Textbox(label="Output", lines=4)
             infer = gr.Button("Start", variant="primary")
 
             default = shared.ui_obj["Caption-Util"]
@@ -67,5 +68,6 @@ class Define(UiTabs):
                 inputs=[default["target_dir"], default["caption_ext"], default["autoscale_caption"], default["convert_to_space"], default["convert_to_lowercase"], default["png_exist_check"]]+[
                     target_tags, target_tag_separator, target_col,
                     if_contained, contain_mode, cm_percentage, cm_count, warn_mode
-                ]
+                ],
+                outputs=output
             )

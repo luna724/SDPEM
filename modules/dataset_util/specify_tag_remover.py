@@ -2,6 +2,9 @@ import os
 
 import gradio as gr
 
+from modules.yield_util import new_yield
+
+
 def run_ui(
         target_dir, caption_ext, autoscale_caption, convert_to_space, convert_to_lowercase,
         png_exist_check,
@@ -10,6 +13,8 @@ def run_ui(
 ):
     if separator == ";":
         raise gr.Error("Separator cannot contain ; (semicolon).")
+
+    sent_text = new_yield("[Caption-Util]: ")
 
     # 専用引数を事前処理
     remove_tags = []
@@ -49,11 +54,54 @@ def run_ui(
         path = os.path.abspath(os.path.join(target_dir, file))
         with open(path, "r", encoding="utf-8") as f:
             caption = f.read()
+        # 対象COLにのみ絞る
+        if not all_col:
+            captions_lines = caption.splitlines()
+            captions = [
+                caption for i, caption in enumerate(captions_lines)
+                if i+1 in target_columns
+            ]
+            caption = "\n".join(captions)
+
         caption_tags = [x.strip() for x in caption.split(",")]
 
-        # contain check
-        if len(contain_tags) != 0:
-            ##TODO: contain check のモードを考慮した実装
-            if not (set(contain_tags) & set(caption_tags)):
-                continue # はいってないなら
 
+        # contain check
+        if len(contain_tags) != 0 and contain_detection_mode != "NONE":
+            contain_check = False
+            if contain_detection_mode == "OR" and (set(contain_tags) & set(caption_tags)):
+                contain_check = True
+            if contain_detection_mode == "AND" and set(contain_tags).issubset(caption_tags):
+                contain_check = True
+            if contain_detection_mode == "PERCENTAGE":
+                common_count = len(
+                    set(caption_tags) & set(contain_tags)
+                )
+                percentage = (common_count / len(contain_tags)) * 100
+                if percentage >= cm_percentage:
+                    contain_check = True
+            if contain_detection_mode == ">COUNT":
+                if len(set(caption_tags) & set(contain_tags)) >= cm_count:
+                    contain_check = True
+
+            if not contain_check:
+                continue
+
+
+        # タグが含まれてたら 消す or 置き換え
+        resized_caption_tags = []
+        replaced = False
+        for tag in caption_tags:
+            if tag.lower() in remove_tags:
+                replaced = True
+            elif tag.lower() in replace_tags.keys():
+                resized_caption_tags.append(
+                    replace_tags[tag.lower()]
+                )
+                replaced = True
+            else:
+                resized_caption_tags.append(tag)
+
+        if replaced and warn_mode:
+            yield sent_text(f"File triggered: {os.path.relpath(file, target_dir)}")
+            continue
