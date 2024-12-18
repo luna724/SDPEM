@@ -9,12 +9,12 @@ def run_ui(
         target_dir, caption_ext, autoscale_caption, convert_to_space, convert_to_lowercase,
         png_exist_check,
         remove_target_tags, separator, target_col, contained_tags, contain_detection_mode,
-        cm_percentage, cm_count, warn_mode
+        cm_percentage, cm_count, warn_mode=True
 ):
     if separator == ";":
         raise gr.Error("Separator cannot contain ; (semicolon).")
 
-    sent_text = new_yield("[Caption-Util]: ")
+    sent_text = new_yield("[Caption-Util]: ", max_line=9999)
 
     # 専用引数を事前処理
     remove_tags = []
@@ -37,7 +37,7 @@ def run_ui(
         if ";" in tag: # replaceのチェック
             src = tag.split(";")[0]
             dst = ";".join(tag.split(";")[1:])
-            replace_tags[src.strip().lower()] = dst.strip()
+            replace_tags[src.strip().lower()] = dst.strip().split(",")
             continue
 
         remove_tags.append(tag.strip().lower())
@@ -94,14 +94,20 @@ def run_ui(
         for tag in caption_tags:
             if tag.lower() in remove_tags:
                 replaced = True
-            elif tag.lower() in replace_tags.keys():
-                resized_caption_tags.append(
-                    replace_tags[tag.lower()]
-                )
-                replaced = True
-            else:
-                resized_caption_tags.append(tag)
+            if tag.lower() in replace_tags.keys():
+                # src が含まれるなら、req も含まれるかどうかのチェックを行う
+                req = replace_tags[tag.lower()]
+                for r in req:
+                    if r not in caption_tags:
+                        replaced = True
+
+        # remove tag に missing モードがある場合
+        for remove in remove_tags:
+            if remove.startswith("?"):
+                if remove[1:] not in caption_tags:
+                    replaced = True
+
 
         if replaced and warn_mode:
-            yield sent_text(f"File triggered: {os.path.relpath(file, target_dir)}")
+            yield sent_text(f"File triggered: {file}")
             continue

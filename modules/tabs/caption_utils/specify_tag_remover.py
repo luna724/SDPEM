@@ -12,24 +12,24 @@ class Define(UiTabs):
         self.child_path = os.path.join(UiTabs.PATH, "caption_utils")
 
     def title(self):
-        return "Tag Replacer"
+        return "Tag Detector"
 
     def index(self):
         return 2
 
     def ui(self, outlet):
-        gr.Markdown("## Specify Tag Remove/Replacer")
+        gr.Markdown("## Specify Tag Detector")
         with gr.Blocks():
             target_tags = gr.Textbox(
-                label="Target tags ({<tag>;<replaced_tag>} to replace mode)", lines=2
+                label="Target tags (?tag to detect missing) ({src};{required} to required required src tag)", lines=2
             )
             target_tag_separator = gr.Textbox(
-                label="Target tag Separator (can't use \";\")", max_lines=1, value=","
+                label="Target tag Separator (can't use \";\", \"?\")", max_lines=1, value=","
             )
 
             with gr.Row():
-                target_col = gr.Textbox("Target Column (wildcard available) (separate comma to multiselect) (not supported unchained-line eg. 1,3)", value="1")
-                if_contained = gr.Textbox("If contained (separate with comma)", value="1girl,solo")
+                target_col = gr.Textbox(label="Target Column (wildcard available) (separate comma to multiselect) (not supported unchained-line eg. 1,3)", value="*")
+                if_contained = gr.Textbox(label="If contained (separate with comma)", value="1girl,solo")
 
             with gr.Row():
                 contain_mode = gr.Radio(
@@ -58,7 +58,7 @@ class Define(UiTabs):
                 visibility_cm, [contain_mode], [cm_percentage, cm_count]
             )
 
-            warn_mode = gr.Checkbox(label="WARNING Mode (only notice, don't auto-resize caption)", value=True, interactive=False)
+            warn_mode = gr.Checkbox(label="WARNING Mode (only notice, don't auto-resize caption)", value=True, interactive=False, visible=False)
             output = gr.Textbox(label="Output", lines=4)
             infer = gr.Button("Start", variant="primary")
 
