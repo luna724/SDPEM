@@ -31,9 +31,6 @@ def run_ui(
 
     # remove_target_tags を分解する
     for tag in remove_target_tags.split(separator):
-        if "_" in tag and convert_to_space:
-            tag = tag.replace("_", " ") # 互換性
-
         if ";" in tag: # replaceのチェック
             src = tag.split(";")[0]
             dst = ";".join(tag.split(";")[1:])
