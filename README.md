@@ -1,5 +1,6 @@
 # SD-PEM
-#### Stable-Diffusion Prompt-EasyMaker
+#### Stable-Diffusion Prompt-EasyMaker 
+[![wakatime](https://wakatime.com/badge/user/a3dc88bc-f773-46f5-86f8-abb56f21a04b/project/469bda6f-d8fe-424e-a9c1-925cf7aea869.svg)](https://wakatime.com/badge/user/a3dc88bc-f773-46f5-86f8-abb56f21a04b/project/469bda6f-d8fe-424e-a9c1-925cf7aea869)
 
 | Current   | v1.0-preview |
 |-----------|--------------|
