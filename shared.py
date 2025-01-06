@@ -6,6 +6,8 @@ a1111_webui_path: str = ""
 refresh_button = "🔄"
 circular_button = "🔁"
 select_all_button = "📦"
+browse_directory = "📁"
+browse_file = "📄"
 ui_obj: dict = {}
 model_file: dict = {}
 

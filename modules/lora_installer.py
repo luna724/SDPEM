@@ -5,6 +5,8 @@ import re
 import threading
 import time
 import tkinter as tk
+
+import gradio
 import requests
 
 from safetensors.torch import safe_open
@@ -89,7 +91,8 @@ class LoRAModelInstaller:
         # chrome_options.add_argument("--no-sandbox")  # サンドボックスモードを無効化
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--remote-debugging-port=9222")
-        chrome_options.add_argument("--headless")
+        if os.path.exists(self.COOKIE_PATH):
+            chrome_options.add_argument("--headless")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--disable-software-rasterizer")
         chrome_options.add_argument("--disable-extensions")
@@ -155,6 +158,7 @@ class LoRAModelInstaller:
                         driver.get("https://civitai.com/login")
                         print("[README] :: Please complete the login process manually. (see console) :: [README]")  # <<< ここで途切れる
                         input("[README] :: Press Enter after completing the login :: [README]")
+                        gradio.Warning("Please Login to CivitAI. This step is required only once. (see console)")
                         self.save_cookies(driver)
                         print("[INFO]: Cookies saved successfully. You can now run the script without logging in.")
 

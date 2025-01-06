@@ -1,7 +1,7 @@
 from typing import *
-class SDDefault:
-  import os
 
+class SDDefault:
+    pass
 
 class p:
     """DataObj for SDApiVariables"""
@@ -55,7 +55,7 @@ class p:
 class SDApiVariables:
     """txt/img 2 img 用の型チェッカーを提供するクラス"""
     def __init__(self):
-        self.default = SDDefault()
+        self._default = SDDefault()
 
         self.prompt = p("", str, "")
         self.negative_prompt = p("", str, "")
@@ -116,7 +116,7 @@ class SDApiVariables:
     def __getattr__(self, item):
         return None
 
-    def initialize(
+    def _initialize(
             self,
             **kw
     ):
@@ -127,10 +127,18 @@ class SDApiVariables:
             else:
                 print(f"[ERROR]: Unknown argument in SDAPIVariables ({k})")
 
+    def _make_it_dict(self) -> dict:
+        """すべての値を辞書形式で返す"""
+        return {
+            k: v for k, v in self.__dict__.items()
+            if not k.startswith("_")
+            if not callable(v)
+        }
+
     def __call__(self, **kwargs) -> dict:
         """すべての値を初期化、再処理しkwに渡せる辞書形式で返す
         主に api/txt2img.py の payload に対するものとして返される
         """
         if kwargs != {}:
-            self.initialize(**kwargs)
-        return {}
+            self._initialize(**kwargs)
+        return self._make_it_dict()

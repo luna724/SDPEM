@@ -1,4 +1,4 @@
-gradio==5.8.0
+gradio
 selenium
 beautifulsoup4
 requests
@@ -20,3 +20,6 @@ psutil
 GPUtil
 py-cpuinfo
 pynvml
+pypresence
+nvidia-ml-py
+tqdm

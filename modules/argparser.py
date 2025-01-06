@@ -81,6 +81,9 @@ def parse_args():
         ["--server_port"], arg_type=int,
         default=7855, required=False
     )
+    parser.add(
+        ["--norpc"], arg_type=bool
+    )
 
     args = parser.parse()
     shared.args = args

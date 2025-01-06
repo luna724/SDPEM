@@ -1,4 +1,5 @@
 import os
+import time
 
 import chromedriver_autoinstaller
 
@@ -48,3 +49,8 @@ def file_cleaner():
         os.remove("cc.en.300.bin.gz")
     if os.path.exists("GoogleNews-vectors-negative300.bin.gz"):
         os.remove("GoogleNews-vectors-negative300.bin.gz")
+
+    if os.path.exists("civitai_cookies.json"):
+        cookie_expiry = JsonUtilities("civitai_cookies.json").read()[0]["expiry"]
+        if cookie_expiry < time.time():
+            os.remove("civitai_cookies.json")

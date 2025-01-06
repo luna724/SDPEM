@@ -683,7 +683,8 @@ class Generator(UiTabs):
                     )
                     current_image = gr.Image(
                         type="pil", interactive=False, show_label=False,
-                        label="Current Image", elem_classes="img1024"
+                        label="Current Image", elem_classes="img1024",
+                        format="png"
                     )
 
         txt2img_variables = [
