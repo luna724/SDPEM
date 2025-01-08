@@ -2,6 +2,7 @@ import os
 import re
 from typing import *
 import gradio as gr
+import json
 
 from jsonutil import BuilderConfig, JsonUtilities
 from modules.util import Util
@@ -47,6 +48,30 @@ class CharacterTemplate(Util):
             "extend": ""
         }
 
+    """load v6 template"""
+    @staticmethod
+    def load_v6(data):
+        return (
+            data.get("lora", ""),
+            data.get("name", ""),
+            data.get("prompt", ""),
+            data.get("default-weight", ""),
+            data.get("chara-types", {})
+        )
+
+    @staticmethod
+    def get_base_v6():
+        return {
+            "lora": "LoRAトリガー、",
+            "name": "$NAME プレースホルダー、",
+            "prompt": "$PROMOT プレースホルダー、",
+            "default-weight": "LoRAのデフォルトウェイト、",
+            "chara-types": {
+                    # "type": "特定スタイル",
+                },
+            "isXL": False # SDXL
+            }
+
     @staticmethod
     def check_lora_trigger(lora_trigger) -> bool:
         pattern = re.compile(
@@ -56,8 +81,8 @@ class CharacterTemplate(Util):
         if len(matched) > 0: return True
         return False
 
-    def new_chara(
-            self, version: Literal["v3", "v6"],
+    def new_chara_v3(
+            self, version: Literal["v3 Legacy", "v6"],
             key, lora, name, prompt, overwrite
     ):
         current = self.load()
@@ -69,20 +94,29 @@ class CharacterTemplate(Util):
         if not self.check_lora_trigger(lora):
             raise gr.Error("LoRA Trigger validate check failed.")
 
-        ## TODO: Release V6
-        if version == "v6 (NOT RELEASED)":
-            gr.Warning("V6 aren't released! using v3..")
-            version = "v3"
+        if version == "v3 Legacy":
+            gr.Info("v3 Legacy is deprecated. Please use v6 instead.")
 
         new = None
         if version == "v3":
             new = self.get_base_v3()
-            new["lora"] = lora
-            new["name"] = name
-            new["prompt"] = prompt
+        elif version == "v6":
+            raise gr.Error("V6 called in v3 function")
+
+        # 全体変数
+        new["lora"] = lora
+        new["name"] = name
+        new["prompt"] = prompt
         current[key] = [version, new]
         self.save(current)
         gr.Info("Success!")
+
+    def new_chara_v6(
+            self, version: Literal["v3 Legacy", "v6"],
+            key: str, lora: str, name: str, prompt: str, default_weight: str,
+            chara_types: dict, overwrite: bool
+    ):
+        return
 
     """Supports up: v3, v4, v5, v6"""
     def load_character_data(self, target: str) -> tuple[str, str, str, str] | tuple:
@@ -96,11 +130,11 @@ class CharacterTemplate(Util):
         if version in ["v3", "v4", "v5"]:
             return self.load_v3(data)
         elif version in ["v6"]:
-            return ()
+            return self.load_v6(data)
         return ()
 
     """$LORAなどのきゃらトリガーを変換
-    from_bool が True の場合、p にリストを入れられる
+    from_pieces が True の場合、p にリストを入れられる
     """
     def convert_all(self, prompts:str|List[str], target: str, lora_weights: str, from_pieces: bool = False):
         if not from_pieces and isinstance(prompts, str):
@@ -137,3 +171,41 @@ class CharacterTemplate(Util):
             elif p.lower() in ["$extend", "$charadef"]:
                 via.append(default)
         return ", ".join(via).strip(",")
+
+
+    def template_updater(self, update_v3: bool = False):
+        current_template = self.load()
+        for key in current_template.keys():
+            version = current_template[key][0]
+            if version == "v6" or (not update_v3 and version == "v3"):
+                continue
+
+            data = current_template[key][1]
+            new_data = self.get_base_v6()
+
+            if version in ["v3", "v4", "v5"]:
+                new_data["lora"] = data["lora"]
+                new_data["name"] = data["name"]
+                new_data["prompt"] = data["prompt"]
+                new_data["default-weight"] = "1.0"
+                new_data["chara-types"] = {"default": data["extend"]} if data["extend"] != "" else {}
+
+            if version == "v5":
+                # lv を chara-types に移動
+                lora_variables_status = data.get("lora-variables", [[False, False],[]])
+                new_data["chara-types"].update(
+                    {
+                        v[0]: v[1]
+                        for k, v in zip(
+                        lora_variables_status[0], lora_variables_status[1]
+                    )
+                        if k
+                        if v[0] != ""
+                        if v[0] != "default"
+                    }
+                )
+
+            ## TODO: isXLの検出処理
+            current_template[key] = ["v6", new_data]
+        self.save(current_template)
+

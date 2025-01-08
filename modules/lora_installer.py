@@ -25,6 +25,7 @@ from selenium.webdriver.common.by import By
 
 import shared
 from jsonutil import JsonUtilities, BuilderConfig
+from modules.chrome_drivers import ChromeDriverUtil
 from modules.lora_metadata_util import LoRAMetadataReader
 from modules.yield_util import new_yield, yielding_util
 
@@ -34,46 +35,30 @@ class LoRAModelInstaller:
         self.data: Dict[str, Tuple[str, bool]] = {}
 
         self.obtained_data: list = list()
+        self.driverUtil = ChromeDriverUtil("LoRA Installer")
 
         self.COOKIE_PATH = "civitai_cookies.json"
 
     def save_cookies(self, driver):
-        cookies = driver.get_cookies()
+        cookies = self.driverUtil.get_cookie(driver)
         with open(self.COOKIE_PATH, "w") as f:
-            json.dump(cookies, f) # type: ignore
+            json.dump([cookies], f) # type: ignore
 
     def load_cookies(self, driver):
         if os.path.exists(self.COOKIE_PATH):
             with open(self.COOKIE_PATH, "r") as f:
                 cookies = json.load(f)
 
-            for cookie in cookies:
-                # 不要な属性を削除
-                cookie.pop("sameSite", None)
-                cookie.pop("secure", None)
-                cookie.pop("httpOnly", None)
-
-                try:
-                    driver.add_cookie(cookie)
-                except Exception as e:
-                    print(f"[WARN]: Failed to load cookie ({str(e)})")
-                    #print(f"Warning: Failed to add cookie: {str(e)} (Cookie: {cookie})")
-                    # エラーが発生してもログインが成功しているなら問題なしと判断
-                    continue
+            driver = self.driverUtil.set_cookie(driver, cookies)
 
     def get_cookie(self):
         if os.path.exists(self.COOKIE_PATH):
             with open(self.COOKIE_PATH, "r") as f:
                 cookies = json.load(f)
-
-            for cookie in cookies:
-                # 不要な属性を削除
-                cookie.pop("sameSite", None)
-                cookie.pop("secure", None)
-                cookie.pop("httpOnly", None)
             return cookies
         else:
             raise RuntimeError("[FATAL]: Cookies not found")
+
     @staticmethod
     def show_notification(title, message):
         # Tk ウィンドウの作成
@@ -84,23 +69,6 @@ class LoRAModelInstaller:
     def run(self, file_edited_mode: bool = True):
         print(f"[LoRA-Model-Installer]: Starting.. (target: {len(self.data.keys())} / Batch: 1)")
         print("[INFO]: Starting Selenium/Chrome..", end=" ")
-        chrome_options = Options()
-        # chrome_options.add_argument("--user-data-dir=./selenium_profile")
-        chrome_options.add_argument("--start-maximized")
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        # chrome_options.add_argument("--no-sandbox")  # サンドボックスモードを無効化
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--remote-debugging-port=9222")
-        if os.path.exists(self.COOKIE_PATH):
-            chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--disable-software-rasterizer")
-        chrome_options.add_argument("--disable-extensions")
-        chrome_options.add_argument("--no-first-run")
-        chrome_options.add_argument("--no-default-browser-check")
-        service = Service(executable_path=shared.driver_path)
-        print("done")
-
         print("[INFO]: Initializing output directory..", end=" ")
         download_path = os.path.join(os.getcwd(), "outputs")
         if shared.sd_webui_exists:
@@ -111,20 +79,12 @@ class LoRAModelInstaller:
                 download_path = os.path.join(
                     webui_path.read()["path"], "models/Lora"
                 )
-        prefs = {
-            "download.default_directory": download_path,
-            "download.prompt_for_download": False,
-            "download.directory_upgrade": True,
-            "safebrowsing.enabled": True,
-            "profile.default_content_setting_values.automatic_downloads": 1,
-            "profile.default_content_setting_values.popups": 0,
-            "profile.content_settings.exceptions.automatic_downloads.*.setting": 1
-        }
-        chrome_options.add_experimental_option("prefs", prefs)
-        os.makedirs(download_path, exist_ok=True)
 
         # ダウンロードパスを設定したのちに Selenium を初期化する
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        driver = self.driverUtil.get_driver(
+            headless=os.path.exists(self.COOKIE_PATH),
+            download_path=download_path
+        )
         driver.get("https://civitai.com")
         time.sleep(1.5)
         database = LoRADatabaseProcessor()

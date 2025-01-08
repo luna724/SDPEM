@@ -41,8 +41,10 @@ class Generator(UiTabs):
                         minimum=0.0, maximum=1.0, step=0.01, value=0.32, label="[ADetailer] Detection Model confidence threshold")
 
                     # 選択されたディレクトリに応じて表示項目を変更するコード
-                    internal_adetailer_models = ["internal/person_yolov8n-seg.pt", "internal/person_yolov8s-seg.pt", "internal/yolov8x-worldv2.pt"]
-                    def update_model_list() -> str | dict:
+                    def update_model_list() -> str | dict | None:
+                        gr.Warning("can't use custom models")
+                        return None
+
                         target_file = browse_file()
                         if "Please select file." == target_file:
                             return "Please select file."
@@ -55,7 +57,7 @@ class Generator(UiTabs):
                             for f in os.listdir(target_dir)
                             if os.path.splitext(f)[1].lower() == target_ext
                             if f != os.path.basename(target_file)
-                        ] + internal_adetailer_models
+                        ] #     + internal_adetailer_models
                         return gr.update(
                             value=target_file,
                             choices=target_files
@@ -69,7 +71,7 @@ class Generator(UiTabs):
                     with gr.Row():
                         adetailer_model = gr.Dropdown(
                             scale=9, interactive=True, allow_custom_value=True,
-                            label="[ADetailer] Detection Model", choices=internal_adetailer_models, value="internal/person_yolov8n-seg.pt")
+                            label="[ADetailer] Detection Model", choices=[], value="internal/person_yolov8n-seg.pt")
                         adetailer_model_custom = gr.Button(
                             shared.browse_directory, size="lg"
                         )

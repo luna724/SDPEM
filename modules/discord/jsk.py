@@ -94,7 +94,7 @@ class Jishaku:
 
             await bot.process_commands(message)
 
-            if "pem.jsk" in message.content:
+            if "!pem.jsk" == message.content:
                 print("[Jishaku]: called pem.jsk")
                 await message.channel.send("SD-PEM Client β1.0-{commit_hash}")
 
