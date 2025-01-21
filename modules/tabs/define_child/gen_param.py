@@ -3,10 +3,11 @@ import shutil
 import gradio as gr
 import os
 
+import shared
 from jsonutil import JsonUtilities
-from modules.lora_viewer import LoRADatabaseViewer
-from modules.simple_template import SimpleTemplate
+from shared import gen_param
 from modules.ui_util import ItemRegister
+from modules.generation_param import GenerationParameterDefault
 from webui import UiTabs
 
 class Define(UiTabs):
@@ -25,7 +26,7 @@ class Define(UiTabs):
         def setter(d, k, i):
             return ItemRegister.dynamic_setter(d, k, i, "Generation", self.title())
 
-        register = ItemRegister(setter=setter)
+        regist = ItemRegister(setter=setter).register
         default_fp = os.path.join(
             os.getcwd(), "configs/default/gen_param.json"
         )
@@ -38,166 +39,94 @@ class Define(UiTabs):
             )
         default_file = JsonUtilities(default_fp)
         default = default_file.make_dynamic_data()
+        items = []
+        def register(*args):
+            items.append(args[0])
+            return gen_param.register(*args)
 
         with gr.Blocks():
-            @register.register("negative")
-            def func_negative():
-                return gr.Textbox(
-                    label="Negative prompt",
-                    lines=3, placeholder="Negative prompt default",
-                    value=default.negative
-                )
-            negative = func_negative()
-
-            @register.register("sampling_method", "schedule_type")
-            def func_col_1():
-                return (
-                    gr.Dropdown(
-                        label="Sampling Method (if multiselect, randomly select one)", value=default.sampling_method,
-                        choices=["DPM++ 2M", "DPM++ SDE", "DPM++ 2M SDE", "Euler a", "Euler"],
-                        multiselect=True, scale=4
-                    ),
-                    gr.Dropdown(
-                        label="Schedule type", value=default.schedule_type,
-                        choices=["Automatic", "Uniform", "Karras", "Exponential", "Polyexponential",
-                                 "SGM Uniform", "KL Optimal", "Align Your Steps", "Simple", "Normal",
-                                 "DDIM", "Beta"],
-                        multiselect=True, scale=4
-                    )
-                )
-
-            @register.register("sampling_steps_min", "sampling_steps_max")
-            def func_col_1_col():
-                return (
-                    gr.Slider(
-                        1, 150, value=default.sampling_step_min, step=1,
-                        label="Sampling steps (MIN)",
-                    ),
-                    gr.Slider(
-                        1, 150, value=default.sampling_step_max, step=1,
-                        label="Sampling steps (MAX)",
-                    )
-                )
-
             with gr.Row():
-                sampling_method, schedule_type = func_col_1()
-                with gr.Column(scale=4):
-                    sampling_steps_min, sampling_steps_max = func_col_1_col()
-                validate_step = gr.Button("check", scale=1)
-                def fun_validate_step(min, max):
-                    if min > max: return max, min
+                with gr.Column():
+                    with gr.Row():
+                        @regist("sampling_method")
+                        def fun_sampling_method():
+                            return gr.Dropdown(
+                                choices=[],
+                                value=default.sampling_method,
+                                label="Sampling methods",
+                                multiselect=True
+                            )
+                        sampling_method = register(fun_sampling_method())
 
-                validate_step.click(
-                    fun_validate_step, [sampling_steps_min, sampling_steps_max], [sampling_steps_min, sampling_steps_max]
-                )
+                        @regist("schedule_type")
+                        def fun_schedule_type():
+                            return gr.Dropdown(
+                                choices=[],
+                                value=default.schedule_type,
+                                label="Schedule type",
+                                multiselect=True
+                            )
+                        schedule_type = register(fun_schedule_type())
 
-            with gr.Accordion("Hires.fix", open=True):
-                @register.register("hr_upscaler")
-                def fun_hr_col1():
-                    return (
-                        gr.Dropdown(
-                            label="Upscaler", value=default.hr_upscaler,
-                            multiselect=True, scale=10,
-                            choices=[
-                                "Latent", "Latent (antialiased)", "Latent (bicubic)", "Latent (bicubic antialiased)", "Latent (nearest)",
-                                "Latent (nearest-exact)", "None", "Lanczos", "Nearest", "DAT x2", "DAT x3", "DAT x4",
-                                "DAT_x4", "ESRGAN_4x", "LDSR", "R-ESRGAN 4x+", "R-ESRGAN 4x+ Anime6B", "ScuNET", "ScuNET PSNR",
-                                "SwiniR4x"
-                            ]
-                        )
-                    )
+                        with gr.Row():
+                            with gr.Column(scale=9):
+                                @regist("sampling_steps_min")
+                                def fun_sampling_steps_min():
+                                    return gr.Slider(
+                                        label="Sampling steps (min)",
+                                        value=default.sampling_steps,
+                                        minimum=1, maximum=150, step=1
+                                    )
+                                sampling_steps_min = register(fun_sampling_steps_min())
 
-                @register.register("hr_step_min", "hr_step_max")
-                def fun_hr_steps():
-                    return (
-                        gr.Slider(
-                            0, 150, step=1, value=default.hr_steps,
-                            label="Hires steps MIN", scale=10
-                        ),
-                        gr.Slider(
-                            0, 150, step=1, value=default.hr_steps,
-                            label="Hires steps MAX", scale=10
-                        )
-                    )
+                                @regist("sampling_steps_max")
+                                def fun_sampling_steps_max():
+                                    return gr.Slider(
+                                        label="Sampling steps (max)",
+                                        value=default.sampling_steps,
+                                        minimum=1, maximum=150, step=1
+                                    )
+                                sampling_steps_max = register(fun_sampling_steps_max())
 
-                @register.register("denoising_strength_min", "denoising_strength_max")
-                def fun_hr_denoising_strength():
-                    return (
-                        gr.Slider(
-                            0, 1, step=0.01, value=default.denoising_strength_min,
-                            label="Denoising Strength MIN", scale=10
-                        ),
-                        gr.Slider(
-                            0, 1, step=0.01, value=default.denoising_strength_max,
-                            label="Denoising Strength MAX", scale=10
-                        )
-                    )
+                            # ステップ数が min > max の場合に再処理する
+                            def fun_resize_steps(step_min, step_max):
+                                if step_min > step_max: return step_max, step_min
+                                else: return step_min, step_max
+                            resize_steps = gr.Button(shared.check_mark, size="lg")
+                            resize_steps.click(
+                                fun_resize_steps, [sampling_steps_min, sampling_steps_max], [sampling_steps_min, sampling_steps_max]
+                            )
 
-                @register.register("hr_upscale")
-                def fun_hr_upscale():
-                    return gr.Slider(
-                        1, 8, step=0.01, value=default.hr_upscale,
-                        label="Upscale by.", scale=10
-                    )
+                    with gr.Row():
+                        # max が 0 なら hires.fix が無効として非オープン
+                        with gr.Accordion(open=(default.hires_steps_max != 0), label="Hires. fix"):
+                            with gr.Row():
+                                @regist("hires_upscaler")
+                                def fun_hires_upscaler():
+                                    return gr.Dropdown(
+                                        choices=[],
+                                        value=default.hires_upscaler,
+                                        label="Upscaler",
+                                        multiselect=True
+                                    )
+                                hires_upscaler = register(fun_hires_upscaler())
 
-                @register.register("separate_upscaling_method")
-                def fun_separate_upscaling_method():
-                    return gr.Checkbox(
-                        label="Separate Upscale Method",
-                        value=default.separate_upscaling_method
-                    )
+                                @regist("hires_sampler")
+                                def fun_hires_sampler():
+                                    return gr.Dropdown(
+                                        choices=[],
+                                        value=default.hires_sampler,
+                                        label="Custom Sampler (blank to disable)",
+                                        multiselect=True
+                                    )
+                                hires_sampler = register(fun_hires_sampler())
 
-                @register.register("hr_sampler_name", "hr_scheduler", "hr_negative")
-                def fun_hr_separation():
-                    return (
-                        gr.Dropdown(
-                            label="Hr.Sampler (blank = use main", value=default.hr_sampler_name,
-                            multiselect=True, scale=10,
-                            choices=[
-                                "DPM++ 2M", "DPM++ SDE", "DPM++ 2M SDE", "Euler a", "Euler"
-                            ]
-                        ),
-                        gr.Dropdown(
-                            label="Hr.Scheduler (blank = use main)", value=default.hr_scheduler,
-                            multiselect=True, scale=10,
-                            choices=[
-                                "Automatic", "Uniform", "Karras", "Exponential", "Polyexponential",
-                                "SGM Uniform", "KL Optimal", "Align Your Steps", "Simple", "Normal",
-                                "DDIM", "Beta"
-                            ]
-                        ),
-                        gr.Textbox(
-                            label="Hr.Negative prompt",
-                            lines=3, placeholder="if blank, use main negative",
-                            value=default.hr_negative
-                        )
-                    )
+                                @regist("denoising_strength")
+                                def fun_denoising_strength():
+                                    return gr.Slider(
+                                        label="Denoising Strength",
+                                        value=default.denoising_strength,
+                                        minimum=0.0, maximum=1.0, step=0.01
+                                    )
+                                denoising_strength = register(fun_denoising_strength())
 
-                with gr.Row():
-                    hr_upscaler = fun_hr_col1()
-                    with gr.Column(scale=10):
-                        hr_step_min, hr_step_max = fun_hr_steps()
-                    with gr.Column(scale=10):
-                        denoising_strength_min, denoising_strength_max = fun_hr_denoising_strength()
-
-                with gr.Row():
-                    hr_upscale = fun_hr_upscale()
-                    separate_upscaling_method = fun_separate_upscaling_method()
-
-                with gr.Row():
-                    hr_sampler_name, hr_scheduler, hr_negative = fun_hr_separation()
-
-            with gr.Accordion("Refiner", open=False):
-                @register.register("refiner_checkpoint", "refiner_switch_at")
-                def fun_refiners():
-                    return (
-                        gr.Dropdown(
-                            label="Refiner checkpoint", value=default.refiner_checkpoint,
-
-                        ),
-                        gr.Slider(
-                            0, 1, step=0.01, value=default.refiner_switch_at,
-                            label="Refiner switch at"
-                        )
-                    )
-                refiner_checkpoint, refiner_switch_at = fun_refiners()

@@ -10,7 +10,7 @@ class Generator(UiTabs):
         self.child_path = os.path.join(UiTabs.PATH, "generator_child")
 
     def title(self):
-        return "Generation"
+        return "Generate"
 
     def index(self):
         return 0

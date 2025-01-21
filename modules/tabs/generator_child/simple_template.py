@@ -49,8 +49,6 @@ class SimpleTemplateGenerateUI(UiTabs):
                         negative = gr.Textbox(label="Output Negative prompt", max_lines=100, lines=4, scale=4)
 
                     generate = gr.Button("Generate", variant="primary")
-                    generate_param_image = gr.Button("Easy Parameters")
-                    gr.Markdown("[how to use Easy Parameters](/docs/how2usep.md)")
 
                 with gr.Column(scale=4):
                     with gr.Row():

@@ -18,3 +18,7 @@
 .luna724_red_button:hover {
     background-color: #d0314e; /* ホバー時に背景色を少し暗くする */
 }
+
+.accordion_style {
+    background-color: darkgray;
+}

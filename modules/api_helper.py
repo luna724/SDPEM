@@ -55,8 +55,6 @@ class p:
 class SDApiVariables:
     """txt/img 2 img 用の型チェッカーを提供するクラス"""
     def __init__(self):
-        self._default = SDDefault()
-
         self.prompt = p("", str, "")
         self.negative_prompt = p("", str, "")
         self.styles = p([], list, [])

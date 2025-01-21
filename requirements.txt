@@ -1,4 +1,4 @@
-gradio
+gradio==3.49.0
 selenium
 beautifulsoup4
 requests

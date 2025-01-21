@@ -116,7 +116,31 @@ class CharacterTemplate(Util):
             key: str, lora: str, name: str, prompt: str, default_weight: str,
             chara_types: dict, overwrite: bool
     ):
-        return
+        current = self.load()
+        current_keys = list(current.keys())
+
+        if key in current_keys:
+            if not overwrite:
+                raise gr.Error("This display names already taken.")
+
+        if not self.check_lora_trigger(lora):
+            raise gr.Error("LoRA Trigger validate check failed.")
+
+        if version == "v3 Legacy":
+            raise gr.Error("V3 called in v6 function")
+
+        new = self.get_base_v6()
+        new["lora"] = lora
+        new["name"] = name
+        new["prompt"] = prompt
+        new["default-weight"] = default_weight
+        new["chara-types"] = chara_types
+        if "XL" in key:
+            new["isXL"] = True
+        current[key] = [version, new]
+
+        self.save(current)
+        gr.Info("Success!")
 
     """Supports up: v3, v4, v5, v6"""
     def load_character_data(self, target: str) -> tuple[str, str, str, str] | tuple:
