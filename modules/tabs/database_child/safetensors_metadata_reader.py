@@ -22,19 +22,24 @@ class Lora(UiTabs):
         return 1
 
     def ui(self, outlet):
-        metadata = gr.Textbox(
-                label="Metadata", lines=10, max_lines=120, show_copy_button=True,
-                placeholder="{}"
+        with gr.Row():
+            based_model = gr.Textbox(label="Base Model", placeholder="Unknown")
+            version = gr.Textbox(
+                label="Detected base Model version", lines=1
             )
-        version = gr.Textbox(
-            label="Detected base Model version", lines=1
-        )
 
         with gr.Row():
             fp = gr.Textbox(label="Target LoRA (only safetensors)", placeholder="/", scale=8)
-            browse = gr.Button(shared.refresh_button)
+            browse = gr.Button(shared.refresh_button, scale=2)
             browse.click(
                 ui_util.browse_file, outputs=fp
+            )
+        show = gr.Button("Show", variant="primary")
+
+        with gr.Accordion("Raw", open=False):
+            metadata = gr.Textbox(
+                    label="Metadata", lines=10, max_lines=120, show_copy_button=True,
+                    placeholder="{}", interactive=False
             )
 
         def temp(fp):
@@ -42,9 +47,8 @@ class Lora(UiTabs):
             if reader.loadable:
                 return reader.metadata, reader.detect_base_model_for_ui()
             else:
-                gr.Warning("metadata cannot loadable")
+                raise gr.Error("metadata cannot loadable")
 
-        show = gr.Button("Show", variant="primary")
         show.click(
             fn=temp, inputs=fp, outputs=[metadata, version]
         )

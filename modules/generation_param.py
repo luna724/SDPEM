@@ -1,5 +1,8 @@
+import os
+
 from pydantic import BaseModel
 
+from jsonutil import JsonUtilities
 from modules.api_helper import p
 
 class Params(BaseModel):
@@ -84,10 +87,17 @@ class GenerationParameter:
     def get_param(self, key: str):
         return getattr(self.params, key, None)
 
+def get_generation_param():
+    return JsonUtilities(os.path.join(os.getcwd(), "configs/default/gen_param.json")).make_dynamic_data()
 
 # WebUI 用、デフォルトパラメータをリアルタイムでwebUIからすべての推論スクリプト向けの引数を設定する
 import gradio as gr
 class GenerationParameterDefault(GenerationParameter):
+    """
+    Deprecated.
+    use JsonUtilities("configs/default/gen_param.json").make_dynamic_data()
+
+    """
     def __init__(self):
         super().__init__()
         self.elements = {}

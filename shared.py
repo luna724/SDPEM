@@ -1,4 +1,6 @@
 from argparse import Namespace
+from asyncio import AbstractEventLoop
+import asyncio
 from typing import Optional
 
 from modules.generation_param import GenerationParameterDefault
@@ -10,12 +12,14 @@ refresh_button = "🔄"
 circular_button = "🔁"
 select_all_button = "📦"
 browse_directory = "📁"
+reverse_button = "⇅"
 browse_file = "📄"
 check_mark = "✅"
 ui_obj: dict = {}
 gen_param: GenerationParameterDefault = GenerationParameterDefault()
 model_file: dict = {}
 
+loop: AbstractEventLoop = asyncio.new_event_loop()
 args: Optional[Namespace] = None
 jsk = None # modules.discord.jsk.py:Jishaku
 

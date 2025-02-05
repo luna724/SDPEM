@@ -15,6 +15,8 @@ from safetensors.torch import safe_open
 import shared
 from modules import deepbooru
 from modules.api.txt2img import txt2img_api
+from modules.generation_param import get_generation_param
+from modules.image_progress import ImageProgressAPI
 from modules.lora_metadata_util import LoRAMetadataReader
 from modules.lora_viewer import LoRADatabaseViewer
 from modules.tag_compare import TagCompareUtilities
@@ -154,44 +156,15 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
         prompts = [h.strip() for h in header.split(",") if h.strip() != ""] + prompts + lora_triggers + [l.strip() for l in lower.split(",") if l.strip() != ""]
         return ", ".join(prompts)
 
-    @staticmethod
-    def resize_eta(eta: float) -> str:
-        """ETA を h/m/s の形式に変換する"""
-        if eta == -1:
-            return "N/A"
-
-        converted = int(eta)
-        h = converted // 3600
-        converted -= h * 3600
-        m = converted // 60
-        converted -= m * 60
-        s = converted
-
-        eta = f""
-        if h > 0:
-            eta += f"{h}h "
-        if m > 0:
-            eta += f"{m}m "
-        if s > 0:
-            eta += f"{s}s"
-
-        return eta.strip()
-
     def progress_bar_html(self, progress: int, eta: float) -> str:
         """UIのプログレスバーのHTML"""
-        eta = self.resize_eta(eta)
+        eta = ImageProgressAPI.resize_eta(eta)
         return f"""
         <div style="width: 100%; background-color: #e0e0e0; border-radius: 8px; overflow: hidden;">
             <div style="width: {progress}%; height: 30px; background-color: #76c7c0; transition: width 0.3s;"></div>
         </div>
         <p style="text-align: center;">ETA: {eta} ({progress}%)</p>
         """
-
-    @staticmethod
-    def status_text(s: int, total_s: int) -> str:
-        """受け取った引数を (s/total_s (steps)) (s/total_s%) に変換する"""
-        percentage = "{:.1f}".format(s / total_s * 100)
-        return f"({s}/{total_s} (steps)) ({percentage}%)"
 
     """Generate Forever"""
     def generate_forever(
@@ -204,31 +177,29 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             bcf_dont_discard, bcf_invert, bcf_filtered_path, bcf_enable,
             ## above ^ gen_from_lora options ^ above
             ## below v txt2img options v below
-            negative, ad_prompt, ad_negative, sampling_method, step_min, step_max,
-            cfg_scale, width, height, bcount, bsize, seed, hires_step,
-            denoising, hires_sampler, upscale_by, restore_face, tiling, clip_skip,
-            ad_model, refresh_rate, dont_discard_interrupted_image
+            refresh_rate, dont_discard_interrupted_image
     ) -> str:
+        param = get_generation_param()
         gr.Info("Generation Forever started!")
         # デフォルトペイロードを定義
         txt2img = txt2img_api(refresh_rate,
             **{
-                "negative_prompt": negative,
-                "seed": int(seed),
+                "negative_prompt": param.negative_prompt,
+                "seed": int(param.seed),
                 "scheduler": "Automatic",
-                "batch_size": int(bsize),
-                "n_iter": int(bcount),
-                "cfg_scale": int(cfg_scale),
-                "width": int(width),
-                "height": int(height),
-                "restore_faces": restore_face,
-                "tiling": tiling,
-                "denoising_strength": denoising,
-                "enable_hr": hires_step != 0,
-                "hr_scale": upscale_by,
-                "hr_upscaler": hires_sampler,
+                "batch_size": int(param.batch_size),
+                "n_iter": int(param.batch_count),
+                "cfg_scale": int(param.cfg_scale),
+                "width": int(param.width),
+                "height": int(param.height),
+                "restore_faces": param.restore_face,
+                "tiling": param.tiling,
+                "denoising_strength": param.denoising_strength,
+                "enable_hr": param.hires_step_max != 0,
+                "hr_scale": param.hires_scale,
+                "hr_upscaler": random.choice(param.hires_upscaler) if len(param.hires_upscaler) > 0 else "R-ESRGAN 4x+ Anime6B",
                 "override_settings": {
-                    "CLIP_stop_at_last_layers": int(clip_skip),
+                    "CLIP_stop_at_last_layers": int(param.clip_skip),
                 },
                 "alwayson_scripts": {
                     "ADetailer": {
@@ -236,10 +207,10 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                             True,
                             False,
                             {
-                                "ad_model": ad_model,
-                                "ad_prompt": ad_prompt,
-                                "ad_negative_prompt": ad_negative,
-                                "ad_denoising_strength": denoising
+                                "ad_model": param.adetailer_model_1st,
+                                "ad_prompt": param.adetailer_prompt,
+                                "ad_negative_prompt": param.adetailer_negative,
+                                "ad_denoising_strength": param.denoising_strength
                             }
                         ]
                     }
@@ -264,14 +235,14 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             bcf_filtered_path = os.path.join(shared.a1111_webui_path, "outputs/txt2img-images/bcf-filtered")
         os.makedirs(bcf_filtered_path, exist_ok=True)
 
-        if step_min > step_max:
+        if param.sampling_steps_min > param.sampling_steps_max:
             raise gr.Error("step MIN > step MAX is not allowed.")
-        if len(sampling_method) == 0:
+        if len(param.sampling_method) == 0:
             raise gr.Error("Please select sampling method (at least one)")
 
         # ユーザーが止めるまで
         self.sent_text = new_yield("[Forever-Generation]: ", max_line=200)
-        empty = ("N/A", "N/A", None, self.progress_bar_html(0, -1), False)
+        empty = ("N/A", "N/A", None, ImageProgressAPI.progress_bar_html(0, -1), False)
         final_value = empty
         yield self.sent_text("Starting.."), *empty
         self.forever_generation = True
@@ -290,10 +261,10 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
                 return str(e)
 
             yield self.sent_text("Prompt successfully Created."), *empty
-            steps = random.randrange(step_min, step_max+1, 1)
-            sampler = random.choice(sampling_method)
+            steps = random.randrange(param.sampling_steps_min, param.sampling_steps_max+1, 1)
+            sampler = random.choice(param.sampling_method)
             print(f"[INFO]: Processing for prompt ({prompt})")
-            yield self.sent_text("Started generation with option\n"+f"Prompt: {prompt}\nSteps: {steps} | Sampler: {sampler}"), self.status_text(0, steps), "N/A", None, self.progress_bar_html(0, -1), False
+            yield self.sent_text("Started generation with option\n"+f"Prompt: {prompt}\nSteps: {steps} | Sampler: {sampler}"), ImageProgressAPI.status_text(0, steps), "N/A", None, ImageProgressAPI.progress_bar_html(0, -1), False
             response, final_value = yield from txt2img.generate(self, **{"prompt": prompt, "steps": steps, "sampler_name": sampler})
             interrupted = final_value[4]
             if interrupted:
@@ -310,8 +281,8 @@ class LoRAGeneratingUtil(LoRADatabaseViewer):
             )
             os.makedirs(output_dir, exist_ok=True)
             infotxt = response.get("info")
-            param = json.loads(infotxt)
-            default_seed = param["seed"]
+            out_param = json.loads(infotxt)
+            default_seed = out_param["seed"]
             for (index, image) in enumerate(response.get("images")):
                 fc = len([x for x in os.listdir(output_dir) if os.path.splitext(x)[1].lower() == ".png"])
                 current_seed = default_seed + index

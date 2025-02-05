@@ -80,6 +80,7 @@ class Jishaku:
         @bot.event
         async def on_ready():
             await self.bot.tree.sync(guild=self.guild)
+            await self.bot.tree.sync()
             print(f'[Jishaku]: Logged in as {bot.user} (ID: {bot.user.id})')
 
         @bot.event

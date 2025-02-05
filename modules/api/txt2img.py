@@ -1,45 +1,19 @@
 import base64
 import json
 import time
-import urllib.request
-import urllib.error
 import gradio as gr
 from PIL import Image
 from io import BytesIO
 
+from modules.api.call_internal import send_request
+from modules.image_progress import ImageProgressAPI
 from modules.util import Util
 from concurrent.futures import ThreadPoolExecutor
-
-from modules.api.server_ip import server_ip
 
 class txt2img_api(Util):
     @staticmethod
     def _send_request(url, data, method="POST"):
-        """Sends a request to the specified URL with the given data.
-
-        Args:
-            url: The URL to send the request to.
-            data: The data to send with the request.
-
-        Returns:
-            The response from the server, or None if an error occurred.
-        """
-        try:
-            req = urllib.request.Request(
-                f"http://{server_ip.ip}:{server_ip.port}"+url,
-                headers={"Content-Type": "application/json"},
-                data=json.dumps(data).encode("utf-8"),
-                method=method,
-            )
-
-            with urllib.request.urlopen(req) as response:
-                return response.read().decode("utf-8")
-        except urllib.error.HTTPError as e:
-            print(f"HTTP error: {e.code} - {e.reason}")
-            raise gr.Error(f"HTTP error: {e.code} - {e.reason}.\nDid you launch SD-WebUI with --api argument?")
-        except urllib.error.URLError as e:
-            print(f"URL error: {e.reason}.\nre-check custom IP and try again.")
-            return None
+        return send_request(url, data, method)
 
     def __init__(self, refresh_rate = 1.5, *args, **payload):
         self.default_payload = payload
@@ -73,17 +47,19 @@ class txt2img_api(Util):
                 continue
 
             if step is not None and step != steps:
-                # ADetailer であることの検出
+                # TODO: ADetailer であることの検出
                 pass
 
-            last = (
-                instance.status_text(current_step, steps), instance.resize_eta(eta), image, instance.progress_bar_html(int((current_step/steps)*100), eta), state["interrupted"]
+            last = ( ## TODO: ImageProgressAPI に変更
+                ImageProgressAPI.status_text(current_step, steps),
+                ImageProgressAPI.resize_eta(eta), image,
+                ImageProgressAPI.progress_bar_html(int((current_step/steps)*100), eta),
+                state["interrupted"]
             )
             #print("yielding..")
             yield instance.sent_text(end="", override_header=""), *last
             time.sleep(self.refresh_rate)  # WinError 10048を防ぐ
 
-        # 結果を取得する
         response = future.result()
         return json.loads(response), last
 
@@ -99,11 +75,17 @@ class txt2img_api(Util):
         gr.Warning("Interrupting...")
         return
 
+    def skip(self):
+        self._send_request("/sdapi/v1/skip", {})
+        gr.Warning("Skipping...")
+        return
+
     def get_progress(self):
+        # TODO: ImageProgressAPI に変更
         response = self._send_request(
             "/sdapi/v1/progress", {}, "GET"
         )
-        #print(f"Full server response: {response}")  # デバッグ用
+        #print(f"Full server response: {response}")
         response = json.loads(response)
         progress = response["progress"]
         eta = response["eta_relative"]

@@ -52,6 +52,8 @@ class p:
         except TypeError:
             return type_e
 
+
+
 class SDApiVariables:
     """txt/img 2 img 用の型チェッカーを提供するクラス"""
     def __init__(self):
