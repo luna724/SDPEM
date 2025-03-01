@@ -54,3 +54,5 @@ def file_cleaner():
         cookie_expiry = JsonUtilities("civitai_cookies.json").read()[0]["expiry"]
         if cookie_expiry < time.time():
             os.remove("civitai_cookies.json")
+
+    os.makedirs("temp", exist_ok=True)

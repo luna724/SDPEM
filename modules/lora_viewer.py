@@ -111,7 +111,7 @@ class LoRADatabaseViewer:
                 r"\$modelid=(\d+);?", text
             )
             trig_lora = re.findall(
-                r"\$lora=(.+);?", text
+                r"\$lora=(\w+);?", text
             )
 
             # テキストを再処理

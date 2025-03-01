@@ -28,6 +28,7 @@ class txt2img_api(Util):
         payload = self.default_payload | override_payload
         step = override_payload.get("steps", None) or self.default_payload.get("steps", None)
         data = payload
+        print(f"[API]: Generation started! payload: {data}")
 
         # スレッドでリクエストを実行
         future = self.executor.submit(self._txt2img_api, data)
@@ -50,7 +51,7 @@ class txt2img_api(Util):
                 # TODO: ADetailer であることの検出
                 pass
 
-            last = ( ## TODO: ImageProgressAPI に変更
+            last = (
                 ImageProgressAPI.status_text(current_step, steps),
                 ImageProgressAPI.resize_eta(eta), image,
                 ImageProgressAPI.progress_bar_html(int((current_step/steps)*100), eta),

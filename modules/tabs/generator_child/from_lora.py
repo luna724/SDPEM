@@ -488,9 +488,13 @@ class Generator(UiTabs):
             lower,
             threshold,
             refresh_rate,
-            dont_discard_interrupted,
-            separate_blacklist, bcf_blacklist, booru_threshold,
-            bcf_dont_discard, bcf_invert, bcf_filtered_path, bcf_enable
+            separate_blacklist,
+            bcf_blacklist,
+            booru_threshold,
+            bcf_dont_discard,
+            bcf_invert,
+            bcf_filtered_path,
+            bcf_enable
         ):
             frame = inspect.currentframe()
             args, _, _, values = inspect.getargvalues(frame)

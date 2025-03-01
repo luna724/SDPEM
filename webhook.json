@@ -1,0 +1,9 @@
+{
+  "url": "PATH?=pemWebhook",
+  "payload": {
+    "avatar_url": "https://cdn.discordapp.com/avatars/1344305793192693760/286c9b944d7b8a64b23e9f2e750e86db.png?size=1024",
+    "name": "1344305793192693760"
+  },
+  "type": "POST",
+  "MEMO": "type are only supports \"POST\""
+}

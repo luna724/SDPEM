@@ -379,7 +379,7 @@ class Define(UiTabs):
                                 return gr.Dropdown(
                                     label="ADetailer Model 1st",
                                     choices=['face_yolov8n.pt', 'face_yolov8s.pt', 'hand_yolov8n.pt', 'person_yolov8n-seg.pt', 'person_yolov8s-seg.pt', 'yolov8x-worldv2.pt', 'mediapipe_face_full', 'mediapipe_face_short', 'mediapipe_face_mesh', 'mediapipe_face_mesh_eyes_only'],
-                                    value=default.adetailer_model
+                                    value=default.adetailer_model_1st
                                 )
                             adetailer_model_1st = register(fun_adetailer_model_1st())
 
@@ -388,7 +388,7 @@ class Define(UiTabs):
                                 return gr.Dropdown(
                                     label="ADetailer Model 2nd",
                                     choices=['face_yolov8n.pt', 'face_yolov8s.pt', 'hand_yolov8n.pt', 'person_yolov8n-seg.pt', 'person_yolov8s-seg.pt', 'yolov8x-worldv2.pt', 'mediapipe_face_full', 'mediapipe_face_short', 'mediapipe_face_mesh', 'mediapipe_face_mesh_eyes_only'],
-                                    value=default.adetailer_model
+                                    value=default.adetailer_model_2nd
                                 )
                             adetailer_model_2nd = register(fun_adetailer_model_2nd())
 

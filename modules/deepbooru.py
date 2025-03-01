@@ -144,6 +144,7 @@ class Deepbooru(ModelLoaderClassUtil):
         image, threshold を受け取り、タグをキー、値をthresholdとする辞書を返す
         """
         self.cache_vram()
+        threshold = float(threshold)
         probability_dict = self.get_tags(image, threshold=threshold)
         self.clean_vram()
 

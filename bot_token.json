@@ -1,7 +1,7 @@
 {
   "__Comment": "Your Discord BOT Tokens (Optional)",
   "__comment": "set \"PATH?={target_path}\" to use your system path",
-  "token": "PATH?=SDPEM-jsk",
+  "token": "PATH?=iloveichika4TOKEN",
   "prefix": "!pem.",
   "guild": 1287028655754575976
 }

@@ -33,9 +33,9 @@ class _ServerIP:
 
     def new(self, ip, port):
         self.ip = ip
-        self.port = port
+        self.port = int(port)
         if self._validate():
-            gr.Info("Successfully updated!", duration=5)
+            gr.Info("Successfully updated!")
             self._file()
         else:
             raise gr.Error("Unable to connect to server. re-check the values and try again.")

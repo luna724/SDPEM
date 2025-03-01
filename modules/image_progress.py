@@ -73,7 +73,7 @@ class _ImageProgressAPI:
         # 違いは生成完了したものかどうか
         self.last_generated_image: PIL.Image = None
 
-        shared.loop.create_task(self._update())
+        # shared.loop.create_task(self._update())
 
     def get_progress(self) -> tuple[str, str, str, PIL.Image, str]:
         response = get_request_with_status(self.url, {})
