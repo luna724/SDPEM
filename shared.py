@@ -3,6 +3,8 @@ from asyncio import AbstractEventLoop
 import asyncio
 from typing import Optional
 
+from fastapi import FastAPI
+
 from modules.generation_param import GenerationParameterDefault
 
 sd_webui_exists: bool = False
@@ -21,6 +23,7 @@ model_file: dict = {}
 
 loop: AbstractEventLoop = asyncio.new_event_loop()
 args: Optional[Namespace] = None
+app: Optional[FastAPI] = None
 jsk = None # modules.discord.jsk.py:Jishaku
 
 ## BETA Opts

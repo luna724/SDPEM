@@ -6,10 +6,14 @@ from typing import *
 import gradio as gr
 import importlib
 import torch
+import uvicorn
+from fastapi import FastAPI
 
 from initialize import *
 import shared
 from modules.argparser import parse_args
+from modules.receive import initialize_server
+
 
 class UiTabs:
     PATH = os.path.join(os.getcwd(), "modules/tabs")
@@ -188,10 +192,19 @@ def jishaku_launcher():
     except Exception as e:
         print(f"[JSK-Launcher]: Error while launching: {e}")
 
+def launch_server():
+    app = shared.app
+    uvicorn.run(app, host=shared.args.server_ip, port=7850)
+
 
 def launch():
     parse_args()  # ArgumentParser
     default_model = load_default_model() # Load Model
+
+    # fastapi server
+    initialize_server()
+    server = threading.Thread(target=launch_server, daemon=True)
+    server.start()
 
     shared.sd_webui_exists = search_sd_webui_at1()
     shared.driver_path = auto_install_chromedriver_for_selenium()

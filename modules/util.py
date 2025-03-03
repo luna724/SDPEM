@@ -45,3 +45,11 @@ class Util:
     def isbool(x: Any) -> bool:
         if isinstance(x, bool): return True
         else: return False
+
+
+class EmptyInstance:
+    def __getattr__(self, item, *args, **kwargs):
+        return EmptyInstance()
+
+    def __call__(self, *args, **kwargs):
+        return EmptyInstance()

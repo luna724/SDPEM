@@ -13,6 +13,7 @@ import shared
 from modules.api.txt2img import txt2img_api
 from modules.discord.commands.show_status import get_gpu_info, get_cpu_info, get_ram_info
 from modules.image_progress import ImageProgressAPI
+from modules.util import EmptyInstance
 
 
 def register_slash_commands(bot: commands.Bot, guild: discord.Object | None):
@@ -98,8 +99,11 @@ def register_slash_commands(bot: commands.Bot, guild: discord.Object | None):
     )
     async def last_image(interaction: Interaction, mode: Literal["last_file", "ram"] = "last_file", format: Literal["JPEG", "PNG"] = "PNG"): # TODO: まともな処理にする (#27参照)
         if mode == "ram":
-            await interaction.response.send_message("Not implemented yet.", ephemeral=True)
-            return
+            image = ImageProgressAPI.last_generated_image
+
+            if image is None:
+                await interaction.response.send_message("No images found.", ephemeral=True)
+                return
 
         elif mode == "last_file":
             # outputs/txt2img-images から最後の画像を取得
@@ -136,19 +140,23 @@ def register_slash_commands(bot: commands.Bot, guild: discord.Object | None):
                 await interaction.response.send_message("No images found.", ephemeral=True)
                 return
 
-            # JPEGに対応させる
-            image_buffer = BytesIO()
-            img = Image.open(image)
-            img.save(image_buffer, format=format)
-            image_buffer.seek(0)
+        else:
+            await interaction.response.send_message("Invalid mode.", ephemeral=True)
+            return
 
-            if image_buffer.getbuffer().nbytes > 10 * 1024 * 1024:
-                await interaction.response.send_message("Image is too large to send. did you try JPEG mode? (> 10MB)", ephemeral=True)
-                return
+        # JPEGに対応させる
+        image_buffer = BytesIO()
+        img = Image.open(image)
+        img.save(image_buffer, format=format)
+        image_buffer.seek(0)
 
-            image = discord.File(image_buffer, filename=f"last_image.{format.lower()}")
-            await interaction.response.send_message(file=image)
-            return img
+        if image_buffer.getbuffer().nbytes > 10 * 1024 * 1024:
+            await interaction.response.send_message("Image is too large to send. did you try JPEG mode? (> 10MB)", ephemeral=True)
+            return
+
+        image = discord.File(image_buffer, filename=f"last_image.{format.lower()}")
+        await interaction.response.send_message(file=image)
+        return img
 
 
     @bot.tree.command(
@@ -163,3 +171,11 @@ def register_slash_commands(bot: commands.Bot, guild: discord.Object | None):
 
         await interaction.response.send_message("Interrupting... (__/current_image__ to check status)", ephemeral=True)
         return
+
+    import modules.discord.commands.generate
+    @bot.tree.command(
+        name="generate",
+        description="Generate image from prompt",
+    )
+    async def generate(interaction: Interaction, *, prompt: str):
+        await modules.discord.commands.generate.process_command(interaction, prompt=prompt)

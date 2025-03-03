@@ -70,8 +70,11 @@ class _ImageProgressAPI:
         self.sleep_interval: int = 1
 
         self.last_image: PIL.Image = None
+        self.last_info: Optional[str] = None
+
         # 違いは生成完了したものかどうか
         self.last_generated_image: PIL.Image = None
+        self.last_generated_info: Optional[str] = None
 
         # shared.loop.create_task(self._update())
 
