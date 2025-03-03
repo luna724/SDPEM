@@ -1,9 +1,8 @@
 import itertools
 from typing import *
 
-from modules.fastext import default as fasttext
-from modules.bert import default as bert
-from modules.gensim import default as gensim
+from modules.models.fast_text import default as fasttext
+from modules.models.gensim import default as gensim
 from modules.util import Util
 
 class TagCompareUtilities(Util):

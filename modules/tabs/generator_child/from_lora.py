@@ -7,6 +7,7 @@ import os
 import shared
 from jsonutil import JsonUtilities
 from modules.api.txt2img import txt2img_api
+from modules.from_lora_forever_generation import FromLoRAForeverGeneration
 from modules.lora_generator import LoRAGeneratingUtil
 from modules.lora_viewer import LoRADatabaseViewer
 from modules.ui_util import (
@@ -37,6 +38,7 @@ class Generator(UiTabs):
 
         viewer = LoRADatabaseViewer()
         generator = LoRAGeneratingUtil()
+        forever_generator = FromLoRAForeverGeneration()
         register = ItemRegister(setter=setter)
         default_fp = os.path.join(
             os.getcwd(), "configs/default/generator-from_lora.json"
@@ -436,7 +438,7 @@ class Generator(UiTabs):
             bcf_enable
         ]
         start_infini_generation.click(
-            fn=generator.generate_forever,
+            fn=forever_generator.generate_forever,
             inputs=base_inference_variables+bcfs+txt2img_variables,
             outputs=[
                 status, progress_text, eta, current_image, status_bar, interrupted

@@ -5,7 +5,7 @@ from numpy import dot
 from numpy.linalg import norm
 
 import shared
-from modules.model_loader import ModelLoaderClassUtil
+from modules.models.model_loader import ModelLoaderClassUtil
 
 
 class FastText(ModelLoaderClassUtil):

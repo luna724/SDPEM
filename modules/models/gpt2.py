@@ -1,6 +1,6 @@
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 
-from modules.model_loader import ModelLoaderClassUtil
+from modules.models.model_loader import ModelLoaderClassUtil
 import shared
 
 class GPT2(ModelLoaderClassUtil):

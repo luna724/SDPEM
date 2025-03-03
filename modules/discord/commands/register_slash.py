@@ -1,19 +1,15 @@
-import os
 import datetime
 import time
 from io import BytesIO
 from typing import Literal
 
 import discord
-from PIL import Image
 from discord import Interaction
 from discord.ext import commands
 
-import shared
 from modules.api.txt2img import txt2img_api
 from modules.discord.commands.show_status import get_gpu_info, get_cpu_info, get_ram_info
 from modules.image_progress import ImageProgressAPI
-from modules.util import EmptyInstance
 
 
 def register_slash_commands(bot: commands.Bot, guild: discord.Object | None):
@@ -93,70 +89,13 @@ def register_slash_commands(bot: commands.Bot, guild: discord.Object | None):
         await interaction.response.send_message(embed=embed, **image)
 
 
+    import modules.discord.commands.last_image
     @bot.tree.command(
         name="last_image",
         description="show last generated image",
     )
-    async def last_image(interaction: Interaction, mode: Literal["last_file", "ram"] = "last_file", format: Literal["JPEG", "PNG"] = "PNG"): # TODO: まともな処理にする (#27参照)
-        if mode == "ram":
-            image = ImageProgressAPI.last_generated_image
-
-            if image is None:
-                await interaction.response.send_message("No images found.", ephemeral=True)
-                return
-
-        elif mode == "last_file":
-            # outputs/txt2img-images から最後の画像を取得
-            outputs_dir = os.path.join(shared.a1111_webui_path, "outputs/txt2img-images")
-            output_folders = [
-                    os.path.join(outputs_dir, folder)
-                    for folder in sorted(os.listdir(outputs_dir))
-            ]
-            if len(output_folders) == 0:
-                await interaction.response.send_message("No images found.", ephemeral=True)
-                return
-
-            image = None
-            folder_index = -1
-            while image is None:
-                images = [
-                    os.path.join(output_folders[folder_index], file)
-                    for file in os.listdir(output_folders[folder_index])
-                    if file.lower().endswith(".png")
-                ]
-                if len(images) == 0:
-                    folder_index -= 1
-
-                    # フォルダ数が全部なくなったら終了
-                    if len(output_folders) + folder_index <= 0:
-                        await interaction.response.send_message("No images found.", ephemeral=True)
-                        return
-
-                    continue
-
-                image = images[-1]
-                break
-            if image is None:
-                await interaction.response.send_message("No images found.", ephemeral=True)
-                return
-
-        else:
-            await interaction.response.send_message("Invalid mode.", ephemeral=True)
-            return
-
-        # JPEGに対応させる
-        image_buffer = BytesIO()
-        img = Image.open(image)
-        img.save(image_buffer, format=format)
-        image_buffer.seek(0)
-
-        if image_buffer.getbuffer().nbytes > 10 * 1024 * 1024:
-            await interaction.response.send_message("Image is too large to send. did you try JPEG mode? (> 10MB)", ephemeral=True)
-            return
-
-        image = discord.File(image_buffer, filename=f"last_image.{format.lower()}")
-        await interaction.response.send_message(file=image)
-        return img
+    async def last_image(interaction: Interaction, mode: Literal["last_file", "ram"] = "last_file", format: Literal["JPEG", "PNG"] = "PNG"):
+        await modules.discord.commands.last_image.process_command(interaction, mode, format)
 
 
     @bot.tree.command(
@@ -177,5 +116,29 @@ def register_slash_commands(bot: commands.Bot, guild: discord.Object | None):
         name="generate",
         description="Generate image from prompt",
     )
-    async def generate(interaction: Interaction, *, prompt: str):
-        await modules.discord.commands.generate.process_command(interaction, prompt=prompt)
+    async def generate(
+            interaction: Interaction, *, prompt: str,
+            batch_size: int = None,
+            width: int = None,
+            height: int = None,
+            denoising_strength: float = None
+    ):
+        payload = {}
+        if batch_size is not None: payload["batch_size"] = batch_size
+        if width is not None: payload["width"] = width
+        if height is not None: payload["height"] = height
+        if denoising_strength is not None: payload["denoising_strength"] = denoising_strength
+
+        await modules.discord.commands.generate.process_command(interaction, prompt=prompt, **payload)
+
+
+    import modules.discord.commands.alias
+    @bot.tree.command(
+        name="alias",
+        description="Manage prompt aliases",
+    )
+    async def alias(
+            interaction: Interaction,
+            _alias: str, prompt: str, mode: Literal["add", "remove", "get", "list"] = "add", memo: str = None
+    ):
+        await modules.discord.commands.alias.process_command(interaction, mode=mode, alias=_alias, prompt=prompt, memo=memo)

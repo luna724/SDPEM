@@ -1,9 +1,5 @@
-from modules import deepbooru
 from modules.api.txt2img import txt2img_api
-from modules.tag_compare import TagCompareUtilities
 from webui import UiTabs
-import modules.bert
-import modules.tag_compare
 
 import os
 import gradio as gr

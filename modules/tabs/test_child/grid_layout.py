@@ -1,10 +1,6 @@
 import shared
-from modules import deepbooru
-from modules.tag_compare import TagCompareUtilities
 from modules.ui_util import browse_directory
 from webui import UiTabs
-import modules.bert
-import modules.tag_compare
 
 import os
 import gradio as gr

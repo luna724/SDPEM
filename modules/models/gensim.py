@@ -1,10 +1,9 @@
-import requests
 from gensim.models import KeyedVectors
 import os, shutil
 import gdown, gzip
 
 import shared
-from modules.model_loader import ModelLoaderClassUtil
+from modules.models.model_loader import ModelLoaderClassUtil
 
 
 class Gensim(ModelLoaderClassUtil):

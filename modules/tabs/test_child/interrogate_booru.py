@@ -1,8 +1,5 @@
-from modules import deepbooru
-from modules.tag_compare import TagCompareUtilities
+from modules.models import deepbooru
 from webui import UiTabs
-import modules.bert
-import modules.tag_compare
 
 import os
 import gradio as gr

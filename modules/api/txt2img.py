@@ -1,9 +1,9 @@
 import base64
 import json
 import time
-
-import discord
 import gradio as gr
+
+from typing import Any
 from PIL import Image
 from io import BytesIO
 
@@ -53,7 +53,7 @@ class txt2img_api(Util):
         self.refresh_rate = refresh_rate
         self.executor = ThreadPoolExecutor(max_workers=2) # メインと progress まで並列実行可
 
-    def generate(self, instance, **override_payload) -> tuple:
+    def generate(self, instance, **override_payload) -> tuple[dict, tuple] | Any:
         """
         generateリクエストをスレッドで実行し、
         リクエストの応答待ち中に他のバックグラウンド処理を続ける。
@@ -71,7 +71,7 @@ class txt2img_api(Util):
         while not future.done():
             prog, eta, state, image, _ = self.get_progress()
             if state is None:
-                #print("state is none, skipping,,")
+                #print("state is none, skipping..")
                 time.sleep(self.refresh_rate)  # WinError 10048を防ぐ
                 continue
             current_step = state["sampling_step"]
@@ -119,7 +119,6 @@ class txt2img_api(Util):
         response = self._send_request(
             "/sdapi/v1/progress", {}, "GET"
         )
-        #print(f"Full server response: {response}")
         response = json.loads(response)
         progress = response["progress"]
         eta = response["eta_relative"]
@@ -138,110 +137,3 @@ class txt2img_api(Util):
         textinfo = response["textinfo"]
         return progress, eta, state, current_image, textinfo
 
-    async def bot_generate(self, prompt: str, interaction: discord.Interaction):
-        payload = {
-                "prompt": prompt,
-                "negative_prompt": "score_6, score_5, score_4, ugly face, low res, interlocked fingers, anatomically incorrect hands, bad anatomy, pony, furry, censored, realistic, pencil art, boy, EasyNegative, badhandv5, By bad artist -neg,  (((public hair), abs)), (bad anatomy:1.4), (low quality, worst quality:1.1), lips, fat, (inaccurate limb:1.2), (Low resolution:1.1), censored, monochrome,",
-                "seed": -1,
-                "scheduler": "Automatic",
-                "batch_size": 2,
-                "n_iter": 1,
-                "cfg_scale": 7.5,
-                "width": 1024,
-                "height": 1024,
-                "restore_faces": False,
-                "tiling": False,
-                "denoising_strength": 0.3,
-                "enable_hr": False,
-                "override_settings": {
-                    "CLIP_stop_at_last_layers": 2,
-                },
-                "alwayson_scripts": {
-                    "ADetailer": {
-                        "args": [
-                            True,
-                            False,
-                            {
-                                "ad_model": "face_yolov8n.pt",
-                                "ad_prompt": "",
-                                "ad_negative_prompt": "",
-                                "ad_denoising_strength": 0.3
-                            }
-                        ]
-                    }
-                }
-            }
-
-        refresh_rate = 30
-        future = self.executor.submit(self._txt2img_api, payload)
-        last = None
-        pharase = 0
-
-        while not future.done():
-            progress, eta, state, image, _ = self.get_progress()
-            if state is None:
-                time.sleep(1)
-                continue
-
-            note = ""
-            current_step = state.get("sampling_step", 0)
-            total_step = state.get("sampling_steps", 0)
-
-            if eta == 0 or current_step <= 0:
-                note += "- Preview image are Unavailable. (__/last_image__ to show)\n"
-                image = {}
-            if state.get("interrupted", False):
-                note += "- Generation was interrupted.\n"
-            if state.get("skipped", False):
-                note += "- Generation was Skipped.\n"
-            if total_step == 0:
-                time.sleep(1)
-                continue
-
-            last = (
-                ImageProgressAPI.status_text(current_step, total_step),
-                ImageProgressAPI.resize_eta(eta), image,
-                ImageProgressAPI.progress_bar_html(int((current_step/total_step)*100), eta),
-                state["interrupted"]
-            )
-
-            time.sleep(25)
-            embed = discord.Embed(
-                title=f"Generation in Progress! ({pharase})",
-                description=f'{note}\n'+
-                        f'**Steps**: {ImageProgressAPI.status_text(current_step, total_step) if eta != 0 else "NaN"}\n' +
-                        f'**ETA**: {ImageProgressAPI.resize_eta(eta) if eta != 0 else "NaN"}\n\n' +
-                        f'Generation {f"will Ends on: <t:{int(time.time() + eta)}:F>" if eta != 0 else "was **Ended**."}',
-                color=discord.Color.greyple()
-            )
-
-            img = {}
-            img_buffer = BytesIO()
-            if image:
-                image.save(img_buffer, format="JPEG")
-                img_buffer.seek(0)
-                img = {
-                    "file": discord.File(img_buffer, filename=f"current_image_{pharase}.jpg")
-                }
-
-            await interaction.followup.send(
-                content=f"Phase {pharase}: Processing in {pharase*25} seconds...",
-                embed=embed,
-                **img
-            )
-            pharase += 1
-
-        #
-        img = {}
-        img_buffer = BytesIO()
-        image = ImageProgressAPI.last_image
-        if image:
-            image.save(img_buffer, format="JPEG")
-            img_buffer.seek(0)
-            img = {
-                "file": discord.File(img_buffer, filename=f"current_image_{pharase}.jpg")
-            }
-        await interaction.followup.send(
-            content="Generation Finished!",
-            **img
-        )

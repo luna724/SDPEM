@@ -1,6 +1,6 @@
 from modules.tag_compare import TagCompareUtilities
 from webui import UiTabs
-import modules.bert
+import modules.models.bert
 import modules.tag_compare
 
 import os
@@ -40,7 +40,7 @@ class Template(UiTabs):
             visible_inputs = args[:num_fields]
 
             if compare_mode == "bert":
-                return modules.bert.default.compare_multiply_words(visible_inputs, threshold) # ignore: type
+                return modules.models.bert.default.compare_multiply_words(visible_inputs, threshold) # ignore: type
             else:
                 return tag_compare_util.compare_multiply_words_for_ui(visible_inputs, threshold) # ignore: type
 

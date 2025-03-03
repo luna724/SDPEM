@@ -1,12 +1,12 @@
 import itertools
 
 from transformers import BertTokenizer, BertModel, PreTrainedTokenizerBase, PreTrainedModel
-from sentence_transformers import SentenceTransformer, util
+from sentence_transformers import SentenceTransformer
 import torch
 from typing import *
 
 import shared
-from modules.model_loader import ModelLoaderClassUtil
+from modules.models.model_loader import ModelLoaderClassUtil
 
 
 class BERT(ModelLoaderClassUtil):

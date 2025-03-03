@@ -7,6 +7,7 @@ class LoRAMetadataReader:
     def __init__(self, fp):
         self.loadable = False
         self.fp = fp
+        self.metadata = {}
         try:
             with safe_open(os.path.abspath(fp), framework="pt") as f:
                 self.metadata = f.metadata()
@@ -49,7 +50,7 @@ class LoRAMetadataReader:
         return self.detect_model_ver() == "SDXL1.0"
 
     def get_output_name(self, blank=None):
-        metadata = self.metadata
+        metadata = self.metadata or {}
         output_name = metadata.get("ss_output_name", blank)
         print(f"Detected lora trigger: {output_name}")
         return output_name
@@ -59,7 +60,7 @@ class LoRAMetadataReader:
         safetensors ファイルを読み取り、ベースモデルを判別します。
         """
         try:
-            metadata = self.metadata
+            metadata = self.metadata or {}
             keys = self.keys
 
             # ベースモデル判定ロジック

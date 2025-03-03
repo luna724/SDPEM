@@ -4,12 +4,11 @@ import PIL.Image as Image
 import numpy as np
 import os
 import tqdm
-import gc
 from typing import *
 
 import shared
-from modules.model_loader import ModelLoaderClassUtil
-from modules.torch_deepbooru import DeepDanbooruModel
+from modules.models.model_loader import ModelLoaderClassUtil
+from modules.models.torch_deepbooru import DeepDanbooruModel
 
 
 class Deepbooru(ModelLoaderClassUtil):
