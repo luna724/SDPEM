@@ -67,7 +67,6 @@ class Jishaku:
         self.register_commands()
         print("[Jishaku]: bot starting..")
         self.bot.run(token)
-        self.bot.tree.sync(guild=self.guild)
 
     def register_commands(self):
         self.register_external_commands()

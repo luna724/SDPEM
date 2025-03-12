@@ -15,3 +15,4 @@ class Webhook:
         return self.file.read()
 
     def save(self, data: dict):
+        return

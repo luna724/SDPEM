@@ -1,10 +1,62 @@
 import re
 from typing import *
 from PIL import Image
+from PIL import Image
+from PIL.PngImagePlugin import PngInfo
+import io
+
 
 class ImageParamUtil:
     def __init__(self):
         pass
+
+    @staticmethod
+    def extract_png_metadata(image_path_or_object):
+        """
+        Extract all embedded data from a PNG file.
+
+        Args:
+            image_path_or_object: Either a path to a PNG file or a PIL Image object
+
+        Returns:
+            dict: All metadata found in the PNG file
+        """
+        # Handle both file paths and Image objects
+        if isinstance(image_path_or_object, str):
+            img = Image.open(image_path_or_object)
+        elif isinstance(image_path_or_object, Image.Image):
+            img = image_path_or_object
+        else:
+            raise ValueError("Input must be a file path or PIL Image object")
+
+        # Ensure we're dealing with a PNG
+        if img.format != "PNG" and not hasattr(img, "info"):
+            # If it's not a PNG but has been converted from one, try to preserve info
+            if not hasattr(img, "info"):
+                return {}
+
+        metadata = {}
+
+        # Extract standard info
+        metadata["mode"] = img.mode
+        metadata["size"] = img.size
+
+        # Extract all info dictionary items
+        for key, value in img.info.items():
+            metadata[key] = value
+
+        # Get raw PNG chunks
+        if hasattr(img, "png") and hasattr(img.png, "chunks"):
+            chunks = []
+            for chunk_type, chunk_data in img.png.chunks:
+                chunks.append({
+                    "type": chunk_type.decode('latin-1'),
+                    "data": chunk_data[:20] + b'...' if len(chunk_data) > 20 else chunk_data,
+                    "length": len(chunk_data)
+                })
+            metadata["raw_chunks"] = chunks
+
+        return metadata
 
     def replace_param(self, image: Image, param: str) -> Image:
         ##TODO: add function

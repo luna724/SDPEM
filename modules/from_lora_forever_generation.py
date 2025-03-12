@@ -26,6 +26,7 @@ from modules.yield_util import new_yield
 class FromLoRAForeverGeneration(LoRAGeneratingUtil):
     def __init__(self):
         super().__init__()
+        self.forever_generation = False
         self.sent_text = None
 
     def generate_forever(
@@ -88,7 +89,9 @@ class FromLoRAForeverGeneration(LoRAGeneratingUtil):
                                                   "ad_model": param.adetailer_model_1st,
                                                   "ad_prompt": param.adetailer_prompt,
                                                   "ad_negative_prompt": param.adetailer_negative,
-                                                  "ad_denoising_strength": param.denoising_strength
+                                                  "ad_denoising_strength": param.denoising_strength,
+                                                  "ad_use_steps": True,
+                                                  "ad_steps": 28,
                                               }
                                           ]
                                       }

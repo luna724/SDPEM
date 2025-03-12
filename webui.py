@@ -183,8 +183,13 @@ def jishaku_launcher():
             text=True
         )
         # 出力読み取り用のスレッドを開始
-        thread = threading.Thread(target=read_output, args=(proc,), daemon=True)
-        thread.start()
+        threading.Thread(target=read_output, args=(proc,), daemon=True).start()
+        threading.Thread(target=read_output, args=(proc.stderr,), daemon=True).start()
+
+        # プロセス終了まで待機し、異常終了の場合はログ出力
+        retcode = proc.wait()
+        if retcode != 0:
+            print(f"[JSK-Launcher]: プロセスが異常終了しました。戻り値: {retcode}")
 
     except subprocess.CalledProcessError as e:
         print(f"[JSK-Launcher]: Error in pem_jsk.py:\n{e.stderr}")

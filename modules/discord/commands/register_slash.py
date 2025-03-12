@@ -139,6 +139,6 @@ def register_slash_commands(bot: commands.Bot, guild: discord.Object | None):
     )
     async def alias(
             interaction: Interaction,
-            _alias: str, prompt: str, mode: Literal["add", "remove", "get", "list"] = "add", memo: str = None
+            mode: Literal["add", "remove", "get", "list"] = "add", _alias: str = None, prompt: str = None, memo: str = None
     ):
         await modules.discord.commands.alias.process_command(interaction, mode=mode, alias=_alias, prompt=prompt, memo=memo)

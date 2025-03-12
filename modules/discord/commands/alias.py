@@ -7,6 +7,11 @@ from modules.prompt_alias import PromptAlias
 
 async def process_command(interaction: Interaction, mode: Literal["add", "remove", "get", "list"], alias: str, prompt: str = "", memo: str = ""):
     cls = PromptAlias()
+
+    if alias is None and mode.lower() != "list":
+        await interaction.response.send_message("Please specify alias", ephemeral=True)
+        return
+
     if prompt is None: prompt = ""
     if memo is None: memo = ""
 
