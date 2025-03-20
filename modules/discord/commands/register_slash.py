@@ -142,3 +142,42 @@ def register_slash_commands(bot: commands.Bot, guild: discord.Object | None):
             mode: Literal["add", "remove", "get", "list"] = "add", _alias: str = None, prompt: str = None, memo: str = None
     ):
         await modules.discord.commands.alias.process_command(interaction, mode=mode, alias=_alias, prompt=prompt, memo=memo)
+
+
+    import modules.discord.commands.interrogate
+    @bot.tree.command(
+        name="interrogate",
+        description="Interrogate image",
+    )
+    async def interrogate(
+            interaction: Interaction,
+            image: discord.Attachment,
+            model: Literal["clip"] = "clip",
+    ):
+        await modules.discord.commands.interrogate.process_command(interaction, image, model)
+
+
+    import modules.discord.commands.adetailer
+    @bot.tree.command(
+        name="adetailer",
+        description="ADetailer inference",
+    )
+    async def adetailer(
+            interaction: Interaction,
+            image: discord.Attachment,
+            model: Literal[
+            "face_yolov8n.pt",
+            "face_yolov8s.pt",
+            "hand_yolov8n.pt",
+            "person_yolov8n-seg.pt",
+            "person_yolov8s-seg.pt",
+            "yolov8x-worldv2.pt",
+            "mediapipe_face_full",
+            "mediapipe_face_short",
+            "mediapipe_face_mesh",
+            "mediapipe_face_mesh_eyes_only"
+    ] = "face_yolov8n.pt",
+            steps: int = 24,
+    ):
+        await modules.discord.commands.adetailer.process_command(interaction, image, model, steps)
+        return

@@ -1,53 +1,61 @@
 import asyncio
-import discord
+import base64
 import time
-
 from io import BytesIO
+
+import discord
+from PIL import Image
 from discord import Interaction
+from typing import Literal
 
-from modules.api.txt2img import txt2img_api
-from modules.generation_param import get_generation_param
+from modules.api.adetailer import ADetailerAPI
+from modules.image_param import ImageParamUtil
 from modules.image_progress import ImageProgressAPI
-from modules.prompt_alias import PromptAlias
 
-class txt2img_api_for_bot(txt2img_api):
-    async def bot_generate(self, prompt: str, interaction: discord.Interaction, **override_payload):
+
+class adetailer_api_for_bot(ADetailerAPI):
+    async def bot_generate(
+            self, interaction: Interaction, image: Image.Image, model: str,
+            steps: int, prompt: str = "", negative: str = "",
+    ):
         start = time.time()
-        param = get_generation_param()
-        payload = {
-                      "prompt": prompt,
-                      "negative_prompt": param.negative_prompt,
-                      "seed": int(param.seed),
-                      "scheduler": "Automatic",
-                      "batch_size": int(param.batch_size),
-                      "n_iter": 1,
-                      "cfg_scale": param.cfg_scale,
-                      "width": int(param.width),
-                      "height": int(param.height),
-                      "restore_faces": param.restore_face,
-                      "tiling": param.tiling,
-                      "denoising_strength": param.denoising_strength,
-                      "enable_hr": False,
-                      "override_settings": {
-                          "CLIP_stop_at_last_layers": int(param.clip_skip),
-                      },
-                      "alwayson_scripts": {
-                          "ADetailer": {
-                              "args": [
-                                  True,
-                                  False,
-                                  {
-                                      "ad_model": param.adetailer_model_1st,
-                                      "ad_prompt": param.adetailer_prompt,
-                                      "ad_negative_prompt": param.adetailer_negative,
-                                      "ad_denoising_strength": param.denoising_strength
-                                  }
-                              ]
-                          }
-                      }
-                  } | override_payload
+        param = ImageParamUtil().parse_param(ImageParamUtil().extract_png_metadata(image).get("parameters", ""))[0]
+        img_prompt = param["prompt"]
+        img_negative = param["negative"]
 
-        future = self.executor.submit(self._txt2img_api, payload)
+
+        payload = self.default_payload | {
+            "alwayson_scripts": {
+                "ADetailer": {
+                    "args": [
+                        True,
+                        True,
+                        {
+                            "ad_model": model,
+                            "ad_prompt": prompt if prompt.strip() != "" else "",
+                            "ad_negative_prompt": negative if negative.strip() != "" else ""
+                        }
+                    ]
+                }
+            },
+            "prompt": img_prompt,
+            "negative_prompt": img_negative,
+            "init_images": [],
+            "width": image.width,
+            "height": image.height,
+            "steps": steps,
+            "batch_size": 1
+        }
+
+        # 画像をbase64に変換
+        buffer = BytesIO()
+        image.convert("RGB").save(buffer, format="PNG")
+        buffer.seek(0)
+        payload["init_images"] = [
+            base64.b64encode(buffer.getbuffer()).decode("utf-8"),
+        ]
+
+        future = self.executor.submit(self._img2img_api, payload)
         pharase = 0
 
         while not future.done():
@@ -71,7 +79,7 @@ class txt2img_api_for_bot(txt2img_api):
                 await asyncio.sleep(1)
                 continue
 
-            for _ in range(25):
+            for _ in range(15):
                 await asyncio.sleep(1)
                 if future.done():
                     break
@@ -95,10 +103,10 @@ class txt2img_api_for_bot(txt2img_api):
                 }
             if pharase == 0:
                 emb = discord.Embed(
-                        title="Parameter & API are Ready!",
-                        description=f'**Prompt**: `{prompt}`\n'
-                    )
-                emb.set_footer(text="Taken: {:.2f} seconds".format(time.time() - start))
+                    title="Parameter & API are Ready!",
+                    description=f'**Prompt**: `{img_prompt}`\n'
+                )
+                emb.set_footer(text="Taken: {:.2f} seconds".format(time.time() - start - 15))
                 await interaction.followup.send(
                     content="Generation Started!",
                     embed=emb,
@@ -107,13 +115,13 @@ class txt2img_api_for_bot(txt2img_api):
 
             else:
                 await interaction.followup.send(
-                    content=f"Phase {pharase}: Processing in {pharase * 25} seconds...",
+                    content=f"Phase {pharase}: Processing in {pharase * 15} seconds...",
                     embed=embed,
                     **img
                 )
             pharase += 1
 
-        #
+            #
         img = {}
         img_buffer = BytesIO()
         image = ImageProgressAPI.last_image
@@ -131,14 +139,27 @@ class txt2img_api_for_bot(txt2img_api):
             **img
         )
 
+async def process_command(
+        interaction: Interaction,
+        image: discord.Attachment,
+        model: str,
+        steps: int
+):
+    if not (image.content_type or image.content_type.startswith("image/")):
+        await interaction.response.send_message(
+            "Please upload an image file",
+            ephemeral=True
+        )
+        return
 
-async def process_command(interaction: Interaction, prompt: str, **payload):
-    api = txt2img_api_for_bot(15)
+    buffer = BytesIO()
+    img_byte = await image.read()
+    buffer.write(img_byte)
+    buffer.seek(0)
 
-    # TODO: Promptのヘッダーを指定できるように
+    image = Image.open(buffer, mode="r")
+    api = adetailer_api_for_bot(15)
 
-    prompt = PromptAlias().process_command(prompt)
-    prompt = "score_9, score_8_up, score_7_up, best quality, masterpiece, BREAK\n"+prompt
+    # TODO: prompt, negative を指定できるように
     await interaction.response.send_message("preparing API, please wait..")
-    await api.bot_generate(prompt, interaction, **payload)
-    return
+    await api.bot_generate(interaction, image, model, steps)

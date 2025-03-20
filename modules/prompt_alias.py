@@ -68,4 +68,4 @@ class PromptAlias:
             if p in self.map.keys():
                 prompt[i] = self.map[p]["prompt"]
 
-        return ", ".join(prompt)
+        return ", ".join([p.strip() for p in prompt])

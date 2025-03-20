@@ -1,5 +1,6 @@
 import base64
 from io import BytesIO
+from typing import Literal
 
 from PIL import Image
 
@@ -86,27 +87,46 @@ class ADetailer:
             images.append(image)
         return images, last
 
-    def single_webui_tunnel(
-        self,
-        base_image: Image.Image,
-        step: int,
-        m1, m1p, m1n,
-        m2, m2p, m2n,
-        m3, m3p, m3n,
-        m4, m4p, m4n,
-        m5, m5p, m5n,
-        m6, m6p, m6n
+    def batch(
+            self, images: list[Image.Image], step: int,
+            models: dict
     ):
-        i, _ = self.single(
-            base_image,
-            step,
-            { #type: ignore
-                m1: [m1p, m1n],
-                m2: [m2p, m2n],
-                m3: [m3p, m3n],
-                m4: [m4p, m4n],
-                m5: [m5p, m5n],
-                m6: [m6p, m6n]
-            }
-        )
-        return i[0]
+        results = []
+        for image in images:
+            results.append(
+                self.single(image, step, models)
+            )
+        return results
+
+    def webui_tunnel(
+            self,
+            mode: Literal["Single", "Batch"],
+            single: Image.Image,
+            batch: list[Image.Image],
+            step: int,
+            m1, m1p, m1n,
+            m2, m2p, m2n,
+            m3, m3p, m3n,
+            m4, m4p, m4n,
+            m5, m5p, m5n,
+            m6, m6p, m6n
+    ):
+        models = {
+            m1: [m1p, m1n],
+            m2: [m2p, m2n],
+            m3: [m3p, m3n],
+            m4: [m4p, m4n],
+            m5: [m5p, m5n],
+            m6: [m6p, m6n]
+        }
+
+        if mode == "Single":
+            return self.single(single, step, models)[0][0] #type: ignore
+
+        else:
+            last = None
+            for b in batch:
+                last, _ = self.single(b, step, models) #type: ignore
+                yield last[0]
+
+            return last
