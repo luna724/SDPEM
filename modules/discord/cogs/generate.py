@@ -3,11 +3,14 @@ import discord
 import time
 
 from io import BytesIO
-from discord import Interaction
+from discord import Interaction, app_commands, Embed
+from discord.ext.commands import Cog
 
 from modules.api.txt2img import txt2img_api
+from modules.discord.perm import PermissionManager
 from modules.generation_param import get_generation_param
 from modules.image_progress import ImageProgressAPI
+from modules.image_util import ImageUtil
 from modules.prompt_alias import PromptAlias
 
 class txt2img_api_for_bot(txt2img_api):
@@ -50,6 +53,13 @@ class txt2img_api_for_bot(txt2img_api):
         future = self.executor.submit(self._txt2img_api, payload)
         pharase = 0
 
+        emb = discord.Embed(
+            title="Parameter & API are Ready!",
+            description=f'**Prompt**: `{prompt}`\n'
+        )
+        emb.set_footer(text="Taken: {:.2f} seconds".format(time.time() - start))
+        await interaction.followup.send(embed=emb)
+
         while not future.done():
             progress, eta, state, image, _ = self.get_progress()
             if state is None:
@@ -85,43 +95,26 @@ class txt2img_api_for_bot(txt2img_api):
                 color=discord.Color.greyple()
             )
 
+            image = ImageUtil(image)
             img = {}
-            img_buffer = BytesIO()
             if image:
-                image.save(img_buffer, format="JPEG")
-                img_buffer.seek(0)
                 img = {
-                    "file": discord.File(img_buffer, filename=f"current_image_{pharase}.jpg")
+                    "file": image.to_file()
                 }
-            if pharase == 0:
-                emb = discord.Embed(
-                        title="Parameter & API are Ready!",
-                        description=f'**Prompt**: `{prompt}`\n'
-                    )
-                emb.set_footer(text="Taken: {:.2f} seconds".format(time.time() - start))
-                await interaction.followup.send(
-                    content="Generation Started!",
-                    embed=emb,
-                    **img
-                )
 
-            else:
-                await interaction.followup.send(
-                    content=f"Phase {pharase}: Processing in {pharase * 25} seconds...",
-                    embed=embed,
-                    **img
-                )
+            await interaction.followup.send(
+                content=f"Phase {pharase}: Processing in {pharase * 25} seconds...",
+                embed=embed,
+                **img
+            )
             pharase += 1
 
         #
         img = {}
-        img_buffer = BytesIO()
-        image = ImageProgressAPI.last_image
+        image = ImageProgressAPI.get_last_grid()
         if image:
-            image.save(img_buffer, format="JPEG")
-            img_buffer.seek(0)
             img = {
-                "file": discord.File(img_buffer, filename=f"current_image_{pharase}.jpg")
+                "file": image.to_file()
             }
         await interaction.followup.send(
             content="Generation Finished!",
@@ -131,14 +124,44 @@ class txt2img_api_for_bot(txt2img_api):
             **img
         )
 
+class Generate(Cog):
+    def __init__(self, bot):
+        self.bot = bot
 
-async def process_command(interaction: Interaction, prompt: str, **payload):
-    api = txt2img_api_for_bot(15)
+    @app_commands.describe(
+    )
+    @app_commands.command(
+        name="generate",
+        description="Generate image from prompt",
+    )
+    @PermissionManager()
+    async def generate(
+            self,
+            interaction: Interaction, *, prompt: str,
+            batch_size: int = None,
+            width: int = None,
+            height: int = None,
+            denoising_strength: float = None,
+            auto_header: bool = False
+    ):
+        await interaction.response.defer()
+        payload = {
+            "do_not_save_samples": True,
+            "save_images": True
+        }
+        if batch_size is not None: payload["batch_size"] = batch_size
+        if width is not None: payload["width"] = width
+        if height is not None: payload["height"] = height
+        if denoising_strength is not None: payload["denoising_strength"] = denoising_strength
 
-    # TODO: Promptのヘッダーを指定できるように
+        api = txt2img_api_for_bot(15)
 
-    prompt = PromptAlias().process_command(prompt)
-    prompt = "score_9, score_8_up, score_7_up, best quality, masterpiece, BREAK\n"+prompt
-    await interaction.response.send_message("preparing API, please wait..")
-    await api.bot_generate(prompt, interaction, **payload)
-    return
+        prompt = PromptAlias().process_command(prompt)
+        if auto_header:
+            prompt = "score_9, score_8_up, score_7_up, best quality, masterpiece, BREAK\n" + prompt
+        await interaction.followup.send("preparing API, please wait..")
+        await api.bot_generate(prompt, interaction, **payload)
+        return
+
+async def setup(bot: discord.ext.commands.Bot):
+    await bot.add_cog(Generate(bot))

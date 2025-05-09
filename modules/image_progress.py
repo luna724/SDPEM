@@ -1,16 +1,18 @@
 import asyncio
-from typing import Any
+import os.path
 
-from PIL.ImageFile import ImageFile
+import PIL
 
 import shared
 from modules.api.call_internal import get_request_with_status
 
-import PIL.Image
+from PIL import Image
 from io import BytesIO
 import base64
 import json
 from typing import *
+
+from modules.image_util import ImageUtil
 
 class _ImageProgressAPI:
     @staticmethod
@@ -52,6 +54,39 @@ class _ImageProgressAPI:
         </div>
         <p style="text-align: center;">ETA: {eta} ({progress}%)</p>
         """
+
+    @staticmethod
+    def get_last_grid() -> Optional[ImageUtil]:
+        import shared
+        fp = os.path.join(shared.a1111_webui_path, "outputs/txt2img-grids")
+        output_folders = [
+            os.path.join(fp, folder)
+            for folder in sorted(os.listdir(fp))
+        ]
+        if len(output_folders) == 0:
+            return None
+
+        image = None
+        folder_index = -1
+        while image is None:
+            images = [
+                os.path.join(output_folders[folder_index], file)
+                for file in os.listdir(output_folders[folder_index])
+                if file.lower().endswith(".png")
+            ]
+            if len(images) == 0:
+                folder_index -= 1
+
+                # フォルダ数が全部なくなったら終了
+                if len(output_folders) + folder_index <= 0:
+                    return None
+                continue
+
+            image = images[-1]
+            break
+        if image is None:
+            return None
+        return ImageUtil(Image.open(image))
 
     async def _update(self):
         while True:

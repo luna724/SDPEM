@@ -111,27 +111,6 @@ def register_slash_commands(bot: commands.Bot, guild: discord.Object | None):
         await interaction.response.send_message("Interrupting... (__/current_image__ to check status)", ephemeral=True)
         return
 
-    import modules.discord.commands.generate
-    @bot.tree.command(
-        name="generate",
-        description="Generate image from prompt",
-    )
-    async def generate(
-            interaction: Interaction, *, prompt: str,
-            batch_size: int = None,
-            width: int = None,
-            height: int = None,
-            denoising_strength: float = None
-    ):
-        payload = {}
-        if batch_size is not None: payload["batch_size"] = batch_size
-        if width is not None: payload["width"] = width
-        if height is not None: payload["height"] = height
-        if denoising_strength is not None: payload["denoising_strength"] = denoising_strength
-
-        await modules.discord.commands.generate.process_command(interaction, prompt=prompt, **payload)
-
-
     import modules.discord.commands.alias
     @bot.tree.command(
         name="alias",

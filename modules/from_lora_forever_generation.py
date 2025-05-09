@@ -18,16 +18,27 @@ from modules.api.txt2img import txt2img_api
 from modules.generation_param import get_generation_param
 from modules.image_progress import ImageProgressAPI
 from modules.lora_generator import LoRAGeneratingUtil
+from modules.text_generate import ImageGeneration
 from modules.yield_util import new_yield
 
 # from LoRA / Generate Forever のコード
 # めっちゃ中心部みたいなもんだから保守的に書けよ？
 
-class FromLoRAForeverGeneration(LoRAGeneratingUtil):
+class FromLoRAForeverGeneration(ImageGeneration, LoRAGeneratingUtil):
     def __init__(self):
-        super().__init__()
+        ImageGeneration.__init__(self)
+        LoRAGeneratingUtil.__init__(self)
         self.forever_generation = False
         self.sent_text = None
+
+    @staticmethod
+    def filter_prompt(p: str, replace: str):
+        return [
+            x[len(replace):].lower()
+            for x in p.split(",") if x.strip() != ""
+            if x.startswith(replace)
+        ]
+
 
     def generate_forever(
             self,
@@ -62,54 +73,56 @@ class FromLoRAForeverGeneration(LoRAGeneratingUtil):
     ) -> Any:
         param = get_generation_param()
         gr.Info("Generation Forever started!")
-        # デフォルトペイロードを定義
-        txt2img = txt2img_api(refresh_rate,
-                              **{
-                                  "negative_prompt": param.negative_prompt,
-                                  "seed": int(param.seed),
-                                  "scheduler": "Automatic",
-                                  "batch_size": int(param.batch_size),
-                                  "n_iter": 1,
-                                  "cfg_scale": param.cfg_scale,
-                                  "width": int(param.width),
-                                  "height": int(param.height),
-                                  "restore_faces": param.restore_face,
-                                  "tiling": param.tiling,
-                                  "denoising_strength": param.denoising_strength,
-                                  "enable_hr": False,
-                                  "override_settings": {
-                                      "CLIP_stop_at_last_layers": int(param.clip_skip),
-                                  },
-                                  "alwayson_scripts": {
-                                      "ADetailer": {
-                                          "args": [
-                                              True,
-                                              False,
-                                              {
-                                                  "ad_model": param.adetailer_model_1st,
-                                                  "ad_prompt": param.adetailer_prompt,
-                                                  "ad_negative_prompt": param.adetailer_negative,
-                                                  "ad_denoising_strength": param.denoising_strength,
-                                                  "ad_use_steps": True,
-                                                  "ad_steps": 28,
-                                              }
-                                          ]
-                                      }
-                                  }
-                              }
+        self.override_payload( # 実行のたびに初期化
+            **{
+                "negative_prompt": param.negative_prompt,
+                "seed": int(param.seed),
+                "scheduler": "Automatic",
+                "batch_size": int(param.batch_size),
+                "n_iter": 1,
+                "cfg_scale": param.cfg_scale,
+                "width": int(param.width),
+                "height": int(param.height),
+                "restore_faces": param.restore_face,
+                "tiling": param.tiling,
+                "denoising_strength": param.denoising_strength,
+                "enable_hr": False,
+                "override_settings": {
+                    "CLIP_stop_at_last_layers": int(param.clip_skip),
+                },
+                "alwayson_scripts": {
+                    "ADetailer": {
+                        "args": [
+                            True,
+                            False,
+                            {
+                                "ad_model": param.adetailer_model_1st,
+                                "ad_prompt": param.adetailer_prompt,
+                                "ad_negative_prompt": param.adetailer_negative,
+                                "ad_denoising_strength": param.denoising_strength,
+                                "ad_use_steps": True,
+                                "ad_steps": 28,
+                            }
+                        ]
+                    }
+                }
+            }
         )
+
+        # デフォルトペイロードを定義
+        txt2img = txt2img_api(refresh_rate, **self.default_payload)
 
         if separate_blacklist:
             booru_blacklists = [x.lower() for x in bcf_blacklist.split(",") if x.strip() != ""]
-            booru_regex_patterns = [re.compile(bl[7:], re.IGNORECASE) for bl in booru_blacklists if
-                                    bl.startswith("$regex=")]
-            booru_includes_patterns = [bl[10:].lower() for bl in booru_blacklists if bl.startswith("$includes=")]
-            booru_type_patterns = [bl[6:].lower() for bl in booru_blacklists if bl.startswith("$type=")]
+            booru_regex_patterns = [re.compile(bl[7:], re.IGNORECASE) for bl in booru_blacklists if bl.startswith("$regex=")]
+            booru_includes_patterns = self.filter_prompt(bcf_blacklist, "$includes=")
+            booru_type_patterns = self.filter_prompt(bcf_blacklist, "$type=")
+
         else:
             booru_blacklists = [x.lower() for x in blacklists.split(",") if x.strip() != ""]
             booru_regex_patterns = [re.compile(bl[7:], re.IGNORECASE) for bl in blacklists if bl.startswith("$regex=")]
-            booru_includes_patterns = [bl[10:].lower() for bl in blacklists if bl.startswith("$includes=")]
-            booru_type_patterns = [bl[6:].lower() for bl in blacklists if bl.startswith("$type=")]
+            booru_includes_patterns = self.filter_prompt(blacklists, "$includes=")
+            booru_type_patterns = self.filter_prompt(blacklists, "$type=")
 
         # BCF出力パスがないのに Don't Discard がオンなら、デフォルトフォルダを使用
         if bcf_enable and bcf_dont_discard and bcf_filtered_path == "":
@@ -126,6 +139,7 @@ class FromLoRAForeverGeneration(LoRAGeneratingUtil):
         empty = ("N/A", "N/A", None, ImageProgressAPI.progress_bar_html(0, -1), False)
         final_value = empty
         yield self.sent_text("Starting.."), *empty
+
         self.forever_generation = True
         while self.forever_generation:
             try:

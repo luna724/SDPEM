@@ -9,6 +9,12 @@ import shared
 from modules.discord.commands.register_slash import register_slash_commands
 
 
+class CBot(commands.Bot):
+    async def is_owner(self, user: discord.User):
+        if user.id in Jishaku.token_file().get("allowlist", []):
+            return True
+        return super().is_owner(user)
+
 class Jishaku:
     def __init__(self):
         f = self.token_file()
@@ -62,7 +68,7 @@ class Jishaku:
 
         intents = discord.Intents.default()
         intents.message_content = True # メッセージの内容にアクセス可能にする
-        self.bot = commands.Bot(command_prefix=self.prefix, intents=intents)
+        self.bot = CBot(command_prefix=self.prefix, intents=intents)
 
         self.register_commands()
         print("[Jishaku]: bot starting..")
@@ -79,6 +85,13 @@ class Jishaku:
 
         @bot.event
         async def on_ready():
+            for c in os.listdir(os.path.join(os.getcwd(), "modules/discord/cogs")):
+                if c.endswith(".py") and not os.path.isdir(c):
+                    try:
+                        await bot.load_extension(f"modules.discord.cogs.{c[:-3]}")
+                    except Exception as e:
+                        print(f"[Jishaku]: Failed to load {c}: {e}")
+
             await self.bot.tree.sync(guild=self.guild)
             await self.bot.tree.sync()
             print(f'[Jishaku]: Logged in as {bot.user} (ID: {bot.user.id})')
@@ -87,17 +100,19 @@ class Jishaku:
         async def on_message(message: discord.Message):
             if message.author == bot.user:
                 return
+            if not message.author.id in self.token_file().get("allowlist", []) and not (await bot.is_owner(message.author)):
+                return
+            if isinstance(message.channel, discord.DMChannel):
+                if not self.token_file().get("allowdm", False):
+                    return
+
             print(f"[Jishaku]: received message: {message.content}")
             await self.external_on_message(message)
 
             if "<@1314671674242633738>" in message.content:
-                await message.channel.send(f"owo, {message.author}\ni'm running on [SD-PEM Client](https://github.com/luna724/SDPEM).")
+                await message.channel.send(f"{message.author}\ni'm running on [SD-PEM Client](https://github.com/luna724/SDPEM).")
 
             await bot.process_commands(message)
-
-            if "!pem.jsk" == message.content:
-                print("[Jishaku]: called pem.jsk")
-                await message.channel.send("SD-PEM Client β1.0-{commit_hash}")
 
         self.bot = bot
         return

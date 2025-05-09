@@ -9,6 +9,7 @@ from io import BytesIO
 
 from modules.api.call_internal import send_request
 from modules.image_progress import ImageProgressAPI
+from modules.text_generate import ImageGeneration
 from modules.util import Util
 from concurrent.futures import ThreadPoolExecutor
 
@@ -18,37 +19,7 @@ class txt2img_api(Util):
         return send_request(url, data, method)
 
     def __init__(self, refresh_rate = 1.5, *args, **payload):
-        default_payload = {
-                "negative_prompt": "score_6, score_5, score_4, ugly face, low res, interlocked fingers, anatomically incorrect hands, bad anatomy, pony, furry, censored, realistic, pencil art, boy, EasyNegative, badhandv5, By bad artist -neg,  (((public hair), abs)), (bad anatomy:1.4), (low quality, worst quality:1.1), lips, fat, (inaccurate limb:1.2), (Low resolution:1.1), censored, monochrome,",
-                "seed": -1,
-                "scheduler": "Automatic",
-                "batch_size": 2,
-                "n_iter": 1,
-                "cfg_scale": 7.5,
-                "width": 1024,
-                "height": 1024,
-                "restore_faces": False,
-                "tiling": False,
-                "denoising_strength": 0.3,
-                "enable_hr": False,
-                "override_settings": {
-                    "CLIP_stop_at_last_layers": 2,
-                },
-                "alwayson_scripts": {
-                    "ADetailer": {
-                        "args": [
-                            True,
-                            False,
-                            {
-                                "ad_model": "face_yolov8n.pt",
-                                "ad_prompt": "",
-                                "ad_negative_prompt": "",
-                                "ad_denoising_strength": 0.3
-                            }
-                        ]
-                    }
-                }
-            }
+        default_payload = ImageGeneration._default_payload
         self.default_payload = default_payload | payload
         self.refresh_rate = refresh_rate
         self.executor = ThreadPoolExecutor(max_workers=2) # メインと progress まで並列実行可
