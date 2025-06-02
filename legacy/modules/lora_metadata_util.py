@@ -17,7 +17,7 @@ class LoRAMetadataReader:
         except Exception as e:
             print(f"[ERROR]: Error occurred in parse safetensors: ", end="")
             print(e)
-
+    
     def detect_model_ver(self):
         """"""
         try:

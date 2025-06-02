@@ -1,0 +1,12 @@
+{
+  "__Comment": "Your Discord BOT Tokens (Optional)",
+  "__comment": "set \"PATH?={target_path}\" to use your system path",
+  "token": "PATH?=iloveichika4TOKEN",
+  "prefix": "!pem.",
+  "guild": 917808924453896262,
+  "allowlist": [
+    1344305793192693760,
+    878117230754295828
+  ],
+  "allowdm": false
+}

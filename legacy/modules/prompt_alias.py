@@ -22,20 +22,17 @@ class PromptAlias:
 
 
     # 追加する
-    def add(self, alias: str, prompt: str = "", desc: str = "") -> str:
+    def add(self, alias: str, prompt: str = "", desc: str = "", tags: list[str] = []) -> str:
         self.save()
         alias = alias.lower().strip()
 
         if alias in self.map.keys():
-            if prompt != "":
+            if prompt != "" or prompt is not None:
                 return "Alias already exists."
             else:
-                self.map.pop(alias)
-                self.save()
-                return "Alias removed."
-
+                return self.remove(alias)
         else:
-            self.map[alias] = {"prompt": prompt, "desc": desc}
+            self.map[alias] = [1, {"prompt": prompt, "desc": desc, "tags": tags}]
             self.save()
             return "Alias added."
 
@@ -46,7 +43,7 @@ class PromptAlias:
         alias = alias.lower().strip()
 
         if alias in self.map.keys():
-            previous_prompt = self.map[alias]["prompt"]
+            previous_prompt = self.map[alias][1]["prompt"]
             self.map.pop(alias)
             self.save()
             print(f"[PromptAlias]: Removing {alias}.. previous prompt: {previous_prompt}")
