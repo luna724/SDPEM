@@ -49,7 +49,7 @@ async def get_tag_freq_from_lora(lora_name: str, test_frequency: bool = False) -
       relative_tag_freq[k] = v / train_images if v > 0 else 0
     elif isinstance(v, dict):
       for sub_k, sub_v in v.items():
-        relative_tag_freq[sub_k] = v / train_images if v > 0 else 0
+        relative_tag_freq[sub_k] = sub_v / train_images if sub_v > 0 else 0
   for k, v in ss_tag_freq.items():
     if isinstance(v, int):
       relative_ss_tag_freq[k] = v / train_images if v > 0 else 0
@@ -122,6 +122,8 @@ async def generate_prompt_from_frequency(rq: _GeneratePromptFromFrequency):
     return {"success": False, "message": "No frequency data provided"}, status.HTTP_422_UNPROCESSABLE_ENTITY
   if rq.tag_count < 1:
     return {"success": False, "message": "Tag count must be at least 1"}, status.HTTP_422_UNPROCESSABLE_ENTITY
+  if rq.base_chance <= 0:
+    return {"success": False, "message": "Base chance must be greater than 0"}, status.HTTP_422_UNPROCESSABLE_ENTITY
   
   rt = []
   for tag, weight in rq.frequency.items():
@@ -165,7 +167,7 @@ class _GeneratePromptFromLoRA(BaseModel):
   header: str = ""
   footer: str = ""
   max_tags: int = 7
-  base_change: int | float = 10
+  base_chance: int | float = 10
   add_lora_name: bool = True
   lora_weight: int | float = 0.5
 
@@ -182,7 +184,7 @@ class _GeneratePromptFromLoRA(BaseModel):
       header=self.header,
       footer=self.footer,
       tag_count=self.max_tags,
-      base_chance=self.base_change
+      base_chance=self.base_chance
     )
 @app.post("/v1/generator/lora/lora2prompt")
 async def generate_prompt_from_lora(rq: _GeneratePromptFromLoRA):
@@ -200,6 +202,9 @@ async def generate_prompt_from_lora(rq: _GeneratePromptFromLoRA):
     frequency.update(tag_freq)
     frequency.update(ss_tag_freq)
 
+  if len(frequency) < 1:
+    return {"success": False, "message": "No tags found in the provided LoRA(s)"}, status.HTTP_422_UNPROCESSABLE_ENTITY
+  
   frequency_model = rq.cast_into_frequency_model(frequency=frequency)
   response, s = await generate_prompt_from_frequency(frequency_model)
   if not response["success"]:

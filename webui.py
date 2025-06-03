@@ -7,7 +7,6 @@ import aiohttp
 
 class UiTabs:
     PATH = os.path.join(os.getcwd(), "modules/tabs")
-    session = aiohttp.ClientSession()
 
     def __init__(self, path):
         self.filepath = path
@@ -165,10 +164,6 @@ def make_ui() -> tuple[gr.Blocks, dict]:
 
 def register_apps():
     modules_root_dir = os.path.join(os.getcwd(), "modules/api")
-    if not os.path.isdir(modules_root_dir):
-        print(f"Directory not found: {modules_root_dir}")
-        return
-
     for root, _, files in os.walk(modules_root_dir):
         for filename in files:
             if filename.endswith(".py") and filename != "__init__.py":
@@ -187,12 +182,20 @@ def register_apps():
 import shared
 from starlette.middleware.wsgi import WSGIMiddleware
 import uvicorn
-
+import threading
 
 def launch():
     ui, _ = make_ui()
     ui.queue(64)
-    shared.app.mount("/ui", WSGIMiddleware(ui.app))
+    threading.Thread(
+        target=ui.launch,
+        kwargs={
+            "server_name": "127.0.0.1",
+            "server_port": 7866,
+            "enable_queue": True
+        },
+        daemon=True
+    ).start()
     register_apps()
 
     uvicorn.run(
