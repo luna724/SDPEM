@@ -3,4 +3,4 @@ pydantic
 uvicorn
 gradio==3.49.0
 starlette
-aiohttp
+httpx

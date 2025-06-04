@@ -1,3 +1,0 @@
-the UI dirs only called from PEM!!!
-
-このディレクトリはPEMからのみ呼び出されるよ!

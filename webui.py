@@ -3,7 +3,7 @@ import sys
 from typing import *
 import os
 import gradio as gr
-import aiohttp
+
 
 class UiTabs:
     PATH = os.path.join(os.getcwd(), "modules/tabs")
@@ -184,27 +184,26 @@ from starlette.middleware.wsgi import WSGIMiddleware
 import uvicorn
 import threading
 
+
 def launch():
+    register_apps()
+    threading.Thread(
+        target=uvicorn.run,
+        kwargs={
+        "app": shared.app,
+        "host": "127.0.0.1",
+        "port": 7865,
+        "log_level": "info",
+        "timeout_keep_alive": 120,
+    },
+        daemon=True
+        ).start()
+
     ui, _ = make_ui()
     ui.queue(64)
-    threading.Thread(
-        target=ui.launch,
-        kwargs={
-            "server_name": "127.0.0.1",
-            "server_port": 7866,
-            "enable_queue": True
-        },
-        daemon=True
-    ).start()
-    register_apps()
-
-    uvicorn.run(
-        shared.app,
-        host="127.0.0.1",
-        port=7865,
-        log_level="info",
-        lifespan="on",
-        timeout_keep_alive=120,
+    ui.launch(
+        server_name="127.0.0.1",
+        server_port=7866
     )
     return
 

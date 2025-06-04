@@ -150,6 +150,8 @@ async def generate_prompt_from_frequency(rq: _GeneratePromptFromFrequency):
         if random.random() < 0.05: # 5% でプロンプトに重みづけ
           tag = f"({tag}:{random.randrange(40, 140, 1)/100})" #崩壊しない範囲
         prompts.append(tag)
+  if len(prompts) < 1:
+    return {"success": False, "message": "No tags selected"}, status.HTTP_422_UNPROCESSABLE_ENTITY
   result = rq.header.strip() + ", ".join(prompts) + rq.footer.strip()
   return {
     "success": True,
@@ -224,9 +226,19 @@ async def generate_prompt_from_lora(rq: _GeneratePromptFromLoRA):
   }, status.HTTP_200_OK
 
 
-
-
-
+@app.post("/v1/items/lora/names")
+async def get_lora_names(rq: _GetPromptFromLoRA):
+  lora_names = []
+  for lora_name in rq.lora_name:
+    lora_name = await read_lora_name(lora_name, allow_none=True)
+    if lora_name is None:
+      printwarn("Unknown LoRA name:", lora_name)
+      continue
+    lora_names.append(lora_name)
+  return {
+    "success": True,
+    "names": lora_names
+  }, status.HTTP_200_OK
 
 
 

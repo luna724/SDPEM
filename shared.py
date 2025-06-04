@@ -1,13 +1,11 @@
 from fastapi import FastAPI
-import aiohttp
 from typing import Optional
+from utils import printwarn
+import httpx
 
 app = FastAPI()
 api_path = "I:/stable-diffusion-webui-forge"
+api_url = "http://localhost:7860"
 pem_api = "http://localhost:7865"
 
-session: Optional[aiohttp.ClientSession] = None
-def init_session():
-  global session
-  if session is None:
-    session = aiohttp.ClientSession()
+session: httpx.AsyncClient = httpx.AsyncClient(headers={"Content-Type": "application/json"}, timeout=None)

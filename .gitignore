@@ -20,3 +20,4 @@ civitai_cookies.json
 *.gz
 MY=ENV
 a1111_model-resnet_custom_v3.pt
+tmp/

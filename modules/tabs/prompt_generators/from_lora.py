@@ -6,7 +6,7 @@ from utils import *
 
 class LoRAToPrompt(UiTabs):
   def title(self):
-    return "LoRA2Prompt"
+    return "from LoRA"
   def index(self):
     return 1
   def ui(self, outlet):
@@ -17,7 +17,6 @@ class LoRAToPrompt(UiTabs):
       disallow_duplicate, header, footer,
       max_tags, base_chance, add_lora_name, lora_weight
     ):
-      shared.init_session()
       prm = {
         "lora_name": lora_names,
         "blacklist": blacklist.split(",") if blacklist else [],
@@ -37,19 +36,19 @@ class LoRAToPrompt(UiTabs):
         "lora_weight": lora_weight,
         "add_lora_name": add_lora_name
       }
-      async with shared.session.post(
+      resp = await shared.session.post(
         f"{shared.pem_api}/v1/generator/lora/lora2prompt",
         json=prm
-      ) as resp:
-        if resp.status != 200 and resp.status != 422:
-          printwarn("Failed to generate prompt:", resp.status, await resp.text())
-          raise gr.Error(f"Failed to call API ({resp.status})")
-        result = await resp.json()
-        if resp.status == 422 or result.get("success", True) is False:
-          printwarn("API Error:", result.get("message", "Unknown error"))
-          return "[API Error]: " + result["message"]
-        
-        return result[0].get("prompt", "")
+      )
+      if resp.status_code != 200 and resp.status_code != 422:
+        printwarn("Failed to generate prompt:", resp.status_code, resp.text)
+        raise gr.Error(f"Failed to call API ({resp.status_code})")
+      result = resp.json()[0]
+      if resp.status_code == 422 or result.get("success", True) is False:
+        printwarn("API Error:", result.get("message", "Unknown error"))
+        return "[API Error]: " + result["message"]
+
+      return result.get("prompt", "")
 
     with gr.Blocks():
       lora = gr.Dropdown(
