@@ -170,6 +170,17 @@ class LoRAToPrompt(UiTabs):
             lines=2, max_lines=5, value="score_6, score_5, score_4, ugly face, low res"
           )
       
+      with gr.Row():
+        skip_img = gr.Button("Skip Image", variant="secondary", scale=7)
+        skipped_img = gr.Checkbox(
+          value=False, label="Skipped", interactive=False,
+        )
+        skip_img.click(
+          fn=instance.skip_image,
+          inputs=[],
+          outputs=[skipped_img]
+        )
+        
       generate = gr.Button("Start", variant="primary")
       with gr.Row():
         with gr.Column():
@@ -210,5 +221,5 @@ class LoRAToPrompt(UiTabs):
           size, adetailer, enable_hand_tap,
           disable_lora_in_adetailer, enable_freeu, preset, negative
         ],
-        outputs=[eta, progress, progress_bar_html, image]
+        outputs=[eta, progress, progress_bar_html, image, output]
       )

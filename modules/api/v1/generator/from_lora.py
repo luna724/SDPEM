@@ -33,10 +33,27 @@ async def get_tag_freq_from_lora(lora_name: str, test_frequency: bool = False) -
   lora = await find_lora(lora_name, allow_none=False)
   metadata = LoRAMetadataReader(lora)
   if not test_frequency:
-    return ( # Legacy method
-      json.loads(metadata.metadata.get("ss_tag_frequency", "{}")).get("img", {}),
-      json.loads(metadata.metadata.get("tag_frequency", "{}")).get("img", {})
-    )
+    tf = {}
+    sstf = {}
+    tag_freq = json.loads(metadata.metadata.get("ss_tag_frequency", "{}"))
+    ss_freq = json.loads(metadata.metadata.get("tag_frequency", "{}"))
+    for k, v in tag_freq.items():
+      if isinstance(v, int):
+        tf[k] = v
+      elif isinstance(v, dict) or isinstance(v, str):
+        if isinstance(v, str):
+          v = json.loads(v)
+        for sub_k, sub_v in v.items():
+          tf[sub_k] = sub_v
+    for k, v in ss_freq.items():
+      if isinstance(v, int):
+        sstf[k] = v
+      elif isinstance(v, dict) or isinstance(v, str):
+        if isinstance(v, str):
+          v = json.loads(v)
+        for sub_k, sub_v in v.items():
+          sstf[sub_k] = sub_v
+    return tf, sstf
   
   relative_tag_freq = {}
   relative_ss_tag_freq = {}
@@ -47,15 +64,19 @@ async def get_tag_freq_from_lora(lora_name: str, test_frequency: bool = False) -
   for k, v in tag_freq.items():
     if isinstance(v, int):
       relative_tag_freq[k] = v / train_images if v > 0 else 0
-    elif isinstance(v, dict):
+    elif isinstance(v, dict) or isinstance(v, str):
+      if isinstance(v, str):
+        v = json.loads(v)
       for sub_k, sub_v in v.items():
         relative_tag_freq[sub_k] = sub_v / train_images if sub_v > 0 else 0
   for k, v in ss_tag_freq.items():
     if isinstance(v, int):
       relative_ss_tag_freq[k] = v / train_images if v > 0 else 0
-    elif isinstance(v, dict):
+    elif isinstance(v, dict) or isinstance(v, str):
+      if isinstance(v, str):
+        v = json.loads(v)
       for sub_k, sub_v in v.items():
-        relative_ss_tag_freq[sub_k] = sub_v / train_images if sub_v > 0 else 0  
+        relative_ss_tag_freq[sub_k] = sub_v / train_images if sub_v > 0 else 0
   return relative_tag_freq, relative_ss_tag_freq
 
 async def read_lora_name(lora_name: str, allow_none: bool = True) -> str:

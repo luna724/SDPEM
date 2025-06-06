@@ -4,7 +4,7 @@ from modules.forever_generation import ForeverGeneration
 from typing import *
 from PIL import Image
 from modules.adetailer import ADetailerAPI, ADetailerResult
-from modules.generate import GenerationProgress, GenerationResult
+from modules.generate import GenerationProgress, GenerationResult, Txt2imgAPI
 import gradio as gr
 import random
 import shared
@@ -52,8 +52,29 @@ class LegacyImageProgressAPI:
         """
         
 class ForeverGenerationFromLoRA(ForeverGeneration):
+  def stdout(self, txt = None, silent = False):
+    if txt is None: return self.output
+    if not silent: println(f"[Forever]: {txt}")
+    self.output += txt + "\n"
+    return self.output
+  
+  async def skip_image(self) -> bool:
+    self.stdout("Skipping image..")
+    gr.Info("Skipping..")
+    await Txt2imgAPI._post_requests(
+      path="/sdapi/v1/interrupt",
+      json={}
+    )
+    await Txt2imgAPI._post_requests(
+      path="/sdapi/v1/skip",
+      json={}
+    )
+    self.image_skipped = True
+    return True
+
   def __init__(self, payload: dict = None):
     super().__init__({})
+    self.output = ""
     self.payload = {}
     self.param  = {}
     self.default_prompt_request_param = {}
@@ -68,6 +89,8 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
     self.sizes: list[tuple[int, int]]
     self.lora_names: list[str]
     self.disable_lora_in_adetailer: bool
+    
+    self.image_skipped = False
   
   async def get_payload(self) -> dict:
     p = self.param.copy()
@@ -213,7 +236,11 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
     eta = ""
     progress = ""
     progress_bar_html = ""
+    num_of_iter = 1
+    num_of_generations = 0
     async for i in self.start_generation():
+      num_of_iter += 1
+      self.stdout(f"Starting generation ({num_of_generations} / inf) with Prompt: {i.get('payload', {}).get('prompt', 'N/A')}", silent=True)
       ok = i.get("ok", False)
       status = i.get("success", "")
       if not ok and status == "in_progress":
@@ -222,16 +249,22 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         progress = LegacyImageProgressAPI.status_text(p.step, p.total_steps)
         progress_bar_html = LegacyImageProgressAPI.progress_bar_html(p.progress, p.eta)
         image = await p.convert_image()
-        yield (eta, progress, progress_bar_html, image)
+        yield (eta, progress, progress_bar_html, image, self.stdout())
       elif ok and status == "completed":
         p: GenerationResult = i["result"]
         image = (await p.convert_images())[0]
+        num_of_generations += 1
         eta = "N/A"
         progress = "100%"
         progress_bar_html = LegacyImageProgressAPI.progress_bar_html(100, -1)
         image_obj = gr.Image.update(
           height=p.height, width=p.width, value=image, interactive=False
         )
+        
+        if self.image_skipped:
+          self.image_skipped = False
+          self.stdout("Image skipped by user.")
+          continue
         
         if adetailer:
           adp = self.adetailer_param
@@ -261,10 +294,14 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
               "steps": 120,
               "alwayson_scripts": adp
             }
-          println("Generation completed. Processing ADetailer..")
+          yield (eta, progress, progress_bar_html, image, self.stdout("Generation completed. Processing ADetailer.."))
           ad_api = ADetailerAPI(ad_param)
           images = []
-          for img in p.images:
+          for (index, img) in enumerate(p.images, start=1):
+            if self.image_skipped:
+              self.stdout("AD-Image skipped by user.")
+              continue
+            self.stdout(f"[{index}/{len(p.images)}] Processing image with ADetailer..")
             async for processing in ad_api.generate_with_progress(init_images=[img]):
               if processing[0] is False:
                 pr: GenerationProgress = processing[2]
@@ -272,25 +309,26 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                 progress_ = LegacyImageProgressAPI.status_text(pr.step, pr.total_steps)
                 progress_bar_html_ = LegacyImageProgressAPI.progress_bar_html(pr.progress, pr.eta)
                 i_ = await pr.convert_image()
-                yield (eta_, progress_, progress_bar_html_, i_)
+                yield (eta_, progress_, progress_bar_html_, i_, self.stdout())
                 await asyncio.sleep(1.5)  # Prevent OSError
               elif processing[0] is True:
                 result: ADetailerResult = processing[1]
                 images += await result.convert_images()
-                yield (eta, progress, progress_bar_html, images[0])
+                yield (eta, progress, progress_bar_html, images[0], self.stdout(f"[{index}/{len(p.images)}] ADetailer completed."))
         else:
           images = await p.convert_images()
-          
-        # TODO: Implement ADetailer + Save
-        for i in images:
-          if i is not None:
-            tmp = os.path.join("tmp", "img", str(len(os.listdir("tmp/img"))) + ".png")
-            i.save(tmp, format="PNG")
-        # TODO: Delete Temporary image handling
         
+        if self.image_skipped:
+          self.image_skipped = False
+          self.stdout("Image skipped by user.")
+          continue
         
-        
-        yield (eta, progress, progress_bar_html, image_obj)
+        # TODO: Implement Image Filter (Before Save)
+        for index, img in enumerate(images, start=1):
+          img.save(os.path.join("tmp/img", f"generation_{num_of_generations}_{index}.png"))
+          self.stdout(f"[{index}/{len(images)}] Image saved")
+
+        yield (eta, progress, progress_bar_html, image_obj, self.stdout())
       elif not ok and status == "error":
         raise gr.Error("Generation failed due to an error.")
-    yield ("N/A", "N/A", LegacyImageProgressAPI.progress_bar_html(0, -1), None)
+    yield ("N/A", "N/A", LegacyImageProgressAPI.progress_bar_html(0, -1), None , self.stdout())
