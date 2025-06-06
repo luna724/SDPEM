@@ -4,16 +4,17 @@ import gradio as gr
 import os
 import shared
 import requests
+from typing import Callable, List
 from utils import *
 
 class LoRAToPrompt(UiTabs):
-  def title(self):
+  def title(self) -> str:
     return "from LoRA"
-  def index(self):
+  def index(self) -> int:
     return 1
-  def ui(self, outlet):
+  def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> None:
     instance = ForeverGenerationFromLoRA()
-    def get_opts(mode: str):
+    def get_opts(mode: str) -> List[str]:
       resp = requests.get(f"{shared.pem_api}/v1/items/sdapi/{mode}")
       
       if resp.status_code != 200:
