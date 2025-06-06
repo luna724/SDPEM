@@ -52,7 +52,7 @@ class LegacyImageProgressAPI:
         """
         
 class ForeverGenerationFromLoRA(ForeverGeneration):
-  def stdout(self, txt = None, silent = False):
+  def stdout(self, txt: str | None = None, silent: bool = False) -> str:
     if txt is None: return self.output
     if not silent: println(f"[Forever]: {txt}")
     self.output += txt + "\n"
@@ -72,7 +72,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
     self.image_skipped = True
     return True
 
-  def __init__(self, payload: dict = None):
+  def __init__(self, payload: dict | None = None) -> None:
     super().__init__({})
     self.output = ""
     self.payload = {}
@@ -131,16 +131,16 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
   # @override
   async def start(
     self,
-    lora, blacklist, pattern_blacklist,
-    blacklist_multiplier, use_relative_freq,
-    w_multiplier, w_min, w_max,
-    disallow_duplicate, header, footer,
-    max_tags, base_chance, add_lora_name, lora_weight,
-    s_method, scheduler, steps_min, steps_max,
-    cfg_min, cfg_max, batch_count, batch_size,
-    size, adetailer, enable_hand_tap,
-    disable_lora_in_adetailer, enable_freeu, preset,
-    negative
+    lora: list[str], blacklist: str, pattern_blacklist: str,
+    blacklist_multiplier: float, use_relative_freq: bool,
+    w_multiplier: float, w_min: int, w_max: int,
+    disallow_duplicate: bool, header: str, footer: str,
+    max_tags: int, base_chance: float, add_lora_name: bool, lora_weight: float,
+    s_method: list[str], scheduler: list[str], steps_min: int, steps_max: int,
+    cfg_min: float, cfg_max: float, batch_count: int, batch_size: int,
+    size: str, adetailer: bool, enable_hand_tap: bool,
+    disable_lora_in_adetailer: bool, enable_freeu: bool, preset: str,
+    negative: str
   ) -> AsyncGenerator[tuple[str, Image.Image], None]:
     self.default_prompt_request_param = {
       "lora_name": lora,

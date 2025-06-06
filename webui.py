@@ -8,7 +8,7 @@ import gradio as gr
 class UiTabs:
     PATH = os.path.join(os.getcwd(), "modules/tabs")
 
-    def __init__(self, path):
+    def __init__(self, path: str) -> None:
         self.filepath = path
         self.rootpath = UiTabs.PATH
         self.child_path = None
@@ -22,7 +22,7 @@ class UiTabs:
         """return ui's index"""
         return 0
 
-    def get_ui(self) -> list:
+    def get_ui(self) -> List[UiTabs]:
         tabs = []
         files = [file for file in os.listdir(self.child_path) if file.endswith(".py")]
         # print(f"Child path: {self.child_path} ({files})")
@@ -54,7 +54,7 @@ class UiTabs:
         )
         return tabs
 
-    def ui(self, outlet: Callable):
+    def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> None:
         """make ui data
         don't return"""
         with gr.Blocks():
@@ -162,7 +162,7 @@ def make_ui() -> tuple[gr.Blocks, dict]:
     return block, {}
 
 
-def register_apps():
+def register_apps() -> None:
     modules_root_dir = os.path.join(os.getcwd(), "modules/api")
     for root, _, files in os.walk(modules_root_dir):
         for filename in files:
@@ -185,7 +185,7 @@ import uvicorn
 import threading
 
 
-def launch():
+def launch() -> None:
     register_apps()
     threading.Thread(
         target=uvicorn.run,

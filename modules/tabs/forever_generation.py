@@ -3,13 +3,13 @@ import os
 from webui import UiTabs
 
 class Define(UiTabs):
-    def __init__(self, path):
+    def __init__(self, path: str) -> None:
         super().__init__(path)
 
         self.child_path = os.path.join(UiTabs.PATH, "forever_generations")
 
-    def title(self):
+    def title(self) -> str:
         return "Forever Image Generation"
 
-    def index(self):
+    def index(self) -> int:
         return 0

@@ -1,4 +1,7 @@
 import datetime
+import os
+from typing import Any, Dict
+import pyjson5
 
 class AnsiColors:
     GREEN = '\033[92m'
@@ -8,17 +11,33 @@ class AnsiColors:
     GRAY = '\033[90m'
     RESET = '\033[0m'
 
-def now():
+def now() -> str:
   return datetime.datetime.now().strftime("%H:%M:%S")
 
-def println(*args, **kw):
-  return print(f"{AnsiColors.GRAY}[{now()}] {AnsiColors.GREEN}INFO{AnsiColors.RESET} {' '.join(map(str, args))}", **kw)
+def println(*args: Any, **kw: Any) -> None:
+  print(f"{AnsiColors.GRAY}[{now()}] {AnsiColors.GREEN}INFO{AnsiColors.RESET} {' '.join(map(str, args))}", **kw)
 
-def printerr(*args, **kw):
-  return print(f"{AnsiColors.GRAY}[{now()}] {AnsiColors.RED}ERROR{AnsiColors.RESET} {' '.join(map(str, args))}", **kw)
+def printerr(*args: Any, **kw: Any) -> None:
+  print(f"{AnsiColors.GRAY}[{now()}] {AnsiColors.RED}ERROR{AnsiColors.RESET} {' '.join(map(str, args))}", **kw)
 
-def printwarn(*args, **kw):
-  return print(f"{AnsiColors.GRAY}[{now()}] {AnsiColors.YELLOW}WARN{AnsiColors.RESET} {' '.join(map(str, args))}", **kw)
+def printwarn(*args: Any, **kw: Any) -> None:
+  print(f"{AnsiColors.GRAY}[{now()}] {AnsiColors.YELLOW}WARN{AnsiColors.RESET} {' '.join(map(str, args))}", **kw)
 
-def print_critical(*args, **kw):
-  return print(f"{AnsiColors.GRAY}[{now()}] {AnsiColors.BOLD}{AnsiColors.RED}CRITICAL!{AnsiColors.RESET} {' '.join(map(str, args))}", **kw)
+def print_critical(*args: Any, **kw: Any) -> None:
+  print(f"{AnsiColors.GRAY}[{now()}] {AnsiColors.BOLD}{AnsiColors.RED}CRITICAL!{AnsiColors.RESET} {' '.join(map(str, args))}", **kw)
+
+
+def update_enviroments(path: str = "enviroments.json5") -> Dict[str, Any]:
+  """Load environment variables from a JSON5 file and update os.environ."""
+  if not os.path.exists(path):
+    printwarn(f"Environment file {path} not found.")
+    return {}
+  try:
+    with open(path, "r", encoding="utf-8") as f:
+      data: Dict[str, Any] = pyjson5.load(f)
+    for k, v in data.items():
+      os.environ[k] = str(v)
+    return data
+  except Exception as e:
+    printwarn(f"Failed to load environments: {e}")
+    return {}

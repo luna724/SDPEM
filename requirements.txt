@@ -4,3 +4,4 @@ uvicorn
 gradio==3.49.0
 starlette
 httpx
+pyjson5

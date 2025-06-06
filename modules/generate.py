@@ -63,7 +63,7 @@ class GenerationResult(BaseModel):
 
 
 class Txt2imgAPI:
-    def __init__(self, payload: dict):
+    def __init__(self, payload: dict) -> None:
         self.payload = payload.copy()
 
     @staticmethod
@@ -131,7 +131,7 @@ class Txt2imgAPI:
             print_critical(f"Error generating image: {e}")
             yield None, None, None
 
-    async def get_progress(self):
+    async def get_progress(self) -> Optional[GenerationProgress]:
         try:
             progress = await self._get_requests("/sdapi/v1/progress", {})
             cls = GenerationProgress(

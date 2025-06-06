@@ -2,21 +2,22 @@ from webui import UiTabs
 import gradio as gr
 import os
 import shared
+from typing import Callable
 from utils import *
 
 class LoRAToPrompt(UiTabs):
-  def title(self):
+  def title(self) -> str:
     return "from LoRA"
-  def index(self):
+  def index(self) -> int:
     return 1
-  def ui(self, outlet):
+  def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> None:
     async def generate_prompt(
       lora_names, blacklist, pattern_blacklist,
       blacklist_multiplier, use_relative_freq,
       weight_multiplier, w_min, w_max,
       disallow_duplicate, header, footer,
       max_tags, base_chance, add_lora_name, lora_weight
-    ):
+    ) -> str:
       prm = {
         "lora_name": lora_names,
         "blacklist": blacklist.split(",") if blacklist else [],

@@ -6,7 +6,7 @@ from modules.generate import Txt2imgAPI
 
 
 class ForeverGeneration(abc.ABC):
-    def __init__(self, payload: dict, *args, **kwargs):
+    def __init__(self, payload: dict, *args: Any, **kwargs: Any) -> None:
         self._payload = payload.copy()
         self.is_generating = False
         self._stop_event = asyncio.Event()
@@ -15,7 +15,7 @@ class ForeverGeneration(abc.ABC):
     async def get_payload(self) -> dict:
         raise NotImplementedError
 
-    async def generate_forever(self, **override_payload) -> AsyncGenerator[dict, None]:
+    async def generate_forever(self, **override_payload: Any) -> AsyncGenerator[dict, None]:
         """
         payloadを取得する関数を受け取り生成を続ける
 
@@ -61,7 +61,7 @@ class ForeverGeneration(abc.ABC):
             print("Generation stopped.")
         return
 
-    async def stop_generation(self):
+    async def stop_generation(self) -> None:
         self._stop_event.set()
         self.is_generating = False
         println("Generation stopped by user.")
