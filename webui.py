@@ -22,7 +22,7 @@ class UiTabs:
         """return ui's index"""
         return 0
 
-    def get_ui(self) -> List[UiTabs]:
+    def get_ui(self) -> list:
         tabs = []
         files = [file for file in os.listdir(self.child_path) if file.endswith(".py")]
         # print(f"Child path: {self.child_path} ({files})")

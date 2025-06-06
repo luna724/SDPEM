@@ -1,9 +1,11 @@
 {
-  // Path to Stable Diffusion WebUI
+  // Path to Stable Diffusion WebUI (reForge aren't supported)
   "api_path": "I:/stable-diffusion-webui-forge",
+
   // URL to Stable Diffusion API
   "api_url": "http://localhost:7860",
-  // URL to PEM API
+
+  // URL to PEM API (Default)
   "pem_api": "http://localhost:7865"
 }
 

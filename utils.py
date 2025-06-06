@@ -30,8 +30,8 @@ def print_critical(*args: Any, **kw: Any) -> None:
 def update_enviroments(path: str = "enviroments.json5") -> Dict[str, Any]:
   """Load environment variables from a JSON5 file and update os.environ."""
   if not os.path.exists(path):
-    printwarn(f"Environment file {path} not found.")
-    return {}
+    print_critical(f"Environment file {path} not found.")
+    raise FileNotFoundError(f"Environment file {path} not found.")
   try:
     with open(path, "r", encoding="utf-8") as f:
       data: Dict[str, Any] = pyjson5.load(f)
@@ -39,5 +39,5 @@ def update_enviroments(path: str = "enviroments.json5") -> Dict[str, Any]:
       os.environ[k] = str(v)
     return data
   except Exception as e:
-    printwarn(f"Failed to load environments: {e}")
-    return {}
+    print_critical(f"Failed to load environments: {e}")
+    raise
