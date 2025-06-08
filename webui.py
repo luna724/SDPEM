@@ -4,6 +4,8 @@ from typing import *
 import os
 import gradio as gr
 
+from utils import println
+
 
 class UiTabs:
     PATH = os.path.join(os.getcwd(), "modules/tabs")
@@ -128,26 +130,14 @@ def make_ui() -> tuple[gr.Blocks, dict]:
     block = gr.Blocks(title="luna724 / SD-PEM Client", analytics_enabled=False, css=css)
     # tab_elements = {}
     with block:
-        # IPのデフォルトを取得
-        # with gr.Row():
-        #     sdui_ip = gr.Textbox(label="SD-WebUI(--api) IP", value=server_ip.ip)
-        #     sdui_port = gr.Number(label="SD-WebUI(--api) Port", value=server_ip.port)
-        #     sdui_apply = gr.Button("Apply", variant="primary")
-        #     sdui_apply.click(
-        #         inputs=[sdui_ip, sdui_port]
-        #     )
-
         with gr.Tabs():
             tabs = get_ui()
             for tab in tabs:
                 with gr.Tab(tab.title()):
                     # 各タブの要素を保存するための辞書
                     tab_ui_elements = {}
-
-                    # タブ内のUIを生成し、そのエレメントを辞書に格納
                     def capture_ui(component_name, component):
-                        # print(f"Captured UI: {component_name}, {component}")
-                        tab_ui_elements[component_name] = component
+                        pass
 
                     # 実際のUI生成
                     tab.ui(
@@ -174,13 +164,12 @@ def register_apps() -> None:
 
                 try:
                     importlib.import_module(module_name)
-                    print(f"Successfully imported module: {module_name}")
+                    println(f"Successfully imported module: {module_name}")
                 except ImportError as e:
-                    print(f"Failed to import module {module_name}: {e}")
+                    println(f"Failed to import module {module_name}: {e}")
 
 
 import shared
-from starlette.middleware.wsgi import WSGIMiddleware
 import uvicorn
 import threading
 

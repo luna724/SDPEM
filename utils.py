@@ -14,7 +14,7 @@ class AnsiColors:
 def now() -> str:
   return datetime.datetime.now().strftime("%H:%M:%S")
 
-def println(*args: Any, **kw: Any) -> None:
+def println(*args, **kw) -> None:
   print(f"{AnsiColors.GRAY}[{now()}] {AnsiColors.GREEN}INFO{AnsiColors.RESET} {' '.join(map(str, args))}", **kw)
 
 def printerr(*args: Any, **kw: Any) -> None:

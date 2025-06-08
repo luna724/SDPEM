@@ -123,7 +123,7 @@ class Txt2imgAPI:
                 steps=info.get("steps", 0),
                 batch_size=info.get("batch_size", 0),
                 images=response.get("images", []),
-                infotext=response.get("infotext", ""),
+                infotext=json.loads(response.get("info", "{}")).get("infotexts", [""])[0],
             )
             yield True, result, None
         except RuntimeError as e:
@@ -136,7 +136,7 @@ class Txt2imgAPI:
             progress = await self._get_requests("/sdapi/v1/progress", {})
             cls = GenerationProgress(
                 progress=progress.get("progress", 0.0) * 100,
-                eta=progress.get("eta", 0.0) * 100,
+                eta=progress.get("eta_relative", 0.0),
                 state=progress.get("state", {}),
                 image=progress.get("current_image", ""),
             )

@@ -145,7 +145,7 @@ class LoRAToPrompt(UiTabs):
           )
           with gr.Accordion(label="ADetailer (Simplified)", open=False):
             adetailer = gr.Checkbox(
-              value=False, label="Enable ADetailer with Template",
+              value=True, label="Enable ADetailer with Template",
               info="Enable ADetailer for image generation"
             )
             enable_hand_tap = gr.Checkbox(
@@ -170,7 +170,73 @@ class LoRAToPrompt(UiTabs):
             placeholder="Enter the negative prompt",
             lines=2, max_lines=5, value="score_6, score_5, score_4, ugly face, low res"
           )
-      
+      with gr.Row():
+        with gr.Accordion(label="Image Filtering", open=False):
+          pass # TODO: implement
+        
+        with gr.Accordion(label="Advanced Settings", open=False):
+          with gr.Row():
+            with gr.Group():
+              with gr.Row():
+                enable_stop = gr.Checkbox(
+                  label="Enable Auto-Stop",
+                  value=False, info="Enable stop generation after options", 
+                )
+                stop_mode = gr.Dropdown(
+                  choices=["After Minutes", "After Images", "At Datetime"],
+                  value="After Minutes", label="Stop Mode",
+                )
+              with gr.Row():
+                stop_after_minutes = gr.Number(
+                  label="Stop After Minutes",
+                  value=240, precision=0, step=1
+                )
+                stop_after_images = gr.Number(
+                  label="Stop After n of Images",
+                  value=0, precision=0, step=1
+                )
+                stop_after_datetime = gr.Textbox(
+                  label="Stop At Datetime",
+                  value="2025-07-24 00:07:24", placeholder="YYYY-MM-DD HH:MM:SS"
+                )
+      with gr.Row():
+        with gr.Accordion(label="Output Options", open=False):
+          with gr.Row():
+            output_dir = gr.Textbox(
+              label="Output Directory",
+              placeholder="Enter the output directory",
+              value=os.path.join(shared.api_path, "outputs/txt2img-images/{DATE}-pem"),
+              lines=1, max_lines=1, scale=9
+            )
+            browse_dir = gr.Button(
+              "\u2709", variant="secondary",
+              scale=1
+            )
+          with gr.Row():
+            output_format = gr.Dropdown(
+              choices=["PNG", "JPEG", "WEBP"],
+              label="Output Format", value="PNG",
+              scale=6
+            )
+            output_name = gr.Textbox(
+              label="Output Name",
+              placeholder="Enter the output name",
+              value="{image_count}-{seed}.{ext}",
+              lines=1, max_lines=1, scale=4
+            ) 
+          with gr.Row():
+            save_metadata = gr.Checkbox(
+              value=True, label="Save Metadata",
+              info="If enabled, metadata will be saved in the output image"
+            )
+            save_infotext = gr.Checkbox(
+              value=True, label="Save Infotext",
+              info="If enabled, infotext will be saved as .txt"
+            )
+              
+        with gr.Accordion(label="Regional Prompter", open=False):
+          pass # TODO: implement
+        
       with gr.Row():
         skip_img = gr.Button("Skip Image", variant="secondary", scale=7)
         skipped_img = gr.Checkbox(
@@ -183,6 +249,7 @@ class LoRAToPrompt(UiTabs):
         )
         
       generate = gr.Button("Start", variant="primary")
+      stop = gr.Button("Stop", variant="primary", )
       with gr.Row():
         with gr.Column():
           eta = gr.Textbox(
@@ -209,9 +276,7 @@ class LoRAToPrompt(UiTabs):
           )
           image = gr.Image(label="Generated Image", type="pil", scale=3, interactive=False)
           
-      generate.click(
-        fn=instance.start,
-        inputs=[
+      var = [
           lora, blacklist, pattern_blacklist,
           blacklist_multiplier, use_relative_freq,
           w_multiplier, w_min, w_max,
@@ -220,7 +285,19 @@ class LoRAToPrompt(UiTabs):
           s_method, scheduler, steps_min, steps_max,
           cfg_min, cfg_max, batch_count, batch_size,
           size, adetailer, enable_hand_tap,
-          disable_lora_in_adetailer, enable_freeu, preset, negative
-        ],
+          disable_lora_in_adetailer, enable_freeu, preset, negative,
+          enable_stop, stop_mode, stop_after_minutes,
+          stop_after_images, stop_after_datetime,
+          output_dir, output_format, output_name,
+          save_metadata, save_infotext
+      ]
+      generate.click(
+        fn=instance.start,
+        inputs=var,
         outputs=[eta, progress, progress_bar_html, image, output]
+      )
+      stop.click(
+        fn=instance.stop_generation,
+        inputs=[],
+        outputs=[]
       )
