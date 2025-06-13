@@ -173,7 +173,7 @@ async def generate_prompt_from_frequency(rq: _GeneratePromptFromFrequency):
         prompts.append(tag)
   if len(prompts) < 1:
     return {"success": False, "message": "No tags selected"}, status.HTTP_422_UNPROCESSABLE_ENTITY
-  result = rq.header.strip() + ", ".join(prompts) + rq.footer.strip()
+  result = rq.header.strip(", ") + ", " + ", ".join(prompts) + ", " + rq.footer.strip(", ")
   return {
     "success": True,
     "prompt": result

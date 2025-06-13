@@ -4,6 +4,7 @@ from typing import *
 import os
 import gradio as gr
 
+from init_model import init_models
 from utils import println
 
 
@@ -175,6 +176,7 @@ import threading
 
 
 def launch() -> None:
+    init_models()
     register_apps()
     threading.Thread(
         target=uvicorn.run,

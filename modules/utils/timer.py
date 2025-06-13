@@ -37,24 +37,24 @@ class TimerInstance:
   def elapsed(self) -> float:
     if self:
       return self.end_time - self.start_time
-    raise InvalidTimerException()
+    raise InvalidTimerException(self.name)
   
   def is_done(self) -> bool:
     if self:
       return time.time() >= self.end_time
-    raise InvalidTimerException()
+    raise InvalidTimerException(self.name)
 
   def remaining(self) -> float:
     if self:
       return max(0, self.end_time - time.time())
-    raise InvalidTimerException()
+    raise InvalidTimerException(self.name)
 
   def wait_for_done_blocking(self):
     if self:
       time.sleep(self.remaining())
-    raise InvalidTimerException()
+    raise InvalidTimerException(self.name)
 
   async def wait_for_done(self):
     if self:
       await asyncio.sleep(self.remaining())
-    raise InvalidTimerException()
+    raise InvalidTimerException(self.name)

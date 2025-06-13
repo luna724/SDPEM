@@ -276,7 +276,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         if enable_stop:
             timer = TimerInstance(name="Forever Generation/LoRA Timer")
             if stop_mode == "After Minutes":
-                timer.end_at(time.time() + stop_min * 60)
+                timer.set_end_at(time.time() + stop_min * 60)
             elif stop_mode == "At Datetime":
                 try:
                     timer.end_at_dt(timer.dtparse(stop_after_datetime))
@@ -308,15 +308,6 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         num_of_image = 0
         prv_generation_c = None
         async for i in self.start_generation():
-            # 停止チェック
-            if timer and timer.is_done():
-                self.stdout(
-                    f"Stopping generation due to timer expiration. (image: {num_of_iter}) (loop: {num_of_loop} | iter: {num_of_iter})"
-                )
-                self.skipped_by = "[User Setting] Timer Expiration"
-                self.skipped()
-                break
-
             if num_of_image >= self.n_of_img:
                 self.stdout(
                     f"Stopping generation due to image limit ({self.n_of_img} images reached). (loop: {num_of_loop} | iter: {num_of_iter})"
@@ -332,6 +323,14 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                     f"Starting generation ({num_of_iter + 1} / inf) with Prompt: {i.get('payload', {}).get('prompt', 'N/A')}",
                     silent=True,
                 )
+                # 停止チェック
+                if timer and timer.is_done():
+                    self.stdout(
+                        f"Stopping generation due to timer expiration. (image: {num_of_iter}) (loop: {num_of_loop} | iter: {num_of_iter})"
+                    )
+                    self.skipped_by = "[User Setting] Timer Expiration"
+                    self.skipped()
+                    break
                 prv_generation_c = num_of_iter
 
             ok = i.get("ok", False)
@@ -490,6 +489,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                   self.stdout(f"[{index}/{len(images)}] Image saved as {fn}")
 
                 yield (eta, progress, progress_bar_html, image_obj, self.stdout())
+                
             elif not ok and status == "error":
                 raise gr.Error("Generation failed due to an error.")
         yield (

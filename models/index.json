@@ -1,0 +1,79 @@
+{
+	"index": ["wd-tagger"],
+	"values": [
+		{
+			"name": "wd-tagger",
+			"schema": {
+				"type": ["hf.co"],
+				"signature": ["onnx"],
+				"url": "SmilingWolf/wd-vit-large-tagger-v3 | or directly path",
+				"name": "wd-vit-large-tagger-v3",
+        "skip": false,
+        "fn": "unknown.model",
+				"depend": []
+			},
+			"items": [
+				{
+					"name": "WD1.4 Vit Tagger v3 (large)",
+					"type": "hf.co",
+					"signature": "onnx",
+					"url": "SmilingWolf/wd-vit-large-tagger-v3:model.onnx",
+          "fn": "wd-vit-large-tagger-v3.onnx",
+					"depend": [
+						{
+							"type": "hf.co",
+							"url": "SmilingWolf/wd-vit-large-tagger-v3:selected_tags.csv",
+							"fn": "wd-vit-large-tagger-v3.selected_tags.csv"
+						}
+					]
+				},
+				{
+					"name": "WD1.4 Vit Tagger v3",
+					"type": "hf.co",
+					"signature": "onnx",
+					"url": "SmilingWolf/wd-vit-tagger-v3:model.onnx",
+          "fn": "wd-vit-tagger-v3.onnx",
+					"depend": [
+						{
+							"type": "hf.co",
+							"url": "SmilingWolf/wd-vit-tagger-v3:selected_tags.csv",
+							"fn": "wd-vit-tagger-v3.selected_tags.csv"
+						}
+					]
+				},
+				{
+          "name": "WD SwinV2 Tagger v3",
+          "type": "hf.co",
+          "signature": "onnx",
+          "url": "SmilingWolf/wd-swinv2-tagger-v3:model.onnx",
+          "fn": "wd-swinv2-tagger-v3.onnx",
+					"depend": [
+						{
+							"type": "hf.co",
+							"url": "SmilingWolf/wd-swinv2-tagger-v3:selected_tags.csv",
+							"fn": "wd-swinv2-tagger-v3.selected_tags.csv"
+						}
+					]
+        },
+        {
+          "name": "WD1.4 Convnext Tagger v2",
+          "type": "hf.co",
+          "signature": "onnx",
+          "url": "SmilingWolf/wd-v1-4-convnext-tagger-v2:model.onnx",
+          "fn": "wd-v1-4-convnext-tagger-v2.onnx",
+					"depend": [
+						{
+							"type": "hf.co",
+							"url": "SmilingWolf/wd-v1-4-convnext-tagger-v2:selected_tags.csv",
+							"fn": "wd-v1-4-convnext-tagger-v2.selected_tags.csv"
+						}
+					]
+        },
+        {
+          "name": "SD-WebUI DeepDanbooru Tagger",
+          "skip": true
+        }
+			]
+		}
+	]
+}

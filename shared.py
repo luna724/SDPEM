@@ -13,3 +13,5 @@ pem_api: str = env.get("pem_api", "http://localhost:7865")
 session: httpx.AsyncClient = httpx.AsyncClient(
     headers={"Content-Type": "application/json"}, timeout=None
 )
+
+models: dict = {} # モデルのタイプ、名前、ファイルパスを保管する
