@@ -1,7 +1,11 @@
 import asyncio
+import base64
+from io import BytesIO
+from itertools import chain
 import os
 import re
 import time
+from modules.api.v1.generator.from_lora import make_blacklist
 from modules.forever_generation import ForeverGeneration
 from typing import *
 from PIL import Image, PngImagePlugin
@@ -9,7 +13,9 @@ from modules.adetailer import ADetailerAPI, ADetailerResult
 from modules.generate import GenerationProgress, GenerationResult, Txt2imgAPI
 import gradio as gr
 import random
+from modules.tagger.predictor import OnnxRuntimeTagger
 from modules.utils.timer import TimerInstance
+from modules.utils.util import sha256
 import shared
 from utils import *
 
@@ -100,6 +106,8 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         self.image_skipped = False
         self.skipped_by = "User"
 
+        self.rating_indexes = []
+
     async def get_payload(self) -> dict:
         p = self.param.copy()
         prompt_rq = await shared.session.post(
@@ -144,7 +152,6 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         p.update(self.freeu_param)
         return p
 
-    # @override
     async def start(
         self,
         lora: list[str],
@@ -182,8 +189,27 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         stop_min,
         stop_after_img,
         stop_after_datetime,
-        output_dir, output_format, output_name,
-        save_metadata, save_infotext
+        output_dir,
+        output_format,
+        output_name,
+        save_metadata,
+        save_infotext,
+        booru_filter_enable,
+        booru_model,
+        booru_threshold,
+        booru_character_threshold,
+        booru_allow_rating,
+        booru_ignore_questionable,
+        booru_save_each_rate,
+        booru_merge_sensitive,
+        general_save_dir,
+        sensitive_save_dir,
+        questionable_save_dir,
+        explicit_save_dir,
+        booru_blacklist,
+        booru_pattern_blacklist,
+        booru_separate_save,
+        booru_blacklist_save_dir,
     ) -> AsyncGenerator[tuple[str, Image.Image], None]:
         self.default_prompt_request_param = {
             "lora_name": lora,
@@ -288,6 +314,11 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             if timer is None:
                 raise gr.Error("Timer is not set. Please enable stop mode.")
 
+        caption: OnnxRuntimeTagger = None
+        if booru_filter_enable:
+            # TODO: wd以外
+            caption = OnnxRuntimeTagger(model_path=booru_model, find_path=True)
+
         self.disable_lora_in_adetailer = disable_lora_in_adetailer
         self.lora = lora
         self.sampling_methods = s_method
@@ -359,7 +390,32 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                     self.skipped()
                     continue
                 num_of_image += len(p.images)
-                
+
+                # caption filter
+                if booru_filter_enable:
+                    await caption.load_model_cuda()
+                    self.stdout("Processing image with Booru Filter..")
+                    p.images = await self.caption_filter(
+                        caption,
+                        p,
+                        booru_threshold,
+                        booru_character_threshold,
+                        booru_allow_rating,
+                        booru_ignore_questionable,
+                        booru_save_each_rate,
+                        booru_merge_sensitive,
+                        general_save_dir,
+                        sensitive_save_dir,
+                        questionable_save_dir,
+                        explicit_save_dir,
+                        booru_blacklist,
+                        booru_pattern_blacklist,
+                        booru_separate_save,
+                        booru_blacklist_save_dir,
+                        before_adetailer=True,
+                    )
+                    await caption.unload_model()
+
                 if adetailer:
                     adp = self.adetailer_param
                     try:
@@ -451,45 +507,73 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                     self.skipped()
                     continue
 
-                # TODO: Implement Image Filter (Before Save)
-                for index, image_obj in enumerate(images, start=0):
-                  image_obj.save(f"./tmp/img/generated_{num_of_iter}_{index}-{num_of_loop}.png")
-                  
-                
-                  DATE = time.strftime("%Y-%m-%d")
-                  fp = output_dir.format(DATE=DATE)
-                  os.makedirs(fp, exist_ok=True)                  
-                  img_files = sorted([f
-                    for f in os.listdir(fp)
-                    if re.match(r"^\d{5}-\d+.png$", f) is not None
-                  ], key=lambda x: int(x.split("-")[0]))
-                  image_count = int(img_files[-1].split("-")[0]) if img_files else 0
-                  seed = p.seed if p.seed is not None else 0
-                  ext = output_format.lower() if output_format != "JPEG" else "jpg"
-                  image_name = output_name.format(
-                      seed=seed + index,
-                      date=DATE,
-                      image_count=f"{(image_count + 1):05d}",
-                      ext=ext,
-                  )
-                  fn = os.path.join(fp, image_name)
-                  txtinfo = p.infotext
-                  if save_infotext:
-                    with open(fn + ".txt", "w", encoding="utf-8") as f:
-                      f.write(txtinfo)
-                  
-                  if save_metadata:
-                    info = PngImagePlugin.PngInfo()
-                    info.add_text("parameters", txtinfo)
-                    image_obj.save(
-                      fn, format=output_format, pnginfo=info
+                # caption filter after adetailer
+                if booru_filter_enable:
+                    await caption.load_model_cuda()
+                    self.stdout("Processing image with Booru Filter..")
+                    p._booru_image_bridge = images
+                    images = await self.caption_filter(
+                        caption,
+                        p,
+                        booru_threshold,
+                        booru_character_threshold,
+                        booru_allow_rating,
+                        booru_ignore_questionable,
+                        booru_save_each_rate,
+                        booru_merge_sensitive,
+                        general_save_dir,
+                        sensitive_save_dir,
+                        questionable_save_dir,
+                        explicit_save_dir,
+                        booru_blacklist,
+                        booru_pattern_blacklist,
+                        booru_separate_save,
+                        booru_blacklist_save_dir,
+                        before_adetailer=False,
                     )
-                  else:
-                    image_obj.save(fn, format=output_format)
-                  self.stdout(f"[{index}/{len(images)}] Image saved as {fn}")
+                    await caption.unload_model()
+
+                for index, image_obj in enumerate(images, start=0):
+                    image_obj.save(
+                        f"./tmp/img/generated_{num_of_iter}_{index}-{num_of_loop}-{sha256(image_obj.tobytes())}.png"
+                    )
+
+                    DATE = time.strftime("%Y-%m-%d")
+                    fp = output_dir.format(DATE=DATE)
+                    os.makedirs(fp, exist_ok=True)
+                    img_files = sorted(
+                        [
+                            f
+                            for f in os.listdir(fp)
+                            if re.match(r"^\d{5}-\d+.png$", f) is not None
+                        ],
+                        key=lambda x: int(x.split("-")[0]),
+                    )
+                    image_count = int(img_files[-1].split("-")[0]) if img_files else 0
+                    seed = p.seed if p.seed is not None else 0
+                    ext = output_format.lower() if output_format != "JPEG" else "jpg"
+                    image_name = output_name.format(
+                        seed=seed + index,
+                        date=DATE,
+                        image_count=f"{(image_count + 1):05d}",
+                        ext=ext,
+                    )
+                    fn = os.path.join(fp, image_name)
+                    txtinfo = p.infotext
+                    if save_infotext:
+                        with open(fn + ".txt", "w", encoding="utf-8") as f:
+                            f.write(txtinfo)
+
+                    if save_metadata:
+                        info = PngImagePlugin.PngInfo()
+                        info.add_text("parameters", txtinfo)
+                        image_obj.save(fn, format=output_format, pnginfo=info)
+                    else:
+                        image_obj.save(fn, format=output_format)
+                    self.stdout(f"[{index+1}/{len(images)}] Image saved as {fn}")
 
                 yield (eta, progress, progress_bar_html, image_obj, self.stdout())
-                
+
             elif not ok and status == "error":
                 raise gr.Error("Generation failed due to an error.")
         yield (
@@ -499,10 +583,173 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             None,
             self.stdout("Generation Stopped."),
         )
-  
+
     async def stop_generation(self):
-      self.n_of_img = 2140000000
-      self.image_skipped = False
-      self.skipped_by = "User"
-      gr.Warning("Generation will be stop after this iteration.")
-      await super().stop_generation()
+        self.n_of_img = 2140000000
+        self.image_skipped = False
+        self.skipped_by = "User"
+        gr.Warning("Generation will be stop after this iteration.")
+        await super().stop_generation()
+
+    async def caption_filter(
+        self,
+        caption: OnnxRuntimeTagger,
+        p: GenerationResult,
+        booru_threshold,
+        booru_character_threshold,
+        booru_allow_rating,
+        booru_ignore_questionable,
+        booru_save_each_rate,
+        booru_merge_sensitive,
+        general_save_dir,
+        sensitive_save_dir,
+        questionable_save_dir,
+        explicit_save_dir,
+        booru_blacklist,
+        booru_pattern_blacklist,
+        booru_separate_save,
+        booru_blacklist_save_dir,
+        before_adetailer: bool,
+    ) -> list[str] | list[Image.Image]:  # base64 encoded images
+        """
+        booruでなんやかんやして画像をフィルダリングする
+        okな画像はそのままで返す
+
+        before_adetailer の場合は list[b64img] を返し、
+        after_adetailer の場合は list[Image.Image] を返す
+        """
+
+        def save_blacklisted_image(
+            i: Image.Image,
+            rate: str,
+        ):
+            if not booru_separate_save:
+                return
+            self.stdout(f"[Caption]: Saving blacklisted image with rate: {rate}")
+            os.makedirs(booru_blacklist_save_dir, exist_ok=True)
+            fn = f"[{rate}] {p.seed} - " + sha256(i.tobytes()) + ".png"
+            fp = os.path.join(booru_blacklist_save_dir, fn)
+            info = PngImagePlugin.PngInfo()
+            info.add_text("parameters", p.infotext)
+            i.save(fp, format="PNG", pnginfo=info)
+            self.stdout(f"[Caption]: Blacklisted image saved as {fp}")
+            return
+
+        def save_separated_rate(
+            i: Image.Image,
+            rate: str,
+        ):
+            if not booru_save_each_rate:
+                return
+            self.stdout(f"[Caption]: Saving image with rate: {rate}")
+            DATE = time.strftime("%Y-%m-%d")
+            if rate == "general" or (rate == "sensitive" and booru_merge_sensitive):
+                fp = general_save_dir.format(DATE=DATE)
+            elif rate == "sensitive":
+                fp = sensitive_save_dir.format(DATE=DATE)
+            elif rate == "questionable":
+                fp = questionable_save_dir.format(DATE=DATE)
+            elif rate == "explicit":
+                fp = explicit_save_dir.format(DATE=DATE)
+            else:
+                print_critical(f"[Caption]: Unknown rate: {rate}. Skipping save.")
+                return
+            os.makedirs(fp, exist_ok=True)
+            img_files = sorted(
+                [
+                    f
+                    for f in os.listdir(fp)
+                    if re.match(r"^\d{5}-\d+.png$", f) is not None
+                ],
+                key=lambda x: int(x.split("-")[0]),
+            )
+            image_count = int(img_files[-1].split("-")[0]) if img_files else 0
+            seed = p.seed if p.seed is not None else 0
+            image_name = f"{(image_count + 1):05d}-{seed}.png"
+            fn = os.path.join(fp, image_name)
+            info = PngImagePlugin.PngInfo()
+            info.add_text("parameters", p.infotext)
+            i.save(fn, format="PNG", pnginfo=info)
+            self.stdout(f"[Caption]: Image saved as {fn}")
+            return
+
+        if before_adetailer and booru_separate_save:
+            # 完成品を保存するならadetailer後に保存する
+            return p.images
+
+        if before_adetailer:
+            images = p.images.copy()
+        else:
+            images = p._booru_image_bridge
+        allow_image = []
+        for img in images:
+            blacklisted = False
+
+            if before_adetailer:
+                image = Image.open(BytesIO(base64.b64decode(img)))
+            else:
+                image = img
+            tags, character_tags, rating = await caption.predict(
+                image.convert("RGBA"),
+                threshold=booru_threshold,
+                character_threshold=booru_character_threshold,
+            )
+
+            rate: str = max(rating, key=rating.get, default="general")
+            general_rate: float = rating.get("general", 0)
+            sensitive_rate: float = rating.get("sensitive", 0)
+            questionable_rate: float = rating.get("questionable", 0)
+            explicit_rate: float = rating.get("explicit", 0)
+            txtprompt = ", ".join(
+                        [
+                            x[0]
+                            for x in sorted(
+                                tags.items(), key=lambda x: x[1], reverse=True
+                            )
+                        ]
+                    )
+            self.stdout(
+                f"[Caption]: output: {txtprompt}"
+            )
+            
+            if (
+                general_rate == 0
+                and sensitive_rate == 0
+                and questionable_rate == 0
+                and explicit_rate == 0
+            ):
+                self.stdout("No rating found in the image.")
+                questionable_rate = 1
+
+            if booru_ignore_questionable and rate == "questionable":
+                d = rating.copy()
+                d.pop("questionable", None)
+                rate = max(d, key=d.get, default="general")
+                self.stdout(f"Ignoring questionable rating. (questionable -> {rate})")
+            if not rate in booru_allow_rating and not booru_save_each_rate:
+                save_blacklisted_image(img, rate)
+                continue
+
+            # blacklist check
+            b = await make_blacklist(booru_blacklist.split(",")) + [
+                re.compile(re.escape(p), re.IGNORECASE)
+                for p in booru_pattern_blacklist.splitlines()
+            ]
+
+            itms = chain(tags.items(), character_tags.items())
+            for tag, _ in itms:
+                if any(bl.search(tag) for bl in b):
+                    self.stdout(
+                        f"[Caption]: Tag '{tag}' is blacklisted. Skipping image."
+                    )
+                    blacklisted = True
+                    save_blacklisted_image(image, rate)
+                    break
+            if blacklisted:
+                continue
+
+            if booru_save_each_rate and not before_adetailer:
+                save_separated_rate(image, rate)
+            else:
+                allow_image.append(img)
+        return allow_image

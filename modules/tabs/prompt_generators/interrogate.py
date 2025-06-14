@@ -27,7 +27,7 @@ class Interrogate(UiTabs):
                         ),
                         None,
                     )
-                    instance = WDTaggerPredictor(model_path=model_path)
+                    instance = WDTaggerPredictor(model_path=model_path, find_path=False)
                     println("Loading WD-Tagger model into CUDA..")
                     await instance.load_model_cuda()
                     println("WD-Tagger model loaded successfully.")

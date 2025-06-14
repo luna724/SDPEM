@@ -1,4 +1,5 @@
 from modules.forever.from_lora import ForeverGenerationFromLoRA
+from modules.utils.browse import select_folder
 from webui import UiTabs
 import gradio as gr
 import os
@@ -172,8 +173,164 @@ class LoRAToPrompt(UiTabs):
           )
       with gr.Row():
         with gr.Accordion(label="Image Filtering", open=False):
-          pass # TODO: implement
-        
+          with gr.Row():
+            booru_filter_enable = gr.Checkbox(
+              value=False, label="Enable Caption Filter",
+            )
+            booru_model = gr.Dropdown(
+              choices=[
+                      x["display_name"]
+                      for x in shared.models["wd-tagger"]
+              ], # TODO: wd以外のtaggerからも取得するように
+              value="WD1.4 Vit Tagger v3",
+              label="Tagger Model",
+            )
+          with gr.Row():
+            booru_threshold = gr.Slider(
+              minimum=0.0, maximum=1.0, value=0.65,
+              label="Caption Filter Threshold",
+              step=0.01, info="Threshold for the caption filter"
+            )
+            booru_character_threshold = gr.Slider(
+              minimum=0.0, maximum=1.0, value=0.45,
+              label="Character Filter Threshold",
+              step=0.01, info="Threshold for the character filter"
+            )
+          with gr.Row():
+            booru_allow_rating = gr.Dropdown(
+              choices=["general", "sensitive", "questionable", "explicit"],
+              value=["general", "sensitive", "questionable", "explicit"],
+              multiselect=True,
+              label="[wip] Allow Ratings",
+              scale=6
+            )
+            booru_ignore_questionable = gr.Checkbox(
+              value=True, label="Ignore Questionable",
+              info="If enabled, questionable weight will be ignored (questionable 99%, sensitive 1% will be treated as sensitive 100%)", scale=4
+            )
+            
+          with gr.Accordion(label="Save Option", open=False):
+            def set_visible_from_rating(allow_rate):
+              g = "general" in allow_rate
+              s = "sensitive" in allow_rate
+              q = "questionable" in allow_rate
+              e = "explicit" in allow_rate
+              return (
+                gr.update(visible=g),
+                gr.update(visible=s),
+                gr.update(visible=q),
+                gr.update(visible=e),
+              )
+
+            with gr.Row():
+              booru_save_each_rate = gr.Checkbox(
+                value=False, label="Save Each Rating",
+              )
+              
+              booru_merge_sensitive = gr.Checkbox(
+                value=True, label="Merge Sensitive to general"
+              )
+            with gr.Row(visible=True) as general_row:
+              general_save_dir = gr.Textbox(
+                label="[Rating] General Save Directory",
+                placeholder="Enter the general save directory",
+                value=os.path.join(shared.api_path, "outputs/txt2img-images/{DATE}-pem/general"),
+                lines=1, max_lines=1, scale=19
+              )
+              general_browse_dir = gr.Button(
+                "📁", variant="secondary",
+                scale=1
+              )
+              general_browse_dir.click(
+                fn=select_folder,
+                outputs=[general_save_dir]
+              )
+            with gr.Row(visible=True) as sensitive_row:
+              sensitive_save_dir = gr.Textbox(
+                label="[Rating] Sensitive Save Directory",
+                placeholder="Enter the sensitive save directory",
+                value=os.path.join(shared.api_path, "outputs/txt2img-images/{DATE}-pem/sensitive"),
+                lines=1, max_lines=1, scale=19
+              )
+              sensitive_browse_dir = gr.Button(
+                "📁", variant="secondary",
+                scale=1
+              )
+              sensitive_browse_dir.click(
+                fn=select_folder,
+                outputs=[sensitive_save_dir]
+              )
+
+            with gr.Row(visible=True) as questionable_row:
+              questionable_save_dir = gr.Textbox(
+                label="[Rating] Questionable Save Directory",
+                placeholder="Enter the questionable save directory",
+                value=os.path.join(shared.api_path, "outputs/txt2img-images/{DATE}-pem/questionable"),
+                lines=1, max_lines=1, scale=19
+              )
+              questionable_browse_dir = gr.Button(
+                "📁", variant="secondary",
+                scale=1
+              )
+              questionable_browse_dir.click(
+                fn=select_folder,
+                outputs=[questionable_save_dir]
+              )
+            
+            with gr.Row(visible=True) as explicit_row:
+              explicit_save_dir = gr.Textbox(
+                label="[Rating] Explicit Save Directory",
+                placeholder="Enter the explicit save directory",
+                value=os.path.join(shared.api_path, "outputs/txt2img-images/{DATE}-pem/explicit"),
+                lines=1, max_lines=1, scale=19
+              )
+              explicit_browse_dir = gr.Button(
+                "📁", variant="secondary",
+                scale=1
+              )
+              explicit_browse_dir.click(
+                fn=select_folder,
+                outputs=[explicit_save_dir]
+              )
+            
+            booru_allow_rating.change(
+              fn=set_visible_from_rating,
+              inputs=[booru_allow_rating],
+              outputs=[
+                general_row, sensitive_row, questionable_row, explicit_row
+              ]
+            )
+          with gr.Row():
+            booru_blacklist = gr.Textbox(
+              label="Caption Blacklist",
+              placeholder="Enter caption tags to blacklist, separated by commas",
+              info="if this tag is in the caption, the image will be skipped (or saved at other directory if enabled)",
+              lines=5, max_lines=400, value="", scale=6
+            )
+            booru_pattern_blacklist = gr.Textbox(
+              label="Caption Blacklist Patterns",
+              placeholder="Enter caption patterns to blacklist, separated by lines",
+              info="if this pattern matches the caption, the image will be skipped (or saved at other directory if enabled)",
+              lines=5, max_lines=10000, value="", scale=6
+            )
+          with gr.Row():
+            booru_separate_save = gr.Checkbox(
+              value=True, label="Blacklisted Save Option",
+              info="If enabled, blacklisted images will be saved to separate directory", scale=10
+            )
+            booru_blacklist_save_dir = gr.Textbox(
+              label="Blacklisted Save Directory",
+              placeholder="Enter the blacklisted save directory",
+              value=os.path.join(shared.api_path, "C:/Users/luna_/Pictures/blacklisted"), scale=19
+            )
+            booru_blacklist_browse_dir = gr.Button(
+              "📁", variant="secondary", scale=1
+            )
+            booru_blacklist_browse_dir.click(
+              fn=select_folder,
+              outputs=[booru_blacklist_save_dir]
+            )
+
         with gr.Accordion(label="Advanced Settings", open=False):
           with gr.Row():
             with gr.Group():
@@ -206,11 +363,15 @@ class LoRAToPrompt(UiTabs):
               label="Output Directory",
               placeholder="Enter the output directory",
               value=os.path.join(shared.api_path, "outputs/txt2img-images/{DATE}-pem"),
-              lines=1, max_lines=1, scale=9
+              lines=1, max_lines=1, scale=19
             )
             browse_dir = gr.Button(
-              "\u2709", variant="secondary",
+              "📁", variant="secondary",
               scale=1
+            )
+            browse_dir.click(
+              fn=select_folder,
+              outputs=[output_dir]
             )
           with gr.Row():
             output_format = gr.Dropdown(
@@ -275,7 +436,11 @@ class LoRAToPrompt(UiTabs):
             scale=2, interactive=False
           )
           image = gr.Image(label="Generated Image", type="pil", scale=3, interactive=False)
-          
+      
+      save_all_param = gr.Button(
+        "Save current parameters",
+        variant="secondary"
+      )
       var = [
           lora, blacklist, pattern_blacklist,
           blacklist_multiplier, use_relative_freq,
@@ -289,7 +454,15 @@ class LoRAToPrompt(UiTabs):
           enable_stop, stop_mode, stop_after_minutes,
           stop_after_images, stop_after_datetime,
           output_dir, output_format, output_name,
-          save_metadata, save_infotext
+          save_metadata, save_infotext,
+          booru_filter_enable, booru_model,
+          booru_threshold, booru_character_threshold,
+          booru_allow_rating, booru_ignore_questionable,
+          booru_save_each_rate, booru_merge_sensitive,
+          general_save_dir, sensitive_save_dir,
+          questionable_save_dir, explicit_save_dir,
+          booru_blacklist, booru_pattern_blacklist,
+          booru_separate_save, booru_blacklist_save_dir,
       ]
       generate.click(
         fn=instance.start,
@@ -300,4 +473,9 @@ class LoRAToPrompt(UiTabs):
         fn=instance.stop_generation,
         inputs=[],
         outputs=[]
+      )
+
+      save_all_param.click(
+        fn=None, # TODO
+        inputs=var,
       )

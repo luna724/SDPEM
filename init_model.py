@@ -98,4 +98,4 @@ def init_models():
                 if ok:
                     installer.register(index, item)
 
-    print_critical(shared.models)
+    # print_critical(shared.models)
