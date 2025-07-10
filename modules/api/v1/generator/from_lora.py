@@ -138,7 +138,7 @@ async def generate_prompt_from_frequency(rq: _GeneratePromptFromFrequency):
   """
   渡された tag_frequency からプロンプトを生成する
   """
-  blacklists: list[re.Pattern] = await make_blacklist(rq.blacklist) + [re.compile(re.escape(pattern), re.IGNORECASE) for pattern in rq.black_patterns]
+  blacklists: list[re.Pattern] = await make_blacklist(rq.blacklist) + [re.compile(pattern, re.IGNORECASE) for pattern in rq.black_patterns]
   if not rq.frequency and len(rq.frequency) < 1:
     return {"success": False, "message": "No frequency data provided"}, status.HTTP_422_UNPROCESSABLE_ENTITY
   if rq.tag_count < 1:

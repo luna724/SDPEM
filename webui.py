@@ -3,6 +3,8 @@ import sys
 from typing import *
 import os
 import gradio as gr
+import asyncio
+import inspect
 
 from init_model import init_models
 from utils import println
@@ -57,7 +59,7 @@ class UiTabs:
         )
         return tabs
 
-    def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> None:
+    async def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> None:
         """make ui data
         don't return"""
         with gr.Blocks():
@@ -73,12 +75,20 @@ class UiTabs:
                             # print(f"Captured UI: {component_name}, {component}")
                             tab_ui_elements[component_name] = component
 
-                        # 実際のUI生成
-                        tab.ui(
-                            lambda component_name, component: capture_ui(
-                                component_name, component
+                        # 実際のUI生成 (async/sync両対応)
+                        ui_method = tab.ui
+                        if inspect.iscoroutinefunction(ui_method):
+                            await ui_method(
+                                lambda component_name, component: capture_ui(
+                                    component_name, component
+                                )
                             )
-                        )
+                        else:
+                            ui_method(
+                                lambda component_name, component: capture_ui(
+                                    component_name, component
+                                )
+                            )
 
                         # タブ全体のエレメントを保存
                         # tab_ui_elements
@@ -88,7 +98,7 @@ class UiTabs:
     #   return [rootID, child_rel_import_path, importlib's Path]
 
 
-def make_ui() -> tuple[gr.Blocks, dict]:
+async def make_ui() -> tuple[gr.Blocks, dict]:
     def get_ui() -> List[UiTabs]:
         tabs = []
         files = [file for file in os.listdir(UiTabs.PATH) if file.endswith(".py")]
@@ -140,12 +150,20 @@ def make_ui() -> tuple[gr.Blocks, dict]:
                     def capture_ui(component_name, component):
                         pass
 
-                    # 実際のUI生成
-                    tab.ui(
-                        lambda component_name, component: capture_ui(
-                            component_name, component
+                    # 実際のUI生成 (async/sync両対応)
+                    ui_method = tab.ui
+                    if inspect.iscoroutinefunction(ui_method):
+                        await ui_method(
+                            lambda component_name, component: capture_ui(
+                                component_name, component
+                            )
                         )
-                    )
+                    else:
+                        ui_method(
+                            lambda component_name, component: capture_ui(
+                                component_name, component
+                            )
+                        )
 
                     # タブ全体のエレメントを保存
                     # tab_elements[tab.title()] = tab_ui_elements
@@ -172,32 +190,31 @@ def register_apps() -> None:
 
 import shared
 import uvicorn
-import threading
+import asyncio
 
-
-def launch() -> None:
+async def launch() -> None:
     init_models()
     register_apps()
-    threading.Thread(
-        target=uvicorn.run,
-        kwargs={
-        "app": shared.app,
-        "host": "127.0.0.1",
-        "port": 7865,
-        "log_level": "info",
-        "timeout_keep_alive": 120,
-    },
-        daemon=True
-        ).start()
-
-    ui, _ = make_ui()
+    t = asyncio.create_task(
+        asyncio.to_thread(
+            uvicorn.run,
+            app=shared.app,
+            host="127.0.0.1",
+            port=7865,
+            log_level="info",
+            timeout_keep_alive=120,
+        )
+    )
+    
+    ui, _ = await make_ui()
     ui.queue(64)
     ui.launch(
-        server_name="127.0.0.1",
+        server_name="0.0.0.0",
         server_port=7866
     )
+    t.cancel()
     return
 
 
 if __name__ == "__main__":
-    launch()
+    asyncio.run(launch())

@@ -1,5 +1,5 @@
 {
-  // Path to Stable Diffusion WebUI (reForge aren't supported)
+  // Path to Stable Diffusion WebUI or forgeUI (reForge aren't supported)
   "api_path": "I:/stable-diffusion-webui-forge",
 
   // URL to Stable Diffusion API

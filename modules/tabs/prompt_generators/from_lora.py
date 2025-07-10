@@ -83,11 +83,11 @@ class LoRAToPrompt(UiTabs):
       with gr.Row():
         w_min = gr.Number(
           label="Multiplier target weight minimum",
-          value=1, precision=0, step=1, min=0, max=10000, scale=3
+          value=1, precision=0, scale=3
         )
         w_max = gr.Number(
           label="Multiplier target weight maximum",
-          value=12, precision=0, step=1, min=0, max=10000, scale=3
+          value=12, precision=0, scale=3
         )
         w_multiplier = gr.Slider(
           0, 10, step=0.01, value=2, label="Weight multiplier",
@@ -115,7 +115,7 @@ class LoRAToPrompt(UiTabs):
       with gr.Row():
         max_tags = gr.Number(
           label="Max tags",
-          value=7, precision=0, step=1, min=1, max=100, scale=3
+          value=7, precision=0, scale=3
         )
         base_chance = gr.Slider(
           0.01, 10, step=0.01, value=10, label="Base chance",
