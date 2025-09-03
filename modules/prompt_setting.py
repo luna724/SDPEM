@@ -40,7 +40,7 @@ class PromptSettingManager:
     
     async def push_ui(self, *opts):
         options = [
-            "blacklist", "black_patterns", "blacklisted_weight", "disallow_duplicate", "use_relative_freq", "w_min", "w_max", "w_multiplier"
+            "blacklist", "black_patterns", "disallow_duplicate", "blacklisted_weight",  "use_relative_freq", "w_min", "w_max", "w_multiplier"
         ]
         
         if len(options) != len(opts):

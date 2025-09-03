@@ -89,6 +89,36 @@ class LoRAToPrompt(UiTabs):
                                 scale=4,
                             ),
                         )
+                    header = r(
+                        "header",
+                        gr.Textbox(
+                            label="Prompt Header",
+                            placeholder="Enter the prompt header",
+                            lines=2,
+                            max_lines=5,
+                            value=default.header,
+                        ),
+                    )
+                    footer = r(
+                        "footer",
+                        gr.Textbox(
+                            label="Prompt Footer",
+                            placeholder="Enter the prompt footer",
+                            lines=2,
+                            max_lines=5,
+                            value=default.footer,
+                        ),
+                    )
+                    negative = r(
+                        "negative",
+                        gr.Textbox(
+                            label="Negative Prompt",
+                            placeholder="Enter the negative prompt",
+                            lines=2,
+                            max_lines=5,
+                            value=default.negative,
+                        ),
+                    )
     
                 with gr.Accordion(label="Parameter Settings", open=False):
                     with gr.Row():
@@ -226,36 +256,6 @@ class LoRAToPrompt(UiTabs):
                                 value=default.preset,
                             ),
                         )
-                    header = r(
-                        "header",
-                        gr.Textbox(
-                            label="Prompt Header",
-                            placeholder="Enter the prompt header",
-                            lines=2,
-                            max_lines=5,
-                            value=default.header,
-                        ),
-                    )
-                    footer = r(
-                        "footer",
-                        gr.Textbox(
-                            label="Prompt Footer",
-                            placeholder="Enter the prompt footer",
-                            lines=2,
-                            max_lines=5,
-                            value=default.footer,
-                        ),
-                    )
-                    negative = r(
-                        "negative",
-                        gr.Textbox(
-                            label="Negative Prompt",
-                            placeholder="Enter the negative prompt",
-                            lines=2,
-                            max_lines=5,
-                            value=default.negative,
-                        ),
-                    )
                     
             with gr.Row():
                 with gr.Accordion(label="Image Filtering", open=False):
