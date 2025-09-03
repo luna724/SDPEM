@@ -124,7 +124,7 @@ async def get_prompt_from_lora(rq: _GetPromptFromLoRA):
 class _GeneratePromptFromFrequency(BaseModel):
   frequency: Dict[str, int]
   blacklist: List[str] = []
-  black_patterns: List[str] = [] # patternLike
+  black_patterns: List[str] = []
   blacklisted_weight: int | float = 0
   weight_multiplier: int | float = 2
   weight_multiplier_target: tuple[int, int] = (1, 12) # min, max

@@ -1,12 +1,13 @@
 import importlib
 import sys
+import traceback
 from typing import *
 import os
 import gradio as gr
 import asyncio
 import inspect
+import abc
 
-from init_model import init_models
 from utils import println
 
 
@@ -19,13 +20,14 @@ class UiTabs:
         self.child_path = None
         pass
 
+    @abc.abstractmethod
     def title(self) -> str:
-        """return tab_title"""
-        return "Tab_Title"
+        raise NotImplementedError()
 
+    @abc.abstractmethod
     def index(self) -> int:
         """return ui's index"""
-        return 0
+        raise NotImplementedError()
 
     def get_ui(self) -> list:
         tabs = []
@@ -188,11 +190,24 @@ def register_apps() -> None:
                     println(f"Failed to import module {module_name}: {e}")
 
 
-import shared
+
 import uvicorn
 import asyncio
 
-async def launch() -> None:
+async def launch(args=None) -> None:
+    import shared
+    
+    go_web = False
+    # argsが渡された場合は引数を使用
+    if args:
+        shared.ui_port = args.ui_port
+        shared.pem_api_port = args.api_port
+        go_web = args.go_web
+
+    shared.pem_api += str(shared.pem_api_port)
+    from init_model import init_models
+    
+    
     init_models()
     register_apps()
     t = asyncio.create_task(
@@ -200,21 +215,36 @@ async def launch() -> None:
             uvicorn.run,
             app=shared.app,
             host="127.0.0.1",
-            port=7865,
+            port=shared.pem_api_port,
             log_level="info",
             timeout_keep_alive=120,
         )
     )
     
-    ui, _ = await make_ui()
-    ui.queue(64)
-    ui.launch(
-        server_name="0.0.0.0",
-        server_port=7866
-    )
-    t.cancel()
+    try:
+        ui, _ = await make_ui()
+        ui.queue(64)
+        ui.launch(
+            server_name="0.0.0.0",
+            server_port=shared.ui_port,
+            inbrowser=go_web
+        )
+    except:
+        traceback.print_exc()
+        
+    finally:
+        t.cancel()
     return
 
 
 if __name__ == "__main__":
-    asyncio.run(launch())
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="SD-PEM Web UI")
+    parser.add_argument("--ui_port", type=int, default=7866, help="Port for UI server (default: 7866)")
+    parser.add_argument("--api_port", type=int, default=7865, help="Port for API server (default: 7865)")
+    parser.add_argument("--go_web", action="store_true", help="Enable web mode")
+    
+    args = parser.parse_args()
+    
+    asyncio.run(launch(args))

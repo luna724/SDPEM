@@ -8,7 +8,8 @@ from utils import *
 async def get(path: str) -> Any:
   response = await shared.session.get(
     url=api_url + path,
-    headers={"Content-Type": "application/json"}
+    headers={"Content-Type": "application/json"},
+    timeout=3
   )
   if response.status_code == status.HTTP_200_OK:
     data = response.json()

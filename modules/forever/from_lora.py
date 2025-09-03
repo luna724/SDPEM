@@ -5,17 +5,19 @@ from itertools import chain
 import os
 import re
 import time
-from modules.api.v1.generator.from_lora import make_blacklist
-from modules.forever_generation import ForeverGeneration
 from typing import *
-from PIL import Image, PngImagePlugin
-from modules.adetailer import ADetailerAPI, ADetailerResult
-from modules.generate import GenerationProgress, GenerationResult, Txt2imgAPI
 import gradio as gr
 import random
+from PIL import Image, PngImagePlugin
+
+from modules.adetailer import ADetailerAPI, ADetailerResult
+from modules.generate import GenerationProgress, GenerationResult, Txt2imgAPI
 from modules.tagger.predictor import OnnxRuntimeTagger
 from modules.utils.timer import TimerInstance
 from modules.utils.util import sha256
+from modules.api.v1.generator.from_lora import make_blacklist
+from modules.forever_generation import ForeverGeneration
+from modules.prompt_setting import setting
 import shared
 from utils import *
 
@@ -92,6 +94,8 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         self.default_prompt_request_param = {}
         self.adetailer_param = {}
         self.freeu_param = {}
+        self.regional_prompter_param_default = {}
+        self.neveroom_param = {}
 
         self.sampling_methods: list[str]
         self.schedulers: list[str]
@@ -101,10 +105,19 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         self.sizes: list[tuple[int, int]]
         self.lora_names: list[str]
         self.disable_lora_in_adetailer: bool
+        self.rp_matrix_mode: list[str]
+        self.rp_enabled: bool
+        self.rp_calculation: list[str]
+        self.divine_ratio: list[str]
+        self.rp_auto_res: bool
+        self.rp_canvas_res: list[tuple[int, int]] = []
 
         self.n_of_img = 2140000000
         self.image_skipped = False
         self.skipped_by = "User"
+        
+        self.booru_blacklist: str = ""
+        self.booru_pattern_blacklist: str = ""
 
         self.rating_indexes = []
 
@@ -128,7 +141,6 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
 
         sampler = random.choice(self.sampling_methods)
         scheduler = random.choice(self.schedulers)
-        # TODO: Implement auto-casting for scheduler
         step = random.randint(self.steps[0], self.steps[1])
         cfg_scale = (
             random.randrange(self.cfg_scales[0] * 10, self.cfg_scales[1] * 10, 5) / 10
@@ -137,6 +149,17 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         w = size[0]
         h = size[1]
 
+        rpp = self.regional_prompter_param_default.copy()        
+        try:
+            rpp["Regional Prompter"]["args"][3] = random.choice(self.rp_matrix_mode)
+            rpp["Regional Prompter"]["args"][6] = random.choice(self.divine_ratio)
+            rpp["Regional Prompter"]["args"][11] = self.rp_calculation
+        except (IndexError, KeyError):
+            printwarn(
+                "IndexError or KeyError occurred while updating Regional Prompter parameters."
+            )
+        finally:
+            p["alwayson_scripts"].update(rpp)    
         p.update(
             {
                 "prompt": prompt,
@@ -149,20 +172,44 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             }
         )
 
-        p.update(self.freeu_param)
+        p["alwayson_scripts"].update(self.freeu_param)
+        p["alwayson_scripts"].update(self.neveroom_param)
         return p
+    
+    async def update_prompt_settings(
+        self, lora, header, footer,
+        max_tags, base_chance, add_lora_name, lora_weight,
+        booru_blacklist, booru_pattern_blacklist,
+    ):
+        new_param = {
+            "lora_name": lora,
+            "header": header,
+            "footer": footer,
+            "max_tags": max_tags,
+            "base_chance": base_chance,
+            "lora_weight": lora_weight,
+            "add_lora_name": add_lora_name,
+        } | setting.request_param()
+        response = await shared.session.post(
+            url=f"{shared.pem_api}/v1/generator/lora/lora2prompt",
+            json=new_param,
+        )
+        if response.status_code != 200 or response.json()[0].get("prompt", "") == "":
+            print_critical(response.json())
+            raise gr.Error(
+                f"Failed to call API or generate prompt. check your Prompt Settings ({response.status_code})"
+            )
+        else:
+            self.default_prompt_request_param = new_param
+            self.stdout("Prompt settings updated successfully.")
+            gr.Info("Prompt settings updated successfully.")
+        
+        self.booru_blacklist = booru_blacklist
+        self.booru_pattern_blacklist = booru_pattern_blacklist
 
     async def start(
         self,
         lora: list[str],
-        blacklist: str,
-        pattern_blacklist: str,
-        blacklist_multiplier: float,
-        use_relative_freq: bool,
-        w_multiplier: float,
-        w_min: int,
-        w_max: int,
-        disallow_duplicate: bool,
         header: str,
         footer: str,
         max_tags: int,
@@ -189,6 +236,8 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         stop_min,
         stop_after_img,
         stop_after_datetime,
+        neverOOM_unet,
+        neverOOM_vae,
         output_dir,
         output_format,
         output_name,
@@ -210,25 +259,35 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         booru_pattern_blacklist,
         booru_separate_save,
         booru_blacklist_save_dir,
+        active_rp,
+        rp_mode,
+        rp_calc,
+        rp_base,
+        rp_base_ratio,
+        lora_base,
+        add_lora_name_base,
+        lora_weight_base,
+        header_base,
+        footer_base,
+        max_tags_base,
+        base_chance_base,
+        disallow_duplicate_base,
+        matrix_split,
+        matrix_divide,
+        matrix_canvas_res_auto,
+        matrix_canvas_res,
+        lora_stop_step,
+        overlay_ratio
     ) -> AsyncGenerator[tuple[str, Image.Image], None]:
         self.default_prompt_request_param = {
             "lora_name": lora,
-            "blacklist": blacklist.split(",") if blacklist else [],
-            "black_patterns": (
-                pattern_blacklist.splitlines() if pattern_blacklist else []
-            ),
-            "blacklisted_weight": blacklist_multiplier,
-            "use_relative_freq": use_relative_freq,
-            "weight_multiplier": w_multiplier,
-            "weight_multiplier_target": [w_min, w_max],
-            "disallow_duplicate": disallow_duplicate,
             "header": header,
             "footer": footer,
             "max_tags": max_tags,
             "base_chance": base_chance,
             "lora_weight": lora_weight,
             "add_lora_name": add_lora_name,
-        }
+        } | setting.request_param()
         # テスト呼び出し + 必要ならLoRA名取得
         response = await shared.session.post(
             url=f"{shared.pem_api}/v1/generator/lora/lora2prompt",
@@ -256,6 +315,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             "restore_faces": False,
             "tiling": False,
             "save_images": False,
+            "alwayson_scripts": {}
         }
 
         arg_list = [
@@ -297,6 +357,39 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             if enable_freeu
             else {}
         )
+        
+        self.neveroom_param = (
+            {
+                "Never OOM Integrated": {
+                    "args": [
+                        {
+                            "unet_enabled": neverOOM_unet,
+                            "vae_enabled": neverOOM_vae
+                        },
+                    ],
+                }
+            }
+            if (neverOOM_unet or neverOOM_vae)
+            else {}
+        )
+        
+        self.regional_prompter_param_default = (
+            {
+                "Regional Prompter": {
+                    "args": [
+                        active_rp, False, rp_mode, None, #matrix mode
+                        "TODO:Mask", "TODO:Prompt", None, # Divine
+                        rp_base_ratio, rp_base, False, False,
+                        None, # rp_calc
+                        False, 0, 0, overlay_ratio, None, # mask
+                        lora_stop_step, 0, False
+                    ]
+                }
+            }
+            if active_rp
+            else {}
+        )
+        
 
         timer = None
         if enable_stop:
@@ -325,11 +418,25 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         self.schedulers = scheduler
         self.steps = (steps_min, steps_max)
         self.cfg_scales = (cfg_min, cfg_max)
+        self.booru_blacklist = booru_blacklist
+        self.booru_pattern_blacklist = booru_pattern_blacklist
         s = []
         for si in size.split(","):
             w, h = si.split(":")
             s.append((int(w), int(h)))
         self.sizes = s
+        
+        self.rp_enabled = active_rp
+        self.rp_matrix_mode = matrix_split
+        self.rp_calculation = rp_calc
+        self.divine_ratio = matrix_divide.split(",")
+        self.rp_auto_res = matrix_canvas_res_auto
+        if self.rp_enabled and not self.rp_auto_res:
+            s = []
+            for si in matrix_canvas_res.split(","):
+                w, h = si.split(":")
+                s.append((int(w), int(h)))
+        self.rp_canvas_res = s
 
         eta = ""
         progress = ""
@@ -408,8 +515,6 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                         sensitive_save_dir,
                         questionable_save_dir,
                         explicit_save_dir,
-                        booru_blacklist,
-                        booru_pattern_blacklist,
                         booru_separate_save,
                         booru_blacklist_save_dir,
                         before_adetailer=True,
@@ -525,8 +630,6 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                         sensitive_save_dir,
                         questionable_save_dir,
                         explicit_save_dir,
-                        booru_blacklist,
-                        booru_pattern_blacklist,
                         booru_separate_save,
                         booru_blacklist_save_dir,
                         before_adetailer=False,
@@ -605,20 +708,22 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         sensitive_save_dir,
         questionable_save_dir,
         explicit_save_dir,
-        booru_blacklist,
-        booru_pattern_blacklist,
+        # booru_blacklist,
+        # booru_pattern_blacklist,
         booru_separate_save,
         booru_blacklist_save_dir,
         before_adetailer: bool,
     ) -> list[str] | list[Image.Image]:  # base64 encoded images
         """
-        booruでなんやかんやして画像をフィルダリングする
+        booruでなんやかんやして画像をフィルタリングする
         okな画像はそのままで返す
 
         before_adetailer の場合は list[b64img] を返し、
         after_adetailer の場合は list[Image.Image] を返す
         """
-
+        booru_blacklist = self.booru_blacklist
+        booru_pattern_blacklist = self.booru_pattern_blacklist
+        
         def save_blacklisted_image(
             i: Image.Image,
             rate: str,

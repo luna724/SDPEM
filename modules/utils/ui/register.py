@@ -21,6 +21,7 @@ class RegisterComponent:
     self.fp: Path = fp
     self.instance_name = instance_name or self._get_variable_name()
     self.components = {}
+    self.ordered_components = {}
     self.loaded_conf: dict = {}
     if not self.fp.exists():
       self.fp.parent.mkdir(parents=True, exist_ok=True)
@@ -43,8 +44,13 @@ class RegisterComponent:
       pass
     return "RegisterComponent"
 
-  def register(self, key: str, c: gr.components.Component):
+  def register(self, key: str, c: gr.components.Component, order: int = None):
+    if not isinstance(key, str): raise TypeError(f"Key aren't str: {key}")
     self.components[key] = c
+    if not isinstance(order, int):
+      order = len(self.ordered_components) + 1
+
+    self.ordered_components[order] = [key, c]
     return c
   
   def save(self, values):
@@ -60,11 +66,20 @@ class RegisterComponent:
     self.loaded_conf = values
     self.conf = ValuesMap(self, values)
     return
-    
+  
+  def keys(self) -> list:
+    return list(self.components.keys())
+  
   def values(self) -> list:
     """登録されたコンポーネントの値を取得"""
     return list(self.components.values())
   
+  def ordered_keys(self) -> list:
+    return [x[0] for x in self.ordered_components.values()]
+
+  def ordered_values(self) -> list:
+    return [x[1] for x in self.ordered_components.values()]
+
   def load(self) -> ValuesMap:
     if not self.fp.exists():
       raise FileNotFoundError(f"Configuration file {self.fp} does not exist.")

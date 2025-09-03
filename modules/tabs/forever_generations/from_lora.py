@@ -1,6 +1,6 @@
 from modules.forever.from_lora import ForeverGenerationFromLoRA
 from modules.utils.browse import select_folder
-from modules.utils.register_ui import RegisterComponent
+from modules.utils.ui.register import RegisterComponent
 from modules.api.v1.items import sdapi
 from webui import UiTabs
 import gradio as gr
@@ -46,76 +46,24 @@ class LoRAToPrompt(UiTabs):
             with gr.Row():
                 with gr.Accordion(label="Prompt Settings", open=False):
                     with gr.Row():
-                        blacklist = r(
-                            "blacklist",
-                            gr.Textbox(
-                                label="Blacklist tags",
-                                placeholder="Enter tags to blacklist, separated by commas",
-                                lines=5,
-                                max_lines=400,
-                                value=default.blacklist,
-                                scale=6,
-                            ),
-                        )
-                        pattern_blacklist = r(
-                            "pattern_blacklist",
-                            gr.Textbox(
-                                label="Blacklist patterns",
-                                placeholder="Enter regex patterns to blacklist, separated by lines",
-                                lines=5,
-                                max_lines=400,
-                                value=default.pattern_blacklist,
-                                scale=4,
-                                info="Use regex patterns to blacklist tags. Example: ^tag$ will match exactly 'tag'.",
-                            ),
-                        )
-                    with gr.Row():
-                        blacklist_multiplier = r(
-                            "blacklist_multiplier",
-                            gr.Slider(
-                                0,
-                                5,
-                                step=0.01,
-                                value=default.blacklist_multiplier,
-                                label="Blacklisted tags weight multiplier",
-                            ),
-                        )
-                        use_relative_freq = r(
-                            "use_relative_freq",
-                            gr.Checkbox(
-                                value=default.use_relative_freq,
-                                label="[Experimental]: Use relative tag frequency",
-                                info="Use relative tag frequency instead of absolute frequency",
-                            ),
-                        )
-                    with gr.Row():
-                        w_min = r(
-                            "w_min",
+                        max_tags = r(
+                            "max_tags",
                             gr.Number(
-                                label="Multiplier target weight minimum",
-                                value=default.w_min,
+                                label="Max tags",
+                                value=default.max_tags,
                                 precision=0,
                                 scale=3,
                             ),
                         )
-                        w_max = r(
-                            "w_max",
-                            gr.Number(
-                                label="Multiplier target weight maximum",
-                                value=default.w_max,
-                                precision=0,
-                                scale=3,
-                            ),
-                        )
-                        w_multiplier = r(
-                            "w_multiplier",
+                        base_chance = r(
+                            "base_chance",
                             gr.Slider(
-                                0,
+                                0.01,
                                 10,
                                 step=0.01,
-                                value=default.w_multiplier,
-                                label="Weight multiplier",
-                                info="Multiplier for the tag weight",
+                                value=default.base_chance,
+                                label="Base chance",
+                                info="Base chance for the tag to be included in the prompt",
                                 scale=4,
                             ),
                         )
@@ -141,57 +89,7 @@ class LoRAToPrompt(UiTabs):
                                 scale=4,
                             ),
                         )
-                    header = r(
-                        "header",
-                        gr.Textbox(
-                            label="Prompt Header",
-                            placeholder="Enter the prompt header",
-                            lines=2,
-                            max_lines=5,
-                            value=default.header,
-                        ),
-                    )
-                    footer = r(
-                        "footer",
-                        gr.Textbox(
-                            label="Prompt Footer",
-                            placeholder="Enter the prompt footer",
-                            lines=2,
-                            max_lines=5,
-                            value=default.footer,
-                        ),
-                    )
-                    with gr.Row():
-                        max_tags = r(
-                            "max_tags",
-                            gr.Number(
-                                label="Max tags",
-                                value=default.max_tags,
-                                precision=0,
-                                scale=3,
-                            ),
-                        )
-                        base_chance = r(
-                            "base_chance",
-                            gr.Slider(
-                                0.01,
-                                10,
-                                step=0.01,
-                                value=default.base_chance,
-                                label="Base chance",
-                                info="Base chance for the tag to be included in the prompt",
-                                scale=4,
-                            ),
-                        )
-                        disallow_duplicate = r(
-                            "disallow_duplicate",
-                            gr.Checkbox(
-                                value=default.disallow_duplicate,
-                                label="Disallow duplicate tags",
-                                info="If enabled, duplicate tags will not be included in the prompt",
-                            ),
-                        )
-
+    
                 with gr.Accordion(label="Parameter Settings", open=False):
                     with gr.Row():
                         s_method = r(
@@ -257,13 +155,13 @@ class LoRAToPrompt(UiTabs):
                                     label="Max CFG Scale",
                                 ),
                             )
-                        with gr.Column():
+                        with gr.Row():
                             batch_count = r(
                                 "batch_count",
                                 gr.Number(
                                     label="Batch Count",
                                     value=default.batch_count,
-                                    precision=0
+                                    precision=0,
                                 ),
                             )
                             batch_size = r(
@@ -271,7 +169,7 @@ class LoRAToPrompt(UiTabs):
                                 gr.Number(
                                     label="Batch Size",
                                     value=default.batch_size,
-                                    precision=0
+                                    precision=0,
                                 ),
                             )
 
@@ -283,6 +181,7 @@ class LoRAToPrompt(UiTabs):
                             value=default.size or "896:1152,1024:1024,1152:896",
                         ),
                     )
+                    
                     with gr.Accordion(label="ADetailer (Simplified)", open=False):
                         adetailer = r(
                             "adetailer",
@@ -327,6 +226,26 @@ class LoRAToPrompt(UiTabs):
                                 value=default.preset,
                             ),
                         )
+                    header = r(
+                        "header",
+                        gr.Textbox(
+                            label="Prompt Header",
+                            placeholder="Enter the prompt header",
+                            lines=2,
+                            max_lines=5,
+                            value=default.header,
+                        ),
+                    )
+                    footer = r(
+                        "footer",
+                        gr.Textbox(
+                            label="Prompt Footer",
+                            placeholder="Enter the prompt footer",
+                            lines=2,
+                            max_lines=5,
+                            value=default.footer,
+                        ),
+                    )
                     negative = r(
                         "negative",
                         gr.Textbox(
@@ -337,6 +256,7 @@ class LoRAToPrompt(UiTabs):
                             value=default.negative,
                         ),
                     )
+                    
             with gr.Row():
                 with gr.Accordion(label="Image Filtering", open=False):
                     with gr.Row():
@@ -595,57 +515,76 @@ class LoRAToPrompt(UiTabs):
                         )
 
                 with gr.Accordion(label="Advanced Settings", open=False):
-                    with gr.Row():
-                        with gr.Group():
-                            with gr.Row():
-                                enable_stop = r(
-                                    "enable_stop",
-                                    gr.Checkbox(
-                                        label="Enable Auto-Stop",
-                                        value=default.enable_stop,
-                                        info="Enable stop generation after options",
-                                    ),
-                                )
-                                stop_mode = r(
-                                    "stop_mode",
-                                    gr.Dropdown(
-                                        choices=[
-                                            "After Minutes",
-                                            "After Images",
-                                            "At Datetime",
-                                        ],
-                                        value=default.stop_mode or "After Minutes",
-                                        label="Stop Mode",
-                                    ),
-                                )
-                            with gr.Row():
-                                stop_after_minutes = r(
-                                    "stop_after_minutes",
-                                    gr.Number(
-                                        label="Stop After Minutes",
-                                        value=default.stop_after_minutes or 240,
-                                        precision=0,
-                                        step=1,
-                                    ),
-                                )
-                                stop_after_images = r(
-                                    "stop_after_images",
-                                    gr.Number(
-                                        label="Stop After n of Images",
-                                        value=default.stop_after_images or 0,
-                                        precision=0,
-                                        step=1,
-                                    ),
-                                )
-                                stop_after_datetime = r(
-                                    "stop_after_datetime",
-                                    gr.Textbox(
-                                        label="Stop At Datetime",
-                                        value=default.stop_after_datetime
-                                        or "2025-07-24 00:07:24",
-                                        placeholder="YYYY-MM-DD HH:MM:SS",
-                                    ),
-                                )
+                    with gr.Group():
+                        with gr.Row():
+                            enable_stop = r(
+                                "enable_stop",
+                                gr.Checkbox(
+                                    label="Enable Auto-Stop",
+                                    value=default.enable_stop,
+                                    info="Enable stop generation after options",
+                                ),
+                            )
+                            stop_mode = r(
+                                "stop_mode",
+                                gr.Dropdown(
+                                    choices=[
+                                        "After Minutes",
+                                        "After Images",
+                                        "At Datetime",
+                                    ],
+                                    value=default.stop_mode or "After Minutes",
+                                    label="Stop Mode",
+                                ),
+                            )
+                        with gr.Row():
+                            stop_after_minutes = r(
+                                "stop_after_minutes",
+                                gr.Number(
+                                    label="Stop After Minutes",
+                                    value=default.stop_after_minutes or 240,
+                                    precision=0,
+                                    step=1,
+                                ),
+                            )
+                            stop_after_images = r(
+                                "stop_after_images",
+                                gr.Number(
+                                    label="Stop After n of Images",
+                                    value=default.stop_after_images or 0,
+                                    precision=0,
+                                    step=1,
+                                ),
+                            )
+                            stop_after_datetime = r(
+                                "stop_after_datetime",
+                                gr.Textbox(
+                                    label="Stop At Datetime",
+                                    value=default.stop_after_datetime
+                                    or "2025-07-24 00:07:24",
+                                    placeholder="YYYY-MM-DD HH:MM:SS",
+                                ),
+                            )
+                
+                    with gr.Group():
+                        with gr.Row():
+                            enable_neveroom_unet = r(
+                                "enable_neveroom_unet",
+                                gr.Checkbox(
+                                    label="Enable NeverOOM (UNet)",
+                                    value=default.enable_neveroom_unet,
+                                    info="Enable NeverOOM / UNet Integration",
+                                ),
+                            )
+                            enable_neveroom_vae = r(
+                                "enable_neveroom_vae",
+                                gr.Checkbox(
+                                    label="Enable NeverOOM (VAE)",
+                                    value=default.enable_neveroom_vae,
+                                    info="Enable NeverOOM / VAE Integration",
+                                ),
+                            )
+                    
             with gr.Row():
                 with gr.Accordion(label="Output Options", open=False):
                     with gr.Row():
@@ -706,14 +645,223 @@ class LoRAToPrompt(UiTabs):
                         )
 
                 with gr.Accordion(label="Regional Prompter", open=False):
-                    pass  # TODO: implement
+                    with gr.Row():
+                        active_rp = r(
+                            "active_rp",
+                            gr.Checkbox(
+                                value=default.active_rp,
+                                label="Enable Regional Prompter",
+                            )
+                        )
+                        rp_mode = r(
+                            "rp_mode",
+                            gr.Dropdown(
+                                choices=[
+                                    "Matrix", "Mask", "Prompt"
+                                ],
+                                value=default.rp_mode or "Matrix",
+                                label="[WIP] RP Mode",
+                                interactive=False
+                            )
+                        )
+                        
+                        rp_calc = r(
+                            "rp_calc",
+                            gr.Dropdown(
+                                choices=[
+                                    "Attention", "Latent"
+                                ],
+                                value=default.rp_calc or "Attention",
+                                label="RP Calculation Mode"
+                        ))
+                    
+                    with gr.Row():
+                        rp_base = r(
+                            "rp_base",
+                            gr.Checkbox(
+                                label="Use base prompt",
+                                value=default.rp_base,
+                            )
+                        )
+                        rp_base_ratio = r(
+                            "rp_base_ratio",
+                            gr.Slider(
+                                0.0,
+                                1.0,
+                                step=0.01,
+                                value=default.rp_base_ratio or 0.5,
+                                label="Base prompt ratio",
+                                info="Ratio of the base prompt to the generated prompt",
+                                scale=2,
+                            ),
+                        )
+                    
+                    with gr.Accordion(label="Base prompt setting", open=False):
+                        lora_base = r(
+                            "lora_base",
+                            gr.Dropdown(
+                                choices=[
+                                    x
+                                    for x in os.listdir(
+                                        os.path.join(shared.api_path, "models/Lora")
+                                    )
+                                    if x.endswith(".safetensors")
+                                ],
+                                multiselect=True,
+                                value=default.lora,
+                                label="Target LoRA",
+                            ),
+                        )
+                        with gr.Row():
+                            add_lora_name_base = r(
+                                "add_lora_name_base",
+                                gr.Checkbox(
+                                    value=default.add_lora_name_base,
+                                    label="Add LoRA name to prompt",
+                                    info="If enabled, the LoRA name will be added to the prompt",
+                                    scale=2,
+                                ),
+                            )
+                            lora_weight_base = r(
+                                "lora_weight_base",
+                                gr.Slider(
+                                    0,
+                                    1,
+                                    step=0.01,
+                                    value=default.lora_weight_base,
+                                    label="LoRA weight",
+                                    info="Weight of the LoRA in the prompt",
+                                    scale=4,
+                                ),
+                            )
+                        header_base = r(
+                            "header_base",
+                            gr.Textbox(
+                                label="Prompt Header",
+                                placeholder="Enter the prompt header",
+                                lines=2,
+                                max_lines=5,
+                                value=default.header_base,
+                            ),
+                        )
+                        footer_base = r(
+                            "footer_base",
+                            gr.Textbox(
+                                label="Prompt Footer",
+                                placeholder="Enter the prompt footer",
+                                lines=2,
+                                max_lines=5,
+                                value=default.footer_base,
+                            ),
+                        )
+                        with gr.Row():
+                            max_tags_base = r(
+                                "max_tags_base",
+                                gr.Number(
+                                    label="Max tags",
+                                    value=default.max_tags_base,
+                                    precision=0,
+                                    scale=3,
+                                ),
+                            )
+                            base_chance_base = r(
+                                "base_chance_base",
+                                gr.Slider(
+                                    0.01,
+                                    10,
+                                    step=0.01,
+                                    value=default.base_chance_base,
+                                    label="Base chance",
+                                    info="Base chance for the tag to be included in the prompt",
+                                    scale=4,
+                                ),
+                            )
+                            disallow_duplicate_base = r(
+                                "disallow_duplicate_base",
+                                gr.Checkbox(
+                                    value=default.disallow_duplicate_base,
+                                    label="Disallow duplicate tags",
+                                    info="If enabled, duplicate tags will not be included in the prompt",
+                                ),
+                            )
+                    with gr.Accordion(label="Matrix Parameters", open=False, visible=True) as rp_matrix_root:
+                        with gr.Row():
+                            matrix_split = r(
+                                "matrix_split",
+                                gr.Dropdown(
+                                    choices=["Columns", "Rows"],
+                                    value=default.matrix_split or ["Columns"],
+                                    multiselect=True,
+                                    label="Splitting mode"
+                                )
+                            )
+                            matrix_divide = r(
+                                "matrix_divide",
+                                gr.Textbox(
+                                    label="Divide Ratio",
+                                    value=default.matrix_divide or "1:1,2:3,3:2",
+                                    placeholder="e.g. 896:1152,1024:1024,1152:896",
+                                    info=""
+                                )
+                            )
+                        with gr.Row():
+                            matrix_canvas_res_auto = r(
+                                "matrix_canvas_res_auto",
+                                gr.Checkbox(
+                                    value=default.matrix_canvas_res_auto,
+                                    label="Auto Canvas Resolution",
+                                    info="If enabled, the canvas resolution will be automatically calculated based on the image size",
+                                ),
+                            )
+                            matrix_canvas_res = r(
+                                "matrix_canvas_res",
+                                gr.Textbox(
+                                    label="Matrix Resolution",
+                                    placeholder="Enter the canvas resolution (width:height)",
+                                    value=default.matrix_canvas_res or "1152:896",
+                                    info="Resolution of the canvas for matrix generation",
+                                ),
+                            )
+                    with gr.Row():
+                        lora_stop_step = r(
+                            "lora_stop_step",
+                            gr.Number(
+                                value=default.lora_stop_step or 45,
+                                label="LoRA Stop Step (0 to disable)",
+                                precision=0,
+                            )
+                        )
+                        overlay_ratio = r(
+                            "overlay_ratio",
+                            gr.Slider(
+                                minimum=0.0,
+                                maximum=1.0,
+                                value=default.overlay_ratio or 0.3,
+                                step=0.01,
+                                label="Overlay Ratio",
+                            )
+                        )
 
             with gr.Row():
-                skip_img = gr.Button("Skip Image", variant="secondary", scale=7)
+                with gr.Row(scale=7):
+                    update_blacklist = gr.Button(
+                        "Update Prompt setting",
+                        variant="secondary",
+                        scale=4,
+                    )
+                    skip_img = gr.Button("Skip Image", variant="secondary", scale=6)
                 skipped_img = gr.Checkbox(
                     value=False,
                     label="Skipped",
                     interactive=False,
+                )
+                update_blacklist.click(
+                    fn=instance.update_prompt_settings,
+                    inputs=[
+                        lora, header, footer,
+                        max_tags, base_chance, add_lora_name,
+                        lora_weight, booru_blacklist, booru_pattern_blacklist
+                    ],
                 )
                 skip_img.click(fn=instance.skip_image, inputs=[], outputs=[skipped_img])
 
@@ -764,14 +912,6 @@ class LoRAToPrompt(UiTabs):
 
             var = [
                 lora,
-                blacklist,
-                pattern_blacklist,
-                blacklist_multiplier,
-                use_relative_freq,
-                w_multiplier,
-                w_min,
-                w_max,
-                disallow_duplicate,
                 header,
                 footer,
                 max_tags,
@@ -798,6 +938,8 @@ class LoRAToPrompt(UiTabs):
                 stop_after_minutes,
                 stop_after_images,
                 stop_after_datetime,
+                enable_neveroom_unet,
+                enable_neveroom_vae,
                 output_dir,
                 output_format,
                 output_name,
@@ -819,6 +961,25 @@ class LoRAToPrompt(UiTabs):
                 booru_pattern_blacklist,
                 booru_separate_save,
                 booru_blacklist_save_dir,
+                active_rp,
+                rp_mode,
+                rp_calc,
+                rp_base,
+                rp_base_ratio,
+                lora_base,
+                add_lora_name_base,
+                lora_weight_base,
+                header_base,
+                footer_base,
+                max_tags_base,
+                base_chance_base,
+                disallow_duplicate_base,
+                matrix_split,
+                matrix_divide,
+                matrix_canvas_res_auto,
+                matrix_canvas_res,
+                lora_stop_step,
+                overlay_ratio
             ]
             save_all_param = gr.Button("Save current parameters", variant="secondary")
 
@@ -835,4 +996,8 @@ class LoRAToPrompt(UiTabs):
             )
             stop.click(fn=instance.stop_generation, inputs=[], outputs=[])
 
-            save_all_param.click(fn=save_all_parameters, inputs=forever_generation_from_lora.values(), outputs=[output])
+            save_all_param.click(
+                fn=save_all_parameters,
+                inputs=forever_generation_from_lora.values(),
+                outputs=[output],
+            )
