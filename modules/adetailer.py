@@ -76,5 +76,5 @@ class ADetailerAPI(Txt2imgAPI):
             yield True, result, None
         except RuntimeError as e:
             traceback.print_exc()
-            print_critical(f"Error generating image: {e}")
+            critical(f"Error generating image: {e}")
             yield None, None, None

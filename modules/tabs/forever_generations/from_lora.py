@@ -79,14 +79,10 @@ class LoRAToPrompt(UiTabs):
                         )
                         lora_weight = r(
                             "lora_weight",
-                            gr.Slider(
-                                0,
-                                1,
-                                step=0.01,
-                                value=default.lora_weight,
-                                label="LoRA weight",
-                                info="Weight of the LoRA in the prompt",
-                                scale=4,
+                            gr.Textbox(
+                            label="LoRA weight",
+                            placeholder="lbw=OUTALL:stop=20",
+                            value=str(default.lora_weight) if default.lora_weight else "0.5", lines=1, max_lines=1, scale=2
                             ),
                         )
                     header = r(
@@ -119,6 +115,29 @@ class LoRAToPrompt(UiTabs):
                             value=default.negative,
                         ),
                     )
+                    with gr.Row():
+                        prompt_weight_chance = r(
+                            "prompt_weight_chance",
+                            gr.Slider(
+                            0, 1, label="Add prompt weight change",
+                            info="0 to disable", value=default.prompt_weight_chance, step=0.01
+                            ),
+                        )
+                        with gr.Column():
+                            prompt_weight_min = r(
+                                "prompt_weight_min",
+                                gr.Slider(
+                                0, 2, step=0.01, value=default.prompt_weight_min, label="Prompt weight min",
+                                info="Minimum prompt weight",
+                                ),
+                            )
+                            prompt_weight_max = r(
+                                "prompt_weight_max",
+                                gr.Slider(
+                                    0, 2, step=0.01, value=default.prompt_weight_max, label="Prompt weight max",
+                                    info="Maximum prompt weight",
+                                )
+                            )
     
                 with gr.Accordion(label="Parameter Settings", open=False):
                     with gr.Row():
@@ -860,7 +879,7 @@ class LoRAToPrompt(UiTabs):
                     inputs=[
                         lora, header, footer,
                         max_tags, base_chance, add_lora_name,
-                        lora_weight, booru_blacklist, booru_pattern_blacklist
+                        lora_weight, booru_blacklist, booru_pattern_blacklist, prompt_weight_chance, prompt_weight_min, prompt_weight_max
                     ],
                 )
                 skip_img.click(fn=instance.skip_image, inputs=[], outputs=[skipped_img])
@@ -979,25 +998,22 @@ class LoRAToPrompt(UiTabs):
                 matrix_canvas_res_auto,
                 matrix_canvas_res,
                 lora_stop_step,
-                overlay_ratio
+                overlay_ratio,
+                prompt_weight_chance,
+                prompt_weight_min,
+                prompt_weight_max,
             ]
             save_all_param = gr.Button("Save current parameters", variant="secondary")
-
-            # パラメータ保存機能
-            def save_all_parameters(*args):
-                """すべてのパラメータをJSONに保存"""
-                gr.Info("Saving..")
-                return forever_generation_from_lora.save(args)
 
             generate.click(
                 fn=instance.start,
                 inputs=var,
-                outputs=[eta, progress, progress_bar_html, image, output],
+                outputs=[eta, progress, progress_bar_html, image, output, skipped_img],
             )
             stop.click(fn=instance.stop_generation, inputs=[], outputs=[])
 
             save_all_param.click(
-                fn=save_all_parameters,
+                fn=forever_generation_from_lora.insta_save,
                 inputs=forever_generation_from_lora.values(),
-                outputs=[output],
+                outputs=[],
             )

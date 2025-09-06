@@ -2,6 +2,7 @@ import asyncio
 import base64
 from io import BytesIO
 from itertools import chain
+import json
 import os
 import re
 import time
@@ -13,9 +14,10 @@ from PIL import Image, PngImagePlugin
 from modules.adetailer import ADetailerAPI, ADetailerResult
 from modules.generate import GenerationProgress, GenerationResult, Txt2imgAPI
 from modules.tagger.predictor import OnnxRuntimeTagger
+from modules.utils.pnginfo import make_info
+from modules.utils.state import StateManager
 from modules.utils.timer import TimerInstance
 from modules.utils.util import sha256
-from modules.api.v1.generator.from_lora import make_blacklist
 from modules.forever_generation import ForeverGeneration
 from modules.prompt_setting import setting
 import shared
@@ -64,6 +66,12 @@ class LegacyImageProgressAPI:
         """
 
 
+# TODO: @Codex
+STATE = None # TODO: ForeverGenerationFromLoRAの現在の状況を保持、外部にストリームするための関数
+# /modules/api/v1/bot/forever_from_lora.py で使用される予定
+# 仕様自体は複数インスタンス対応してもいいが、どんな強靭なGPU使ってんのって話になるから単一保持の予定 (最新のインスタンスを保持する)
+
+# ForeverGeneration instanceは tab/.. によって保持され生涯有効
 class ForeverGenerationFromLoRA(ForeverGeneration):
     def stdout(self, txt: str | None = None, silent: bool = False) -> str:
         if txt is None:
@@ -120,6 +128,11 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         self.booru_pattern_blacklist: str = ""
 
         self.rating_indexes = []
+        
+        self.TIMER_STATE: StateManager = None #TODO
+        
+        self.killable = False
+        self.killMethod = "stop_generation_by_state_manager"
 
     async def get_payload(self) -> dict:
         p = self.param.copy()
@@ -129,7 +142,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         )
         if prompt_rq.status_code != 200:
             if prompt_rq.status_code == 422:
-                print_critical(
+                critical(
                     "API Error: ", prompt_rq.json()[0].get("message", "Unknown error")
                 )
             raise gr.Error(f"Failed to call API ({prompt_rq.status_code})")
@@ -155,7 +168,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             rpp["Regional Prompter"]["args"][6] = random.choice(self.divine_ratio)
             rpp["Regional Prompter"]["args"][11] = self.rp_calculation
         except (IndexError, KeyError):
-            printwarn(
+            warn(
                 "IndexError or KeyError occurred while updating Regional Prompter parameters."
             )
         finally:
@@ -180,6 +193,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         self, lora, header, footer,
         max_tags, base_chance, add_lora_name, lora_weight,
         booru_blacklist, booru_pattern_blacklist,
+        prompt_weight_chance, prompt_weight_min, prompt_weight_max
     ):
         new_param = {
             "lora_name": lora,
@@ -189,13 +203,15 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             "base_chance": base_chance,
             "lora_weight": lora_weight,
             "add_lora_name": add_lora_name,
+            "prompt_weight_chance": prompt_weight_chance,
+            "prompt_weight_range": (prompt_weight_min, prompt_weight_max)
         } | setting.request_param()
         response = await shared.session.post(
-            url=f"{shared.pem_api}/v1/generator/lora/lora2prompt",
+            url=f"{shared.pem_api}/v1_1/generator/lora/lora2prompt",
             json=new_param,
         )
-        if response.status_code != 200 or response.json()[0].get("prompt", "") == "":
-            print_critical(response.json())
+        if response.status_code != 200 or response.json().get("prompt", "") == "":
+            critical(response.json())
             raise gr.Error(
                 f"Failed to call API or generate prompt. check your Prompt Settings ({response.status_code})"
             )
@@ -277,26 +293,17 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         matrix_canvas_res_auto,
         matrix_canvas_res,
         lora_stop_step,
-        overlay_ratio
+        overlay_ratio,
+        prompt_weight_chance,
+        prompt_weight_min,
+        prompt_weight_max,
     ) -> AsyncGenerator[tuple[str, Image.Image], None]:
-        self.default_prompt_request_param = {
-            "lora_name": lora,
-            "header": header,
-            "footer": footer,
-            "max_tags": max_tags,
-            "base_chance": base_chance,
-            "lora_weight": lora_weight,
-            "add_lora_name": add_lora_name,
-        } | setting.request_param()
+        self.default_prompt_request_param = setting.request_param().copy()
         # テスト呼び出し + 必要ならLoRA名取得
-        response = await shared.session.post(
-            url=f"{shared.pem_api}/v1/generator/lora/lora2prompt",
-            json=self.default_prompt_request_param,
+        await self.update_prompt_settings(
+            lora, header, footer, max_tags, base_chance, add_lora_name, lora_weight, booru_blacklist, booru_pattern_blacklist, prompt_weight_chance, prompt_weight_min, prompt_weight_max
         )
-        if response.status_code != 200 or response.json()[0].get("prompt", "") == "":
-            raise gr.Error(
-                f"Failed to call API or generate prompt. check your Prompt Settings ({response.status_code})"
-            )
+        
         if disable_lora_in_adetailer:
             rp = await shared.session.post(
                 url=f"{shared.pem_api}/v1/generator/lora/names",
@@ -481,7 +488,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                     p.progress, p.eta
                 )
                 image = await p.convert_image()
-                yield (eta, progress, progress_bar_html, image, self.stdout())
+                yield (eta, progress, progress_bar_html, image, self.stdout(), self.image_skipped)
             elif ok and status == "completed":
                 p: GenerationResult = i["result"]
                 image = (await p.convert_images())[0]
@@ -537,7 +544,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                         adp["ADetailer"]["args"][3]["ad_prompt"] = ad_prompt
                         adp.update(self.freeu_param)
                     except (IndexError, KeyError):
-                        printwarn(
+                        warn(
                             "IndexError or KeyError occurred while updating ADetailer parameters."
                         )
                     finally:
@@ -560,6 +567,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                         progress_bar_html,
                         image,
                         self.stdout("Generation completed. Processing ADetailer.."),
+                        self.image_skipped
                     )
                     ad_api = ADetailerAPI(ad_param)
                     images = []
@@ -591,6 +599,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                                     progress_bar_html_,
                                     i_,
                                     self.stdout(),
+                                    self.image_skipped
                                 )
                                 await asyncio.sleep(1.5)  # Prevent OSError
                             elif processing[0] is True:
@@ -604,6 +613,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                                     self.stdout(
                                         f"[{index}/{len(p.images)}] ADetailer completed."
                                     ),
+                                    self.image_skipped
                                 )
                 else:
                     images = await p.convert_images()
@@ -668,14 +678,18 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                             f.write(txtinfo)
 
                     if save_metadata:
-                        info = PngImagePlugin.PngInfo()
-                        info.add_text("parameters", txtinfo)
+                        info = make_info(
+                            {
+                                "parameters": txtinfo,
+                                "pem_payload": json.dumps(i["payload"]),
+                            }
+                        )
                         image_obj.save(fn, format=output_format, pnginfo=info)
                     else:
                         image_obj.save(fn, format=output_format)
                     self.stdout(f"[{index+1}/{len(images)}] Image saved as {fn}")
 
-                yield (eta, progress, progress_bar_html, image_obj, self.stdout())
+                yield (eta, progress, progress_bar_html, image_obj, self.stdout(), self.image_skipped)
 
             elif not ok and status == "error":
                 raise gr.Error("Generation failed due to an error.")
@@ -685,6 +699,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             LegacyImageProgressAPI.progress_bar_html(0, -1),
             None,
             self.stdout("Generation Stopped."),
+            self.image_skipped
         )
 
     async def stop_generation(self):
@@ -693,7 +708,10 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         self.skipped_by = "User"
         gr.Warning("Generation will be stop after this iteration.")
         await super().stop_generation()
-
+    async def stop_generation_by_state_manager(self, sm: StateManager) -> str: # TODO
+        await self.stop_generation()
+    
+    
     async def caption_filter(
         self,
         caption: OnnxRuntimeTagger,
@@ -757,7 +775,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             elif rate == "explicit":
                 fp = explicit_save_dir.format(DATE=DATE)
             else:
-                print_critical(f"[Caption]: Unknown rate: {rate}. Skipping save.")
+                critical(f"[Caption]: Unknown rate: {rate}. Skipping save.")
                 return
             os.makedirs(fp, exist_ok=True)
             img_files = sorted(
@@ -836,13 +854,21 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                 continue
 
             # blacklist check
-            b = await make_blacklist(booru_blacklist.split(",")) + [
-                re.compile(re.escape(p), re.IGNORECASE)
-                for p in booru_pattern_blacklist.splitlines()
+            # TODO
+            b = [
+                re.compile(rf"^\s*{re.escape(tag.strip())}\s*$", re.IGNORECASE)
+                for tag in booru_blacklist.split(",")
+                if tag.strip() != ""
+            ] + [
+                re.compile(pattern, re.IGNORECASE)
+                for pattern in booru_pattern_blacklist.splitlines()
+                if pattern.strip() != ""
             ]
+            debug(f"[Booru blacklist registered]: {len(b)} patterns.")
 
             itms = chain(tags.items(), character_tags.items())
             for tag, _ in itms:
+                # debug(f"[Checking tag]: {tag}")
                 if any(bl.search(tag) for bl in b):
                     self.stdout(
                         f"[Caption]: Tag '{tag}' is blacklisted. Skipping image."

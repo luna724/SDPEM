@@ -19,6 +19,7 @@ class FilterPrompt(UiTabs):
             filtered = 0
             blacklist = setting.obtain_blacklist()
             for tag in prompt.split(","):
+                tag = tag.strip()
                 if not any(b.search(tag) for b in blacklist):
                     p.append(tag)
                 else:

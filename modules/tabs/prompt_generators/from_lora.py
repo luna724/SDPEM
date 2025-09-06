@@ -5,6 +5,8 @@ import shared
 from typing import Callable
 from utils import *
 
+from modules.prompt_setting import setting
+
 class LoRAToPrompt(UiTabs):
   def title(self) -> str:
     return "from LoRA"
@@ -12,41 +14,31 @@ class LoRAToPrompt(UiTabs):
     return 1
   def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> None:
     async def generate_prompt(
-      lora_names, blacklist, pattern_blacklist,
-      blacklist_multiplier, use_relative_freq,
-      weight_multiplier, w_min, w_max,
-      disallow_duplicate, header, footer,
-      max_tags, base_chance, add_lora_name, lora_weight
+      lora_names, header, footer,
+      tag_count, base_chance, add_lora_name, lora_weight,
+      add_prompt_weight, prompt_weight_min, prompt_weight_max
     ) -> str:
       prm = {
         "lora_name": lora_names,
-        "blacklist": blacklist.split(",") if blacklist else [],
-        "black_patterns": pattern_blacklist.splitlines() if pattern_blacklist else [],
-        "blacklisted_weight": blacklist_multiplier,
-        "use_relative_freq": use_relative_freq,
-        "weight_multiplier": weight_multiplier,
-        "weight_multiplier_target": [
-          w_min,
-          w_max
-        ],
-        "disallow_duplicate": disallow_duplicate,
         "header": header,
         "footer": footer,
-        "max_tags": max_tags,
+        "tag_count": tag_count,
         "base_chance": base_chance,
         "lora_weight": lora_weight,
-        "add_lora_name": add_lora_name
-      }
+        "add_lora_name": add_lora_name,
+        "prompt_weight_chance": add_prompt_weight,
+        "prompt_weight_range": (prompt_weight_min, prompt_weight_max)
+      } | setting.request_param()
       resp = await shared.session.post(
-        f"{shared.pem_api}/v1/generator/lora/lora2prompt",
+        f"{shared.pem_api}/v1_1/generator/lora/lora2prompt",
         json=prm
       )
       if resp.status_code != 200 and resp.status_code != 422:
-        printwarn("Failed to generate prompt:", resp.status_code, resp.text)
+        error("Failed to generate prompt:", resp.status_code, resp.text)
         raise gr.Error(f"Failed to call API ({resp.status_code})")
-      result = resp.json()[0]
+      result = resp.json()
       if resp.status_code == 422 or result.get("success", True) is False:
-        printwarn("API Error:", result.get("message", "Unknown error"))
+        warn("API Error:", result.get("message", "Unknown error"))
         return "[API Error]: " + result["message"]
 
       return result.get("prompt", "")
@@ -61,70 +53,50 @@ class LoRAToPrompt(UiTabs):
         label="Target LoRA"
       )
       with gr.Row():
-        blacklist = gr.Textbox(
-          label="Blacklist tags",
-          placeholder="Enter tags to blacklist, separated by commas",
-          lines=5, max_lines=400, value="", scale=6
-        )
-        pattern_blacklist = gr.Textbox(
-          label="Blacklist patterns",
-          placeholder="Enter regex patterns to blacklist, separated by lines",
-          lines=5, max_lines=400, value="", scale=4,
-          info="Use regex patterns to blacklist tags. Example: ^tag$ will match exactly 'tag'."
-        )
-      with gr.Row():
-        blacklist_multiplier = gr.Slider(
-          0, 5, step=0.01, value=0, label="Blacklisted tags weight multiplier",
-        )
-        use_relative_freq = gr.Checkbox(
-          value=False, label="[Experimental]: Use relative tag frequency",
-          info="Use relative tag frequency instead of absolute frequency"
-        )
-      with gr.Row():
-        w_min = gr.Number(
-          label="Multiplier target weight minimum",
-          value=1, precision=0, scale=3
-        )
-        w_max = gr.Number(
-          label="Multiplier target weight maximum",
-          value=12, precision=0, scale=3
-        )
-        w_multiplier = gr.Slider(
-          0, 10, step=0.01, value=2, label="Weight multiplier",
-          info="Multiplier for the tag weight", scale=4
-        )
-      with gr.Row():
         add_lora_name = gr.Checkbox(
           value=True, label="Add LoRA name to prompt",
           info="If enabled, the LoRA name will be added to the prompt", scale=2
         )
-        lora_weight = gr.Slider(
-          0, 1, step=0.01, value=0.5, label="LoRA weight",
-          info="Weight of the LoRA in the prompt", scale=4
+        lora_weight = gr.Textbox(
+          label="LoRA weight",
+          placeholder="lbw=OUTALL:stop=20",
+          value="0.5", lines=1, max_lines=1, scale=2
         )
-      header = gr.Textbox(
-        label="Prompt Header",
-        placeholder="Enter the prompt header",
-        lines=2, max_lines=5, value=""
-      )
-      footer = gr.Textbox(
-        label="Prompt Footer",
-        placeholder="Enter the prompt footer",
-        lines=2, max_lines=5, value=""
-      )
       with gr.Row():
-        max_tags = gr.Number(
-          label="Max tags",
-          value=7, precision=0, scale=3
+        header = gr.Textbox(
+          label="Prompt Header",
+          placeholder="Enter the prompt header",
+          lines=2, max_lines=5, value=""
+        )
+        footer = gr.Textbox(
+          label="Prompt Footer",
+          placeholder="Enter the prompt footer",
+          lines=2, max_lines=5, value=""
+        )
+      with gr.Row():
+        tag_count = gr.Number(
+          label="tag count",
+          value=7, scale=3
         )
         base_chance = gr.Slider(
           0.01, 10, step=0.01, value=10, label="Base chance",
           info="Base chance for the tag to be included in the prompt", scale=4
         )
-        disallow_duplicate = gr.Checkbox(
-          value=True, label="Disallow duplicate tags",
-          info="If enabled, duplicate tags will not be included in the prompt"
+      with gr.Row():
+        add_prompt_weight = gr.Slider(
+          0, 1, label="Add prompt weight change",
+          info="0 to disable", value=0.05, step=0.01
         )
+        with gr.Column():
+          prompt_weight_min = gr.Slider(
+            0, 2, step=0.01, value=0.5, label="Prompt weight min",
+            info="Minimum prompt weight",
+          )
+          prompt_weight_max = gr.Slider(
+            0, 2, step=0.01, value=1.5, label="Prompt weight max",
+            info="Maximum prompt weight",
+          )
+        
       generate = gr.Button("Generate Prompt", variant="primary")
       output = gr.Textbox(
         label="Generated Prompt",
@@ -134,11 +106,9 @@ class LoRAToPrompt(UiTabs):
       generate.click(
         fn=generate_prompt,
         inputs=[
-          lora, blacklist, pattern_blacklist,
-          blacklist_multiplier, use_relative_freq,
-          w_multiplier, w_min, w_max,
-          disallow_duplicate, header, footer,
-          max_tags, base_chance, add_lora_name, lora_weight
+          lora, header, footer,
+          tag_count, base_chance, add_lora_name, lora_weight,
+          add_prompt_weight, prompt_weight_min, prompt_weight_max
         ],
         outputs=output
       )

@@ -39,7 +39,7 @@ class ModelInstaller:
                     for dep in depend:
                         result = self.download(dep)
                         if not result:
-                            print_critical(
+                            critical(
                                 f"Failed to install dependency {dep['fn']} for {i['fn']}"
                             )
                             raise Exception(
@@ -50,7 +50,7 @@ class ModelInstaller:
                         continue
                 return True
             except Exception as e:
-                print_critical(f"Failed to download {i['fn']} from {i['url']}: {e}")
+                critical(f"Failed to download {i['fn']} from {i['url']}: {e}")
                 return False
         return False
 

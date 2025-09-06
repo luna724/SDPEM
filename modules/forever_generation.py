@@ -21,7 +21,7 @@ class ForeverGeneration(abc.ABC):
 
         """
         if self.is_generating:
-            printerr("Already generating, cannot start a new generation.")
+            error("Already generating, cannot start a new generation.")
             return
 
         text = ""
@@ -53,7 +53,7 @@ class ForeverGeneration(abc.ABC):
                         break
                 await asyncio.sleep(1.5)  # OSErrorを防ぐ
         except Exception as e:
-            print_critical(f"Error generating image: {e}")
+            critical(f"Error generating image: {e}")
             raise
         finally:
             self.is_generating = False
@@ -68,7 +68,7 @@ class ForeverGeneration(abc.ABC):
 
     async def start_generation(self) -> AsyncGenerator[dict, None]:
         if self.is_generating:
-            printerr("Already generating, cannot start a new generation.")
+            error("Already generating, cannot start a new generation.")
             return
         println("Generation started.")
         async for item in self.generate_forever():

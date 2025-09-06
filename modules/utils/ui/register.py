@@ -2,7 +2,8 @@ import json
 import gradio as gr
 import inspect
 from pathlib import Path
-from utils import printerr
+from utils import error
+from modules.utils.ui.globals import register_instance
 
 class ValuesMap:
   def __init__(self, rc: "RegisterComponent", values: dict):
@@ -13,36 +14,25 @@ class ValuesMap:
     try:
       return self.values[name]
     except KeyError:
-      printerr(f"[{self.name}]: default value isn't set! ({name})")
+      error(f"[{self.name}]: default value isn't set! ({name})")
       return None
 
 class RegisterComponent:
-  def __init__(self, fp: Path, instance_name: str = None):
+  def __init__(self, fp: Path, instance_name: str):
     self.fp: Path = fp
-    self.instance_name = instance_name or self._get_variable_name()
+    if not instance_name or not isinstance(instance_name, str):
+      raise ValueError("RegisterComponent requires a non-empty string 'instance_name'.")
+    self.instance_name = instance_name
     self.components = {}
     self.ordered_components = {}
     self.loaded_conf: dict = {}
+    
     if not self.fp.exists():
       self.fp.parent.mkdir(parents=True, exist_ok=True)
       self.conf = ValuesMap(self, {})
     else:
       self.conf = self.load()
-
-  def _get_variable_name(self):
-    """呼び出し元のフレームから変数名を取得する試み"""
-    try:
-      frame = inspect.currentframe().f_back.f_back
-      for name, obj in frame.f_locals.items():
-        if obj is self:
-          return name
-      # ローカル変数で見つからない場合はグローバル変数を確認
-      for name, obj in frame.f_globals.items():
-        if obj is self:
-          return name
-    except:
-      pass
-    return "RegisterComponent"
+    register_instance(self.instance_name, self)
 
   def register(self, key: str, c: gr.components.Component, order: int = None):
     if not isinstance(key, str): raise TypeError(f"Key aren't str: {key}")
@@ -53,7 +43,13 @@ class RegisterComponent:
     self.ordered_components[order] = [key, c]
     return c
   
-  def save(self, values):
+  def insta_save(self, *values):
+    """btn.click(fn=insta_save, inputs=[this.values()]) で使用可能"""
+    self.save(values)
+    gr.Info("Configuration saved.")
+    return None
+    
+  def save(self, values, dont_saves: list[str] = []):
     """valuesは this.values() で取得可能"""
     values = dict(
       zip(
@@ -61,6 +57,8 @@ class RegisterComponent:
         values
       )
     )
+    values = {k: v for k, v in values.items() if k not in dont_saves}
+    
     with self.fp.open("w", encoding="utf-8") as f:
       json.dump(values, f, ensure_ascii=False, indent=2)
     self.loaded_conf = values

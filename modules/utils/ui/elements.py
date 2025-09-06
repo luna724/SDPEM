@@ -4,7 +4,7 @@ from typing import Any
 from gradio_client.serializing import SimpleSerializable
 
 #@codex
-class HiddenValue(gr.components.base.IOComponent):
+class AnyComponentValue(gr.components.base.IOComponent):
     """
     UIには表示されず、任意の値を
     gr.Button.click() の inputs に渡すための隠しコンポーネント。
@@ -40,3 +40,8 @@ class HiddenValue(gr.components.base.IOComponent):
 
     def example_inputs(self):  # type: ignore[override]
         return {"raw": None, "serialized": None}
+
+
+# Backward compatibility alias
+class HiddenValue(AnyComponentValue):
+    pass

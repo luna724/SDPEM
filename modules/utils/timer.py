@@ -1,14 +1,14 @@
 import time
 import datetime
 import asyncio
-from utils import print_critical, AnsiColors
+from utils import critical, AnsiColors
 
 class InvalidTimerException(Exception):
   """タイマーが無効な場合に発生する例外
   主に end_time に関するやつ"""
   def __init__(self, name: str, message: str = "ValueError: end_time is None.") -> None:
     message = f"{AnsiColors.RED}{name}{AnsiColors.RESET}: {message}"
-    print_critical(message)
+    critical(message)
     super().__init__(message)
     self.message = message
 

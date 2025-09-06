@@ -32,7 +32,7 @@ class GenerationProgress(BaseModel):
         try:
             return Image.open(BytesIO(image_data))
         except Image.UnidentifiedImageError:
-            print_critical(
+            critical(
                 f"Failed to decode image data. ({image_data[0:len(image_data)]})"
             )
             return None
@@ -128,7 +128,7 @@ class Txt2imgAPI:
             yield True, result, None
         except RuntimeError as e:
             traceback.print_exc()
-            print_critical(f"Error generating image: {e}")
+            critical(f"Error generating image: {e}")
             yield None, None, None
 
     async def get_progress(self) -> Optional[GenerationProgress]:
@@ -149,6 +149,6 @@ class Txt2imgAPI:
             cls.is_generating = state.get("job", "") != ""
         except RuntimeError as e:
             traceback.print_exc()
-            print_critical(f"Error fetching progress: {e}")
+            critical(f"Error fetching progress: {e}")
             return None
         return cls

@@ -1,4 +1,5 @@
 import importlib
+import logging
 import sys
 import traceback
 from typing import *
@@ -8,7 +9,7 @@ import asyncio
 import inspect
 import abc
 
-from utils import println
+from utils import println, critical
 
 
 class UiTabs:
@@ -28,6 +29,11 @@ class UiTabs:
     def index(self) -> int:
         """return ui's index"""
         raise NotImplementedError()
+    
+    def _id(self) -> str:
+        return self.title().replace(" ", "_")+"_tab"
+    def _class(self) -> str | list[str]:
+        return None
 
     def get_ui(self) -> list:
         tabs = []
@@ -69,7 +75,7 @@ class UiTabs:
             with gr.Tabs():
                 tabs = self.get_ui()
                 for tab in tabs:
-                    with gr.Tab(tab.title()):
+                    with gr.Tab(tab.title(), elem_id=tab._id(), elem_classes=tab._class()):
                         tab_ui_elements = {}
 
                         # タブ内のUIを生成し、そのエレメントを辞書に格納
@@ -187,8 +193,8 @@ def register_apps() -> None:
                     importlib.import_module(module_name)
                     println(f"Successfully imported module: {module_name}")
                 except ImportError as e:
-                    println(f"Failed to import module {module_name}: {e}")
-
+                    critical(f"Failed to import module {module_name}: {e}")
+                    traceback.print_exc()
 
 
 import uvicorn
@@ -196,6 +202,11 @@ import asyncio
 
 async def launch(args=None) -> None:
     import shared
+    import logger
+    
+    level = logging.INFO
+    if args.debug is True: level = logging.DEBUG
+    logger.setup_logger("SDPEM", level)
     
     go_web = False
     # argsが渡された場合は引数を使用
@@ -243,7 +254,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SD-PEM Web UI")
     parser.add_argument("--ui_port", type=int, default=7866, help="Port for UI server (default: 7866)")
     parser.add_argument("--api_port", type=int, default=7865, help="Port for API server (default: 7865)")
-    parser.add_argument("--go_web", action="store_true", help="Enable web mode")
+    parser.add_argument("--go_web", action="store_true", help="Enable opening the web UI in a browser")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     
     args = parser.parse_args()
     

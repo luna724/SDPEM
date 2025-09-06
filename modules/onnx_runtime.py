@@ -23,7 +23,7 @@ class OnnxRuntime:
       self.session = await self.load_with_async(self.model_path, providers=["CPUExecutionProvider"])
       return True
     except Exception as e:
-      print_critical(f"Failed to load ONNX model from {self.model_path}: {e}")
+      critical(f"Failed to load ONNX model from {self.model_path}: {e}")
       return False 
   
   async def load_model_cuda(self) -> bool:
@@ -35,7 +35,7 @@ class OnnxRuntime:
       self.session = await self.load_with_async(self.model_path)
       return True
     except Exception as e:
-      print_critical(f"Failed to load ONNX model with CUDA from {self.model_path}: {e}")
+      critical(f"Failed to load ONNX model with CUDA from {self.model_path}: {e}")
       return False
     
   async def unload_model(self):

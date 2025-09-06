@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from typing import Optional, Dict, Any
-from utils import printwarn, update_enviroments
+from utils import warn, update_enviroments
 import httpx
 import os
 
