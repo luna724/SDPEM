@@ -1,8 +1,7 @@
 import json
-from modules.utils.ui.register import RegisterComponent
 import gradio as gr
 import re
-from utils import *
+from logger import warn
 import os.path as op
 import os
 
@@ -85,8 +84,8 @@ class PromptSettingManager:
         opt["black_patterns"] = black_pattern.splitlines()
         opt["blacklist_formatted"] = self.obtain_blacklist()
     
-    def request_param(self) -> dict:
-        return {
+    def request_param(self, **kw) -> dict:
+        to_return = {
             "blacklist": self.obtain_blacklist(no_patterns=True),
             "blacklisted_weight": self.get("blacklisted_weight", 0),
             "disallow_duplicate": self.get("disallow_duplicate", False),
@@ -97,5 +96,6 @@ class PromptSettingManager:
             ],
             "weight_multiplier": self.get("w_multiplier", 1)
         }
-    
+        return to_return
+        
 setting: PromptSettingManager = PromptSettingManager.from_dict("main")

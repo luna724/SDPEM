@@ -5,7 +5,8 @@ def setup():
   f = os.listdir("./defaults")
   for d in os.listdir("./defaults/DEF"):
     if d not in f:
-      shutil.copyfile(f"./defaults/DEF/{d}", f"./defaults/{d}")
+      if not d.startswith("!"):
+        shutil.copyfile(f"./defaults/DEF/{d}", f"./defaults/{d}")
 
 # codex
 if __name__ == "__main__":

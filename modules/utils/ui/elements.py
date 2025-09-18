@@ -3,6 +3,9 @@ from typing import Any
 
 from gradio_client.serializing import SimpleSerializable
 
+def return_empty(c: int):
+    return tuple([gr.update() for _ in range(c)])
+
 #@codex
 class AnyComponentValue(gr.components.base.IOComponent):
     """

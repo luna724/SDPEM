@@ -1,0 +1,141 @@
+import random
+from modules.prompt_setting import setting
+from modules.prompt_placeholder import placeholder
+from modules.utils.lora_util import find_lora, get_tag_freq_from_lora, read_lora_name
+from modules.utils.prompt import separate_prompt, combine_prompt, disweight
+
+from logger import debug, warn
+
+class PromptProcessor:
+    @classmethod
+    async def single_proc(cls, p: str) -> bool:
+        i = cls(p)
+        return len(await i.process()) > 0
+    
+    def __init__(self, prompt: str):
+        self.prompt = separate_prompt(prompt)
+        self.filtered = 0
+        self.filtered_tags = []
+        
+    def proc_blacklist(self):
+        blacklist = setting.obtain_blacklist()
+        p = []
+        for tag in self.prompt:
+            disweighted = disweight(tag)[0]
+            debug(f"[Blacklist] Checking tag: {tag} ({disweighted})")
+            matched = False
+            for pattern in blacklist:
+                match = pattern.search(disweighted)
+                if match:
+                    debug(f"[Blacklist] Filtered tag: {tag} ({pattern.pattern})")
+                    self.filtered += 1
+                    self.filtered_tags.append(tag)
+                    matched = True
+                    break
+            if not matched:
+                p.append(tag)
+        return p
+    
+    async def proc_placeholder(self):
+        return await placeholder.process_prompt(self.prompt)
+    
+    async def process(
+        self,
+        do_blacklist: bool = True, do_placeholder: bool = True
+    ) -> list[str]:
+        if do_placeholder:
+            self.prompt = await self.proc_placeholder()
+        if do_blacklist:
+            self.prompt = self.proc_blacklist()
+            
+        self.prompt = [
+            x for x in self.prompt if len(x.strip()) > 0
+        ]
+        return self.prompt
+    
+    @classmethod
+    async def gather_from_lora_rnd_prompt(
+        cls, lora_name: list[str], header: str, footer: str,
+        tags: int, random_rate: float, add_lora_name: bool,
+        lora_weight: str, 
+        weight_multiplier: float,
+        weight_multiplier_target_min: float,
+        weight_multiplier_target_max: float,
+        prompt_weight_chance: float,
+        prompt_weight_min: float, prompt_weight_max: float,
+        disallow_duplicate: bool
+    ) -> "PromptProcessor":
+        """
+        raise: ValueError tagがない場合
+        raise: ValueError いくつかの数値がだめな場合
+        raise: RuntimeError 50000回思考してもできなかった場合
+        """
+        if random_rate <= 0: raise ValueError("random_rate must be greater than 0")
+        if tags <= 0: raise ValueError("tags must be greater than 0")
+        if prompt_weight_min > prompt_weight_max:
+            warn("prompt_weight_min is greater than prompt_weight_max, casting into equal")
+            prompt_weight_min = prompt_weight_max
+        if prompt_weight_chance < 0 or prompt_weight_chance > 1:
+            prompt_weight_chance = max(0, min(1, prompt_weight_chance))
+        
+        fq = {}
+        tried = 0
+        for ln in lora_name:
+            lora = await find_lora(ln, allow_none=True)
+            if lora:
+                n1, n2 = await get_tag_freq_from_lora(lora)
+                fq.update(n1 | n2)
+                debug(f"[Lora] Gathered tags from {ln}: {fq}")
+        if len(fq) < 1: raise ValueError("No tags found in the provided LoRA(s)")
+        rt = []
+        
+        for t, w in fq.items():
+            mt = 1
+            
+            if weight_multiplier_target_min <= w <= weight_multiplier_target_max:
+                mt *= weight_multiplier
+            weight = (w * mt) / (100*random_rate)
+            if weight > 0:
+                if not cls.single_proc(t):
+                    debug(f"[LoraPrompt] Filtered tag from Lora: {t} ({weight})")
+                    continue
+                rt.append((t, weight))
+            
+            tried += 1
+            if tried > 50000:
+                raise RuntimeError("Tried too many times to gather tags, aborting")
+        rt = sorted(rt, key=lambda x: x[1])
+        if len(rt) < tags and disallow_duplicate:
+            raise ValueError(f"Not enough filtered tags found ({len(rt)} found, {tags} required)")
+        
+        tried = 0
+        proc = True
+        prompts = []
+        while proc:
+            prompts = []
+            while len(prompts) < tags:
+                for (tag, weight) in rt:
+                    if len(prompts) >= tags:
+                        break
+                    if random.random() < weight:
+                        if disallow_duplicate and tag in prompts:
+                            continue
+                        if random.random() < prompt_weight_chance:
+                            tag = f"({tag}:{random.uniform(prompt_weight_min, prompt_weight_max):.2f})"
+                        prompts.append(tag)
+                    tried += 1
+                    if tried > 100000:
+                        raise RuntimeError("Tried too many times to gather tags, aborting")
+            res = combine_prompt(separate_prompt(header)+prompts+separate_prompt(footer))
+            res = await cls(res).process()
+            if len(res) > 0:
+                proc = False
+                break
+        
+        p = combine_prompt(res)
+        if add_lora_name:
+            for name in lora_name:
+                n = await read_lora_name(name, allow_none=True)
+                if n:
+                    p = p.rstrip(", ") + f", <lora:{n}:{str(lora_weight)}>"
+        return cls(p)

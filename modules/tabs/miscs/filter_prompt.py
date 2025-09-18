@@ -5,8 +5,8 @@ import shared
 from typing import Callable
 from utils import *
 
-import re
-from modules.prompt_setting import setting
+from modules.utils.prompt import combine_prompt
+from modules.prompt_processor import PromptProcessor
 
 class FilterPrompt(UiTabs):
     def title(self) -> str:
@@ -15,16 +15,9 @@ class FilterPrompt(UiTabs):
         return 0
     def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> None:
         async def filter_prompt(prompt: str) -> str:
-            p = []
-            filtered = 0
-            blacklist = setting.obtain_blacklist()
-            for tag in prompt.split(","):
-                tag = tag.strip()
-                if not any(b.search(tag) for b in blacklist):
-                    p.append(tag)
-                else:
-                    filtered += 1
-            return f"Filtered {filtered} tags", ", ".join(p)
+            p = PromptProcessor(prompt)
+            res = await p.process()
+            return f"Filtered {p.filtered} tags", combine_prompt(res)
 
         with gr.Column():
             in_prompt = gr.Textbox(

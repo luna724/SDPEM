@@ -8,6 +8,7 @@ from logger import *
 from legacy.modules.lora_metadata_util import LoRAMetadataReader
 from safetensors import safe_open
 
+
 class LoRAMetadataReader:
     def __init__(self, fp):
         self.loadable = False

@@ -20,6 +20,7 @@ from modules.utils.timer import TimerInstance
 from modules.utils.util import sha256
 from modules.forever_generation import ForeverGeneration
 from modules.prompt_setting import setting
+from modules.prompt_processor import PromptProcessor
 import shared
 from utils import *
 
@@ -205,7 +206,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             "add_lora_name": add_lora_name,
             "prompt_weight_chance": prompt_weight_chance,
             "prompt_weight_range": (prompt_weight_min, prompt_weight_max)
-        } | setting.request_param()
+        } | setting.request_param(pop_for_processor=True)
         response = await shared.session.post(
             url=f"{shared.pem_api}/v1_1/generator/lora/lora2prompt",
             json=new_param,

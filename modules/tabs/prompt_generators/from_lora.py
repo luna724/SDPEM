@@ -5,7 +5,7 @@ import shared
 from typing import Callable
 from utils import *
 
-from modules.prompt_setting import setting
+from modules.prompt_processor import PromptProcessor
 
 class LoRAToPrompt(UiTabs):
   def title(self) -> str:
@@ -16,32 +16,15 @@ class LoRAToPrompt(UiTabs):
     async def generate_prompt(
       lora_names, header, footer,
       tag_count, base_chance, add_lora_name, lora_weight,
-      add_prompt_weight, prompt_weight_min, prompt_weight_max
+      add_prompt_weight, prompt_weight_min, prompt_weight_max,
+      allow_duplicate
     ) -> str:
-      prm = {
-        "lora_name": lora_names,
-        "header": header,
-        "footer": footer,
-        "tag_count": tag_count,
-        "base_chance": base_chance,
-        "lora_weight": lora_weight,
-        "add_lora_name": add_lora_name,
-        "prompt_weight_chance": add_prompt_weight,
-        "prompt_weight_range": (prompt_weight_min, prompt_weight_max)
-      } | setting.request_param()
-      resp = await shared.session.post(
-        f"{shared.pem_api}/v1_1/generator/lora/lora2prompt",
-        json=prm
+      i = await PromptProcessor.gather_from_lora_rnd_prompt(
+        lora_names, header, footer, tag_count, base_chance,
+        add_lora_name, lora_weight, 1.5, 1, 12,
+        add_prompt_weight, prompt_weight_min, prompt_weight_max, not allow_duplicate
       )
-      if resp.status_code != 200 and resp.status_code != 422:
-        error("Failed to generate prompt:", resp.status_code, resp.text)
-        raise gr.Error(f"Failed to call API ({resp.status_code})")
-      result = resp.json()
-      if resp.status_code == 422 or result.get("success", True) is False:
-        warn("API Error:", result.get("message", "Unknown error"))
-        return "[API Error]: " + result["message"]
-
-      return result.get("prompt", "")
+      return ", ".join(await i.process())
 
     with gr.Blocks():
       lora = gr.Dropdown(
@@ -96,6 +79,9 @@ class LoRAToPrompt(UiTabs):
             0, 2, step=0.01, value=1.5, label="Prompt weight max",
             info="Maximum prompt weight",
           )
+      allow_duplicate = gr.Checkbox(
+        value=False, label="Allow duplicate tags",
+      )
         
       generate = gr.Button("Generate Prompt", variant="primary")
       output = gr.Textbox(
@@ -108,7 +94,7 @@ class LoRAToPrompt(UiTabs):
         inputs=[
           lora, header, footer,
           tag_count, base_chance, add_lora_name, lora_weight,
-          add_prompt_weight, prompt_weight_min, prompt_weight_max
+          add_prompt_weight, prompt_weight_min, prompt_weight_max, allow_duplicate
         ],
         outputs=output
       )

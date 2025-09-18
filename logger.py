@@ -12,6 +12,7 @@ class AnsiColors:
     CYAN = '\033[96m'
     RESET = '\033[0m'
 
+#@codex
 class ColoredFormatter(logging.Formatter):
     """カスタムフォーマッター：ログレベルに応じて色を変更"""
     

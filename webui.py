@@ -203,6 +203,7 @@ import asyncio
 async def launch(args=None) -> None:
     import shared
     import logger
+    os.makedirs("./config", exist_ok=True)
     
     level = logging.INFO
     if args.debug is True: level = logging.DEBUG

@@ -1,0 +1,7 @@
+{
+  "do_booru": true,
+  "booru_model": "WD1.4 Vit Tagger v3 (large)",
+  "booru_threshold": 0.55,
+  "to_blacklist": "",
+  "to_booru_blacklist": ""
+}

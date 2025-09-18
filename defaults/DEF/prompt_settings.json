@@ -1,0 +1,8 @@
+{
+    "disallow_duplicate": true,
+    "blacklist_multiplier": 0,
+    "use_relative_freq": false,
+    "w_min": 1,
+    "w_max": 12,
+    "w_multiplier": 1.5
+}
