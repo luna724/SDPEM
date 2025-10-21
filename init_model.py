@@ -79,6 +79,7 @@ def init_models():
         )
         return
 
+    os.makedirs(os.path.join(os.getcwd(), "models/prompts"), exist_ok=True)
     with open(model_index_path, "r") as f:
         model_index = json.load(f)
 

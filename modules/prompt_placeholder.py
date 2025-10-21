@@ -3,7 +3,7 @@ from typing import Literal, Optional
 from logger import println, critical, debug
 from pathlib import Path
 import json 
-from modules.utils.prompt import disweight
+from modules.utils.prompt import Prompt, PromptPiece
 
 def _example():
     # pattern
@@ -120,6 +120,7 @@ class PromptPlaceholder: # pattern mode
         self.data = opt["data"]
         self.should_process: list[re.Pattern] = []
         
+        
         # TODO: PromptPlaceholder script mode!?
         self._func_pairs = { # 呼び出されてほしくないものは登録しない
             "get_default_if": (self.default_if, False),
@@ -129,7 +130,6 @@ class PromptPlaceholder: # pattern mode
             "trigger": (self.trig, True),
         }
         
-        self.d_ver = self.data["version"]
         self.rprTo = self.data["key"]
         self.matchTo = self.data["matchTo"]
         self.if_opt = self.default_if() | self.data.get("if", {})
@@ -138,6 +138,10 @@ class PromptPlaceholder: # pattern mode
         self.at_least = self.if_opt["atLeast"]
         self.escape = self.if_opt["escape"]
         self.flags = self.if_opt["flags"]
+        
+        # v1.1
+        self.refill_after = self.if_opt.get("refill_after_blacklist", False) #+
+        self.d_ver = self.data.get("version", 1.0) #-
         
     async def apply_pattern(self):
         flag = 0
@@ -158,33 +162,42 @@ class PromptPlaceholder: # pattern mode
                 )
             )
 
-    async def trig(self, piece: str, trigger_word: str, ) -> str:
-        if self.if_opt["replace"]:
+    def _mark_refill_snapshot(self, piece: PromptPiece) -> None:
+        entries: list[dict[str, str]] = piece.ensure_meta("placeholder_refill", [])
+        label = f"placeholder:{self.name}:{id(piece)}:{len(entries)}"
+        piece.snapshot(label)
+        entries.append({
+            "placeholder": self.name,
+            "label": label,
+            "key": self.rprTo,
+        })
+        piece.set_meta("placeholder_refill", entries)
+
+    async def trig(self, piece: PromptPiece, trigger_word: str) -> PromptPiece:
+        if self.if_opt["replace"] and trigger_word in piece.value:
             debug(f"[PromptPlaceholder] Replacing '{trigger_word}' with '{self.rprTo}'")
-            piece = piece.replace(trigger_word, self.rprTo, 1)
+            piece.set(piece.value.replace(trigger_word, self.rprTo, 1), source=self.name)
         return piece
     
-    async def process_prompt(self, prompt: list[str]) -> list[str]:
-        processed = []
+    async def process_prompt(self, prompt: Prompt) -> Prompt:
         matched = 0
         for piece in prompt:
-            disweigted = disweight(piece)[0]
-            debug(f"[PromptPlaceholder] Checking '{piece}' ({disweigted})")
+            target_text = piece.text
+            debug(f"[PromptPlaceholder] Checking '{piece.value}' ({target_text})")
             for pattern in self.should_process:
-                match = pattern.search(disweigted)
-                if match:
-                    debug(f"[PromptPlaceholder] Matched pattern: {pattern.pattern}")
-                    matched += 1
+                match = pattern.search(target_text)
+                if not match:
+                    continue
+                debug(f"[PromptPlaceholder] Matched pattern: {pattern.pattern}")
+                matched += 1
                 if matched >= self.at_least:
-                    piece = await self.trig(
-                        piece, 
-                        match.group(1)
-                    )
+                    if self.refill_after:
+                        self._mark_refill_snapshot(piece)
+                    await self.trig(piece, match.group(1))
                     matched = 0
                     break
-            processed.append(piece)
 
-        return processed
+        return prompt
 
 class PromptPlaceholderManager:
     def __init__(self):
@@ -238,16 +251,34 @@ class PromptPlaceholderManager:
         return
     
     def runner(self, n: str) -> PromptPlaceholder:
-        return PromptPlaceholder(self.get(n))
+        data = self.get(n)
+        if not data:
+            raise ValueError(f"Placeholder '{n}' not found")
+        return PromptPlaceholder(data)
     
     def runners(self) -> list[PromptPlaceholder]:
-        return [PromptPlaceholder(p) for p in self.placeholders.values()]
+        return [PromptPlaceholder(p) for p in self.placeholders.values() if p]
 
-    async def process_prompt(self, prompt: list[str]) -> list[str]:
+    def _coerce_prompt(self, prompt) -> tuple[Prompt, str]:
+        if isinstance(prompt, Prompt):
+            return prompt, "prompt"
+        if isinstance(prompt, str):
+            return Prompt(prompt), "string"
+        if isinstance(prompt, (list, tuple)):
+            return Prompt(list(prompt)), "list"
+        raise TypeError("prompt must be str, list, tuple, or Prompt instance")
+
+    async def process_prompt(self, prompt) -> Prompt | list[str] | str:
+        prompt_obj, mode = self._coerce_prompt(prompt)
         for p in self.runners():
             await p.apply_pattern() # TODO: cache?
-            prompt = await p.process_prompt(prompt)
-        return prompt
+            prompt_obj = await p.process_prompt(prompt_obj)
+
+        if mode == "prompt":
+            return prompt_obj
+        if mode == "string":
+            return prompt_obj.combine()
+        return prompt_obj.as_list()
     
     def all_names(self) -> list[str]:
         return list(self.placeholders.keys())

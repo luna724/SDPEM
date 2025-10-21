@@ -24,7 +24,7 @@ class LoRAToPrompt(UiTabs):
         add_lora_name, lora_weight, 1.5, 1, 12,
         add_prompt_weight, prompt_weight_min, prompt_weight_max, not allow_duplicate
       )
-      return ", ".join(await i.process())
+      return ", ".join(await i.process(restore_placeholder_test=True))
 
     with gr.Blocks():
       lora = gr.Dropdown(

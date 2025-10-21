@@ -2,7 +2,7 @@ import random
 from modules.prompt_setting import setting
 from modules.prompt_placeholder import placeholder
 from modules.utils.lora_util import find_lora, get_tag_freq_from_lora, read_lora_name
-from modules.utils.prompt import separate_prompt, combine_prompt, disweight
+from modules.utils.prompt import Prompt, separate_prompt, combine_prompt
 
 from logger import debug, warn
 
@@ -13,45 +13,50 @@ class PromptProcessor:
         return len(await i.process()) > 0
     
     def __init__(self, prompt: str):
-        self.prompt = separate_prompt(prompt)
+        self.prompt = Prompt(prompt)
         self.filtered = 0
-        self.filtered_tags = []
+        self.filtered_tags: list[str] = []
         
-    def proc_blacklist(self):
+    def proc_blacklist(self) -> Prompt:
         blacklist = setting.obtain_blacklist()
-        p = []
-        for tag in self.prompt:
-            disweighted = disweight(tag)[0]
-            debug(f"[Blacklist] Checking tag: {tag} ({disweighted})")
+        keep_map: dict[int, bool] = {}
+        for piece in list(self.prompt):
+            disweighted = piece.text
+            debug(f"[Blacklist] Checking tag: {piece.value} ({disweighted})")
             matched = False
             for pattern in blacklist:
                 match = pattern.search(disweighted)
                 if match:
-                    debug(f"[Blacklist] Filtered tag: {tag} ({pattern.pattern})")
+                    debug(f"[Blacklist] Filtered tag: {piece.value} ({pattern.pattern})")
                     self.filtered += 1
-                    self.filtered_tags.append(tag)
+                    self.filtered_tags.append(piece.value)
                     matched = True
                     break
-            if not matched:
-                p.append(tag)
-        return p
+            keep_map[id(piece)] = not matched
+
+        self.prompt.filter_inplace(lambda item: keep_map.get(id(item), True))
+        return self.prompt
     
-    async def proc_placeholder(self):
-        return await placeholder.process_prompt(self.prompt)
+    async def proc_placeholder(self) -> Prompt:
+        result = await placeholder.process_prompt(self.prompt)
+        if isinstance(result, Prompt):
+            return result
+        return Prompt(result)
     
     async def process(
         self,
-        do_blacklist: bool = True, do_placeholder: bool = True
+        do_blacklist: bool = True, do_placeholder: bool = True,
+        restore_placeholder_test: bool = False
     ) -> list[str]:
         if do_placeholder:
             self.prompt = await self.proc_placeholder()
         if do_blacklist:
             self.prompt = self.proc_blacklist()
-            
-        self.prompt = [
-            x for x in self.prompt if len(x.strip()) > 0
-        ]
-        return self.prompt
+            if restore_placeholder_test:
+                self.prompt.refill_placeholder_entries()
+
+        self.prompt.filter_inplace(lambda piece: len(piece.value.strip()) > 0)
+        return self.prompt.as_list()
     
     @classmethod
     async def gather_from_lora_rnd_prompt(

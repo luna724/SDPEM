@@ -14,9 +14,9 @@ class FilterPrompt(UiTabs):
     def index(self) -> int:
         return 0
     def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> None:
-        async def filter_prompt(prompt: str) -> str:
+        async def filter_prompt(prompt: str, restore_placeholder: bool) -> str:
             p = PromptProcessor(prompt)
-            res = await p.process()
+            res = await p.process(restore_placeholder_test=restore_placeholder)
             return f"Filtered {p.filtered} tags", combine_prompt(res)
 
         with gr.Column():
@@ -35,6 +35,7 @@ class FilterPrompt(UiTabs):
                 interactive=False, show_copy_button=True
             )
         
+        test = gr.Checkbox(label="restore placeholder", value=False)
         run = gr.Button("Run", variant="primary")
         out = gr.Textbox(
             label="Log", lines=1, interactive=False, show_copy_button=False
@@ -42,6 +43,6 @@ class FilterPrompt(UiTabs):
         
         run.click(
             fn=filter_prompt,
-            inputs=in_prompt,
+            inputs=[in_prompt, test],
             outputs=[out, out_prompt]
         )
