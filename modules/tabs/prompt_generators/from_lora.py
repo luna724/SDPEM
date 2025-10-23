@@ -17,14 +17,17 @@ class LoRAToPrompt(UiTabs):
       lora_names, header, footer,
       tag_count, base_chance, add_lora_name, lora_weight,
       add_prompt_weight, prompt_weight_min, prompt_weight_max,
-      allow_duplicate
+      allow_duplicate, remove_character,
     ) -> str:
       i = await PromptProcessor.gather_from_lora_rnd_prompt(
         lora_names, header, footer, tag_count, base_chance,
         add_lora_name, lora_weight, 1.5, 1, 12,
-        add_prompt_weight, prompt_weight_min, prompt_weight_max, not allow_duplicate
+        add_prompt_weight, prompt_weight_min, prompt_weight_max, not allow_duplicate,
+        proc_kw={
+          "remove_character": remove_character
+        }
       )
-      return ", ".join(await i.process(restore_placeholder_test=True))
+      return ", ".join(i)
 
     with gr.Blocks():
       lora = gr.Dropdown(

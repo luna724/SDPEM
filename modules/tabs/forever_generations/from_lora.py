@@ -276,6 +276,28 @@ class LoRAToPrompt(UiTabs):
                             ),
                         )
                     
+                    with gr.Accordion(
+                        label="SelfAttentionGuidance (Integrated for ForgeUI)", open=False
+                    ):
+                        enable_sag = r(
+                            "enable_sag",
+                            gr.Checkbox(
+                                value=default.enable_sag,
+                                label="Enable SelfAttentionGuidance",
+                                info="Enable SelfAttentionGuidance for image generation",
+                            ),
+                        )
+                        sag_strength = r(
+                            "sag_strength",
+                            gr.Slider(
+                                minimum=0.0,
+                                maximum=1.0,
+                                step=0.01,
+                                label="SelfAttentionGuidance Strength",
+                                value=default.sag_strength,
+                            ),
+                        )
+                    
             with gr.Row():
                 with gr.Accordion(label="Image Filtering", open=False):
                     with gr.Row():
@@ -603,6 +625,7 @@ class LoRAToPrompt(UiTabs):
                                     info="Enable NeverOOM / VAE Integration",
                                 ),
                             )
+                    
                     
             with gr.Row():
                 with gr.Accordion(label="Output Options", open=False):
@@ -1002,6 +1025,8 @@ class LoRAToPrompt(UiTabs):
                 prompt_weight_chance,
                 prompt_weight_min,
                 prompt_weight_max,
+                enable_sag,
+                sag_strength,
             ]
             save_all_param = gr.Button("Save current parameters", variant="secondary")
 

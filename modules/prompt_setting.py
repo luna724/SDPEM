@@ -86,16 +86,24 @@ class PromptSettingManager:
     
     def request_param(self, **kw) -> dict:
         to_return = {
+            "disallow_duplicate": self.get("disallow_duplicate", False),
+            "weight_multiplier": self.get("w_multiplier", 1),
+            "weight_multiplier_target_min": self.get("w_min", 1),
+            "weight_multiplier_target_max": self.get("w_max", 12),
+            
+            #legacy
             "blacklist": self.obtain_blacklist(no_patterns=True),
             "blacklisted_weight": self.get("blacklisted_weight", 0),
-            "disallow_duplicate": self.get("disallow_duplicate", False),
             "use_relative_freq": self.get("use_relative_freq", True),
             "weight_multiplier_target": [
                 self.get("w_min", 1),
                 self.get("w_max", 12),
             ],
-            "weight_multiplier": self.get("w_multiplier", 1)
         }
         return to_return
+    
+    async def get_adv_filtered_lora(self):
+        # raw = 
+        pass
         
 setting: PromptSettingManager = PromptSettingManager.from_dict("main")

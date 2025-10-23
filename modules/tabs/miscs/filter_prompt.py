@@ -7,6 +7,7 @@ from utils import *
 
 from modules.utils.prompt import combine_prompt
 from modules.prompt_processor import PromptProcessor
+from modules.utils.character import waic
 
 class FilterPrompt(UiTabs):
     def title(self) -> str:
@@ -14,9 +15,10 @@ class FilterPrompt(UiTabs):
     def index(self) -> int:
         return 0
     def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> None:
-        async def filter_prompt(prompt: str, restore_placeholder: bool) -> str:
+        async def filter_prompt(prompt: str, remove_character: bool) -> str:
+            debug(f"Filter Prompt: {prompt}, remove_character={remove_character}")
             p = PromptProcessor(prompt)
-            res = await p.process(restore_placeholder_test=restore_placeholder)
+            res = await p.process(restore_placeholder_test=True, remove_character=remove_character)
             return f"Filtered {p.filtered} tags", combine_prompt(res)
 
         with gr.Column():
@@ -35,7 +37,7 @@ class FilterPrompt(UiTabs):
                 interactive=False, show_copy_button=True
             )
         
-        test = gr.Checkbox(label="restore placeholder", value=False)
+        test = gr.Checkbox(label="remove character prompts", value=False)
         run = gr.Button("Run", variant="primary")
         out = gr.Textbox(
             label="Log", lines=1, interactive=False, show_copy_button=False

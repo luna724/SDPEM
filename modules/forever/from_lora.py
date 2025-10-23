@@ -105,6 +105,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         self.freeu_param = {}
         self.regional_prompter_param_default = {}
         self.neveroom_param = {}
+        self.sag_param = {}
 
         self.sampling_methods: list[str]
         self.schedulers: list[str]
@@ -137,20 +138,17 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
 
     async def get_payload(self) -> dict:
         p = self.param.copy()
-        prompt_rq = await shared.session.post(
-            url=f"{shared.pem_api}/v1/generator/lora/lora2prompt",
-            json=self.default_prompt_request_param,
-        )
-        if prompt_rq.status_code != 200:
-            if prompt_rq.status_code == 422:
-                critical(
-                    "API Error: ", prompt_rq.json()[0].get("message", "Unknown error")
-                )
-            raise gr.Error(f"Failed to call API ({prompt_rq.status_code})")
-        prompt = prompt_rq.json()[0].get("prompt", "")
-        if prompt == "":
+        try:
+            prompt = await PromptProcessor.gather_from_lora_rnd_prompt(
+                **self.default_prompt_request_param
+            )
+        except ValueError as e:
             raise gr.Error(
-                "Failed to generate prompt. Please check your Prompt Settings."
+                f"Failed to generate prompt. Please check your Prompt Settings. ({e})"
+            )
+        except RuntimeError:
+            raise gr.Error(
+                "Failed to generate prompt after multiple attempts. Please adjust your Prompt Settings."
             )
 
         sampler = random.choice(self.sampling_methods)
@@ -176,7 +174,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             p["alwayson_scripts"].update(rpp)    
         p.update(
             {
-                "prompt": prompt,
+                "prompt": ", ".join(prompt),
                 "sampler_name": sampler,
                 "scheduler": scheduler,
                 "steps": step,
@@ -188,11 +186,12 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
 
         p["alwayson_scripts"].update(self.freeu_param)
         p["alwayson_scripts"].update(self.neveroom_param)
+        p["alwayson_scripts"].update(self.sag_param)
         return p
     
     async def update_prompt_settings(
         self, lora, header, footer,
-        max_tags, base_chance, add_lora_name, lora_weight,
+        tags, random_rate, add_lora_name, lora_weight,
         booru_blacklist, booru_pattern_blacklist,
         prompt_weight_chance, prompt_weight_min, prompt_weight_max
     ):
@@ -200,29 +199,26 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             "lora_name": lora,
             "header": header,
             "footer": footer,
-            "max_tags": max_tags,
-            "base_chance": base_chance,
+            "tags": tags,
+            "random_rate": random_rate,
             "lora_weight": lora_weight,
             "add_lora_name": add_lora_name,
             "prompt_weight_chance": prompt_weight_chance,
-            "prompt_weight_range": (prompt_weight_min, prompt_weight_max)
+            "prompt_weight_min": prompt_weight_min,
+            "prompt_weight_max": prompt_weight_max,
         } | setting.request_param(pop_for_processor=True)
-        response = await shared.session.post(
-            url=f"{shared.pem_api}/v1_1/generator/lora/lora2prompt",
-            json=new_param,
-        )
-        if response.status_code != 200 or response.json().get("prompt", "") == "":
-            critical(response.json())
-            raise gr.Error(
-                f"Failed to call API or generate prompt. check your Prompt Settings ({response.status_code})"
-            )
-        else:
-            self.default_prompt_request_param = new_param
-            self.stdout("Prompt settings updated successfully.")
-            gr.Info("Prompt settings updated successfully.")
         
+        validate = await PromptProcessor.test_from_lora_rnd_prompt_available(test_prompt=False, kw=new_param)
+        if validate is True:
+            self.default_prompt_request_param = new_param
+            gr.Info("Prompt settings updated successfully.")
+            self.stdout("Prompt settings updated successfully.")
+        else:
+            raise gr.Error("Failed to update prompt settings. Please check your settings.")
+
+        self.default_prompt_request_param = new_param
         self.booru_blacklist = booru_blacklist
-        self.booru_pattern_blacklist = booru_pattern_blacklist
+        self.booru_pattern_blacklist = booru_pattern_blacklist  
 
     async def start(
         self,
@@ -298,6 +294,8 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         prompt_weight_chance,
         prompt_weight_min,
         prompt_weight_max,
+        enable_sag,
+        sag_strength,
     ) -> AsyncGenerator[tuple[str, Image.Image], None]:
         self.default_prompt_request_param = setting.request_param().copy()
         # テスト呼び出し + 必要ならLoRA名取得
@@ -378,6 +376,16 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                 }
             }
             if (neverOOM_unet or neverOOM_vae)
+            else {}
+        )
+        
+        self.sag_param = (
+            {
+                "SelfAttentionGuidance Integrated (SD 1.x, SD 2.x, SDXL)": {
+                    "args": [True, sag_strength, 2, 1.0]
+                }
+            }
+            if enable_sag
             else {}
         )
         

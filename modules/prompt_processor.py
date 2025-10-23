@@ -1,17 +1,25 @@
 import random
 from modules.prompt_setting import setting
 from modules.prompt_placeholder import placeholder
-from modules.utils.lora_util import find_lora, get_tag_freq_from_lora, read_lora_name
+from modules.utils.character import waic
+from modules.utils.lora_util import find_lora, get_tag_freq_from_lora, read_lora_name, is_lora_trigger
 from modules.utils.prompt import Prompt, separate_prompt, combine_prompt
 
 from logger import debug, warn
 
 class PromptProcessor:
     @classmethod
-    async def single_proc(cls, p: str) -> bool:
+    async def single_proc(cls, p: str, proc_kw: dict = {}) -> bool:
         i = cls(p)
-        return len(await i.process()) > 0
+        return len(await i.process(**proc_kw)) > 0
     
+    @classmethod
+    async def will_be_filtered(cls, tag: str, proc_kw: dict = {}) -> bool:
+        i = cls(tag)
+        res = await i.process(**proc_kw)
+        debug(f"[LoraPrompt] will_be_filtered: {tag} -> {res} ({len(res)})")
+        return len(res) == 0
+
     def __init__(self, prompt: str):
         self.prompt = Prompt(prompt)
         self.filtered = 0
@@ -23,6 +31,9 @@ class PromptProcessor:
         for piece in list(self.prompt):
             disweighted = piece.text
             debug(f"[Blacklist] Checking tag: {piece.value} ({disweighted})")
+            if is_lora_trigger(piece):
+                debug(f"[Blacklist] Skipping LoRA trigger tag: {piece.value}")
+                continue
             matched = False
             for pattern in blacklist:
                 match = pattern.search(disweighted)
@@ -43,20 +54,45 @@ class PromptProcessor:
             return result
         return Prompt(result)
     
+    async def remove_character(self) -> Prompt:
+        return await waic.remove_character(self.prompt)
+    
     async def process(
         self,
         do_blacklist: bool = True, do_placeholder: bool = True,
-        restore_placeholder_test: bool = False
+        remove_character: bool = False,
+        restore_placeholder_test: None = None,
     ) -> list[str]:
         if do_placeholder:
             self.prompt = await self.proc_placeholder()
         if do_blacklist:
             self.prompt = self.proc_blacklist()
-            if restore_placeholder_test:
-                self.prompt.refill_placeholder_entries()
+            self.prompt.refill_placeholder_entries()
 
         self.prompt.filter_inplace(lambda piece: len(piece.value.strip()) > 0)
+        if remove_character:
+            self.prompt = await self.remove_character()
         return self.prompt.as_list()
+    
+    @staticmethod
+    async def test_from_lora_rnd_prompt_available(
+        test_prompt: bool = True,
+        kw_p: dict = None,
+        kw: dict = None
+    ) -> bool:
+        if kw_p is None:
+            kw_p = {}
+        if kw is None:
+            kw = {}
+        try:
+            c = await PromptProcessor.gather_from_lora_rnd_prompt(**kw)
+            if test_prompt:
+                return len(c) > 0
+        
+            return True
+        except Exception as e:
+            debug(f"[LoraPrompt] test_from_lora_rnd_prompt_available failed: {e}")
+            return False
     
     @classmethod
     async def gather_from_lora_rnd_prompt(
@@ -68,8 +104,11 @@ class PromptProcessor:
         weight_multiplier_target_max: float,
         prompt_weight_chance: float,
         prompt_weight_min: float, prompt_weight_max: float,
-        disallow_duplicate: bool
-    ) -> "PromptProcessor":
+        disallow_duplicate: bool,
+        proc_kw: dict = {"remove_character": True},
+        max_tries: int = 50000,
+        **kw
+    ) -> list[str]:
         """
         raise: ValueError tagがない場合
         raise: ValueError いくつかの数値がだめな場合
@@ -101,14 +140,14 @@ class PromptProcessor:
                 mt *= weight_multiplier
             weight = (w * mt) / (100*random_rate)
             if weight > 0:
-                if not cls.single_proc(t):
+                if await cls.will_be_filtered(t, proc_kw=proc_kw):
                     debug(f"[LoraPrompt] Filtered tag from Lora: {t} ({weight})")
                     continue
                 rt.append((t, weight))
             
             tried += 1
-            if tried > 50000:
-                raise RuntimeError("Tried too many times to gather tags, aborting")
+            if tried > max_tries:
+                raise RuntimeError(f"Tried too many times ({max_tries}) to gather tags, aborting")
         rt = sorted(rt, key=lambda x: x[1])
         if len(rt) < tags and disallow_duplicate:
             raise ValueError(f"Not enough filtered tags found ({len(rt)} found, {tags} required)")
@@ -129,12 +168,14 @@ class PromptProcessor:
                             tag = f"({tag}:{random.uniform(prompt_weight_min, prompt_weight_max):.2f})"
                         prompts.append(tag)
                     tried += 1
-                    if tried > 100000:
-                        raise RuntimeError("Tried too many times to gather tags, aborting")
-            res = combine_prompt(separate_prompt(header)+prompts+separate_prompt(footer))
-            res = await cls(res).process()
-            if len(res) > 0:
-                proc = False
+                    if tried > max_tries*2:
+                        raise RuntimeError(f"Tried too many times to gather tags ({max_tries*2}), aborting")
+            res = await cls(combine_prompt(prompts)).process(**proc_kw)
+            if len(res) != tags:
+                debug(f"[LoraPrompt] Re-gathering tags, got {len(res)} tags, expected {tags}")
+                prompts.clear()
+            else:
+                proc = True
                 break
         
         p = combine_prompt(res)
@@ -143,4 +184,6 @@ class PromptProcessor:
                 n = await read_lora_name(name, allow_none=True)
                 if n:
                     p = p.rstrip(", ") + f", <lora:{n}:{str(lora_weight)}>"
-        return cls(p)
+        c = cls(p)
+        main = await c.process(**proc_kw)
+        return separate_prompt(header) + main + separate_prompt(footer)

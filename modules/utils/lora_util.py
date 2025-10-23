@@ -1,5 +1,6 @@
 import os 
 import json
+import re
 import os.path as op
 import traceback
 from typing import *
@@ -7,7 +8,9 @@ from shared import api_path
 from logger import *
 from legacy.modules.lora_metadata_util import LoRAMetadataReader
 from safetensors import safe_open
+from modules.utils.prompt import PromptPiece
 
+LORA_TRIGGER_PATTERN = r"^\<lora\:(.*)?\>$"
 
 class LoRAMetadataReader:
     def __init__(self, fp):
@@ -176,3 +179,20 @@ async def read_lora_name(lora_name: str, allow_none: bool = True) -> str:
             return ""
         raise ValueError(f"LoRA '{lora_name}' has no output name")
     return output
+  
+
+def list_lora() -> list[str]:
+    """LoRA一覧を取得する"""
+    lora_dir = os.path.join(api_path, "models/Lora")
+    lora_files = [
+        f for f in os.listdir(lora_dir)
+        if f.endswith(".safetensors") or f.endswith(".ckpt") or f.endswith(".pt")
+    ]
+    return lora_files
+  
+def is_lora_trigger(tag: str | PromptPiece) -> bool:
+    if isinstance(tag, str):
+        return re.match(LORA_TRIGGER_PATTERN, tag.strip()) is not None
+    elif isinstance(tag, PromptPiece):
+        return is_lora_trigger(tag.value)
+    return False

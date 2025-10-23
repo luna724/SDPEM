@@ -78,7 +78,7 @@ class Txt2imgAPI:
         if response.status_code == 200:
             return response.json()
         else:
-            raise RuntimeError(f"API request failed with status {response.status_code}")
+            raise RuntimeError(f"API request failed with status {response.status_code} ({response.text})")
 
     @staticmethod
     async def _get_requests(path: str, params: dict) -> dict:

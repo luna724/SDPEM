@@ -1,4 +1,4 @@
-import os, json, shared
+import os, json, shared, requests
 import shutil
 from utils import *
 from huggingface_hub import hf_hub_download
@@ -70,6 +70,30 @@ class ModelInstaller:
         )
         println(f"Registered model {i['name']} at {model_path}")
 
+def init_character_models():
+    data_url = "https://files.catbox.moe/6holoy.json"
+    data_dir = "./models/characters.json"
+    println("Downloading waidb characters..")
+    if os.path.exists(data_dir):
+        return
+    rsp = requests.get(data_url, timeout=180, headers={ 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+    if rsp.status_code == 200:
+        data = rsp.json()
+        data["proj"] = [
+            {
+                "kv": k["kv"],
+                "title": k["title"],
+            }
+            for k in data["proj"]
+        ]
+        
+        with open(data_dir, "w") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        println(f"Downloaded waidb characters")
+    else:
+        critical(f"Failed to download waidb characters: {rsp.status_code}")
+        # rsp.raise_for_status()
+
 
 def init_models():
     model_index_path = os.path.join(os.getcwd(), "models/index.json")
@@ -100,3 +124,4 @@ def init_models():
                     installer.register(index, item)
 
     # print_critical(shared.models)
+    init_character_models()
