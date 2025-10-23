@@ -1,6 +1,7 @@
 from modules.forever.from_lora import ForeverGenerationFromLoRA
 from modules.utils.browse import select_folder
 from modules.utils.ui.register import RegisterComponent
+from modules.utils.lora_util import list_lora_with_tags
 from modules.api.v1.items import sdapi
 from webui import UiTabs
 import gradio as gr
@@ -28,21 +29,26 @@ class LoRAToPrompt(UiTabs):
         default = forever_generation_from_lora.get()
 
         with gr.Blocks():
-            lora = r(
-                "lora",
-                gr.Dropdown(
-                    choices=[
-                        x
-                        for x in os.listdir(
-                            os.path.join(shared.api_path, "models/Lora")
-                        )
-                        if x.endswith(".safetensors")
-                    ],
-                    multiselect=True,
-                    value=default.lora,
-                    label="Target LoRA",
-                ),
-            )
+            with gr.Row():
+                lora = r(
+                    "lora",
+                    gr.Dropdown(
+                        choices=list_lora_with_tags(),
+                        multiselect=True,
+                        value=default.lora,
+                        label="Target LoRA",
+                        scale=8,
+                    ),
+                )
+                enable_random_lora = r(
+                    "enable_random_lora",
+                    gr.Checkbox(
+                        value=default.enable_random_lora if hasattr(default, 'enable_random_lora') else False,
+                        label="Random LoRA Selection",
+                        info="Randomly select one LoRA from the list for each generation",
+                        scale=2,
+                    ),
+                )
             with gr.Row():
                 with gr.Accordion(label="Prompt Settings", open=False):
                     with gr.Row():
@@ -766,13 +772,7 @@ class LoRAToPrompt(UiTabs):
                         lora_base = r(
                             "lora_base",
                             gr.Dropdown(
-                                choices=[
-                                    x
-                                    for x in os.listdir(
-                                        os.path.join(shared.api_path, "models/Lora")
-                                    )
-                                    if x.endswith(".safetensors")
-                                ],
+                                choices=list_lora_with_tags(),
                                 multiselect=True,
                                 value=default.lora,
                                 label="Target LoRA",
@@ -977,6 +977,7 @@ class LoRAToPrompt(UiTabs):
 
             var = [
                 lora,
+                enable_random_lora,
                 header,
                 footer,
                 max_tags,

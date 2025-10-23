@@ -1,5 +1,6 @@
 {
   "lora": [],
+  "enable_random_lora": false,
   "max_tags": 15,
   "base_chance": 10,
   "add_lora_name": false,

@@ -189,6 +189,34 @@ def list_lora() -> list[str]:
         if f.endswith(".safetensors") or f.endswith(".ckpt") or f.endswith(".pt")
     ]
     return lora_files
+
+def has_lora_tags(lora_name: str) -> bool:
+    """Check if a LoRA has tag metadata
+    
+    Returns True if the LoRA has either ss_tag_frequency or tag_frequency metadata
+    """
+    try:
+        lora_path = os.path.join(api_path, "models/Lora", lora_name)
+        if not os.path.exists(lora_path):
+            return False
+        
+        metadata = LoRAMetadataReader(lora_path)
+        if not metadata.loadable:
+            return False
+        
+        # Check if tag frequency metadata exists
+        has_ss_tag = metadata.metadata.get("ss_tag_frequency", "{}") != "{}"
+        has_tag = metadata.metadata.get("tag_frequency", "{}") != "{}"
+        
+        return has_ss_tag or has_tag
+    except Exception as e:
+        critical(f"Error checking tags for LoRA '{lora_name}': {e}")
+        return False
+
+def list_lora_with_tags() -> list[str]:
+    """LoRA一覧を取得する (タグを持つもののみ)"""
+    all_loras = list_lora()
+    return [lora for lora in all_loras if has_lora_tags(lora)]
   
 def is_lora_trigger(tag: str | PromptPiece) -> bool:
     if isinstance(tag, str):

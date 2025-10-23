@@ -144,14 +144,29 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         ### var
         self.save_image_to_tmp = False
         self.prompt_generation_max_tries = 500000
+        
+        # Random LoRA selection
+        self.lora_list: list[str] = []
+        self.enable_random_lora: bool = False
 
     async def get_payload(self) -> dict:
         p = self.param.copy()
+        
+        # Select LoRA for this generation
+        current_lora = self.lora_list
+        if self.enable_random_lora and len(self.lora_list) > 0:
+            current_lora = [random.choice(self.lora_list)]
+            self.stdout(f"[Random LoRA] Selected: {current_lora[0]}")
+        
+        # Update the lora_name in the request param for this specific generation
+        current_request_param = self.default_prompt_request_param.copy()
+        current_request_param["lora_name"] = current_lora
+        
         try:
             prompt = await PromptProcessor.gather_from_lora_rnd_prompt(
                 proc_kw=self.processor_prompt_param,
                 max_tries=self.prompt_generation_max_tries,
-                **self.default_prompt_request_param
+                **current_request_param
             )
         except ValueError as e:
             raise gr.Error(
@@ -238,6 +253,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
     async def start(
         self,
         lora: list[str],
+        enable_random_lora: bool,
         header: str,
         footer: str,
         max_tags: int,
@@ -316,6 +332,15 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         prompt_generation_max_tries,
     ) -> AsyncGenerator[tuple[str, Image.Image], None]:
         self.default_prompt_request_param = setting.request_param().copy()
+        
+        # Store LoRA list and random selection flag
+        self.lora_list = lora
+        self.enable_random_lora = enable_random_lora
+        
+        # Validate that we have at least one LoRA
+        if not lora or len(lora) == 0:
+            raise gr.Error("Please select at least one LoRA")
+        
         # テスト呼び出し + 必要ならLoRA名取得
         await self.update_prompt_settings(
             lora, header, footer, max_tags, base_chance, add_lora_name, lora_weight, booru_blacklist, booru_pattern_blacklist, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character
