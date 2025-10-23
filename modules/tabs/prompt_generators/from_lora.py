@@ -82,9 +82,13 @@ class LoRAToPrompt(UiTabs):
             0, 2, step=0.01, value=1.5, label="Prompt weight max",
             info="Maximum prompt weight",
           )
-      allow_duplicate = gr.Checkbox(
-        value=False, label="Allow duplicate tags",
-      )
+      with gr.Row():
+        allow_duplicate = gr.Checkbox(
+          value=False, label="Allow duplicate tags",
+        )
+        remove_character = gr.Checkbox(
+          value=True, label="Remove additional character tags",
+        )
         
       generate = gr.Button("Generate Prompt", variant="primary")
       output = gr.Textbox(
@@ -97,7 +101,7 @@ class LoRAToPrompt(UiTabs):
         inputs=[
           lora, header, footer,
           tag_count, base_chance, add_lora_name, lora_weight,
-          add_prompt_weight, prompt_weight_min, prompt_weight_max, allow_duplicate
+          add_prompt_weight, prompt_weight_min, prompt_weight_max, allow_duplicate, remove_character
         ],
         outputs=output
       )

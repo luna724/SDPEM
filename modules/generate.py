@@ -68,7 +68,7 @@ class Txt2imgAPI:
 
     @staticmethod
     async def _post_requests(path: str, json: dict) -> dict:
-        println(f"POST request to {path} with payload: {json}")
+        debug(f"POST request to {path} with payload: {json}")
         response = await shared.session.post(
             url=f"{shared.api_url}{path}",
             json=json,
@@ -82,6 +82,7 @@ class Txt2imgAPI:
 
     @staticmethod
     async def _get_requests(path: str, params: dict) -> dict:
+        debug(f"GET request to {path} with params: {params}")
         response = await shared.session.get(
             url=f"{shared.api_url}{path}",
             params=params,

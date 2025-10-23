@@ -59,6 +59,8 @@ class Prompt(UiTabs):
                     gr.Info(f"Removed placeholder '{before}'")
                 placeholder.update(after, data)
                 gr.Info(f"Added new placeholder '{after}'")
+            
+            await placeholder.reload()
             return gr.update(choices=placeholder.all_names(), value=after), False
         
         
@@ -125,7 +127,7 @@ class Prompt(UiTabs):
                     match_to_field = gr.Textbox(
                         label="Match Target (input field)",
                         placeholder="Enter tags to match, shift+enter to add",
-                        lines=4, interawctive=True, 
+                        lines=4, interactive=True, 
                     )
                     
                     def update_match_to(curr, field: str):

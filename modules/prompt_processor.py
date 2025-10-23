@@ -30,7 +30,7 @@ class PromptProcessor:
         keep_map: dict[int, bool] = {}
         for piece in list(self.prompt):
             disweighted = piece.text
-            debug(f"[Blacklist] Checking tag: {piece.value} ({disweighted})")
+            # debug(f"[Blacklist] Checking tag: {piece.value} ({disweighted})")
             if is_lora_trigger(piece):
                 debug(f"[Blacklist] Skipping LoRA trigger tag: {piece.value}")
                 continue
