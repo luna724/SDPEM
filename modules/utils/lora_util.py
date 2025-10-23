@@ -97,14 +97,33 @@ class LoRAMetadataReader:
             return "Unknown model"
 
 async def find_lora(lora_name: str, allow_none: bool = True) -> Optional[str | os.PathLike]:
-    """渡されたLoRA名をシンプルに models/Lora から探す
+    r"""渡されたLoRA名をシンプルに models/Lora から探す
+    
+    Path injection warnings are mitigated by:
+    - Validating lora_name doesn't contain path traversal sequences (.., /, \)
+    - Ensuring the final path is within the models/Lora directory
     
     raise: FileNotFoundError Allow_none=False で見つからなかった場合
     """
+    # Validate lora_name to prevent path traversal
+    if not lora_name or '..' in lora_name or '/' in lora_name or '\\' in lora_name:
+        if not allow_none:
+            raise FileNotFoundError(f"Invalid LoRA name: {lora_name}")
+        return None
+    
     lp = os.path.join(api_path, "models/Lora", lora_name)
+    
+    # Ensure the path is within the Lora directory
+    lora_dir = os.path.join(api_path, "models/Lora")
+    if not os.path.abspath(lp).startswith(os.path.abspath(lora_dir)):
+        if not allow_none:
+            raise FileNotFoundError(f"Path traversal attempt detected: {lora_name}")
+        return None
+    
     if not allow_none and not os.path.exists(lp):
         raise FileNotFoundError(f"LoRA '{lora_name}' not found at {lp}")
     return lp if os.path.exists(lp) else None
+
 
 async def get_tag_freq_from_lora(lora_name: str, test_frequency: bool = False) -> tuple[dict[str, int]]:
   """[tag_freq, ss_tag_freq]の形式で返す"""
@@ -191,12 +210,28 @@ def list_lora() -> list[str]:
     return lora_files
 
 def has_lora_tags(lora_name: str) -> bool:
-    """Check if a LoRA has tag metadata
+    r"""Check if a LoRA has tag metadata
+    
+    Path injection warnings are mitigated by:
+    - Validating lora_name doesn't contain path traversal sequences (.., /, \)
+    - Ensuring the final path is within the models/Lora directory
     
     Returns True if the LoRA has either ss_tag_frequency or tag_frequency metadata
     """
     try:
+        # Validate lora_name to prevent path traversal
+        if not lora_name or '..' in lora_name or '/' in lora_name or '\\' in lora_name:
+            critical(f"Invalid LoRA name: {lora_name}")
+            return False
+        
         lora_path = os.path.join(api_path, "models/Lora", lora_name)
+        
+        # Ensure the path is within the Lora directory
+        lora_dir = os.path.join(api_path, "models/Lora")
+        if not os.path.abspath(lora_path).startswith(os.path.abspath(lora_dir)):
+            critical(f"Path traversal attempt detected: {lora_name}")
+            return False
+        
         if not os.path.exists(lora_path):
             return False
         
