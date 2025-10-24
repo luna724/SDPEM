@@ -836,6 +836,19 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             images = p.images.copy()
         else:
             images = p._booru_image_bridge
+        
+        # Compile blacklist patterns once before the loop for efficiency
+        blacklist_patterns = [
+            re.compile(rf"^\s*{re.escape(tag.strip())}\s*$", re.IGNORECASE)
+            for tag in booru_blacklist.split(",")
+            if tag.strip() != ""
+        ] + [
+            re.compile(pattern, re.IGNORECASE)
+            for pattern in booru_pattern_blacklist.splitlines()
+            if pattern.strip() != ""
+        ]
+        debug(f"[Booru blacklist registered]: {len(blacklist_patterns)} patterns.")
+        
         allow_image = []
         for img in images:
             blacklisted = False
@@ -886,22 +899,10 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                 continue
 
             # blacklist check
-            # TODO
-            b = [
-                re.compile(rf"^\s*{re.escape(tag.strip())}\s*$", re.IGNORECASE)
-                for tag in booru_blacklist.split(",")
-                if tag.strip() != ""
-            ] + [
-                re.compile(pattern, re.IGNORECASE)
-                for pattern in booru_pattern_blacklist.splitlines()
-                if pattern.strip() != ""
-            ]
-            debug(f"[Booru blacklist registered]: {len(b)} patterns.")
-
             itms = chain(tags.items(), character_tags.items())
             for tag, _ in itms:
                 # debug(f"[Checking tag]: {tag}")
-                if any(bl.search(tag) for bl in b):
+                if any(bl.search(tag) for bl in blacklist_patterns):
                     self.stdout(
                         f"[Caption]: Tag '{tag}' is blacklisted. Skipping image."
                     )
