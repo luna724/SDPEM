@@ -156,7 +156,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         # Select LoRA for this generation
         current_lora = self.lora_list
         if self.enable_random_lora and len(self.lora_list) >= self.rnd_lora_selection:
-            current_lora = random.choices(self.lora_list,count=self.rnd_lora_selection)
+            current_lora = random.choices(self.lora_list, count=self.rnd_lora_selection)
                 self.stdout(f"[Random LoRA] Selected: {current_lora}")
         
         # Update the lora_name in the request param for this specific generation
