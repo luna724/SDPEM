@@ -148,20 +148,21 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         # Random LoRA selection
         self.lora_list: list[str] = []
         self.enable_random_lora: bool = False
-        self.rnd_lora_selection: int = 0
+        self.rnd_lora_select_count: int = 0
 
     async def get_payload(self) -> dict:
         p = self.param.copy()
         
         # Select LoRA for this generation
         current_lora = self.lora_list
-        if self.enable_random_lora and len(self.lora_list) >= self.rnd_lora_selection:
-            current_lora = random.choices(self.lora_list, count=self.rnd_lora_selection)
-                self.stdout(f"[Random LoRA] Selected: {current_lora}")
+        if self.enable_random_lora and len(self.lora_list) >= self.rnd_lora_select_count:
+            current_lora = random.choices(self.lora_list, k=self.rnd_lora_select_count)
+            self.stdout(f"[Random LoRA] Selected: {current_lora}")
         
-        # Update the lora_name in the request param for this specific generation
         current_request_param = self.default_prompt_request_param.copy()
         current_request_param["lora_name"] = current_lora
+        
+        println("[Forever]: curlora: " + str(current_lora))
         
         try:
             prompt = await PromptProcessor.gather_from_lora_rnd_prompt(
@@ -223,7 +224,12 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character,
         enable_random_lora, rnd_lora_selection
     ):
-        # rnd loraの整合性確認を行うここで行う TODO @Copilot
+        if enable_random_lora:
+            self.rnd_lora_select_count = min(max(1, rnd_lora_selection), len(lora))
+            if len(lora) < self.rnd_lora_select_count:
+                raise gr.Error(f"Not enough LoRAs selected for random selection ({len(lora)} < {self.rnd_lora_select_count})")
+        self.enable_random_lora = enable_random_lora
+        
         new_param = {
             "lora_name": lora,
             "header": header,
@@ -239,6 +245,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         new_kp = {
             "remove_character": remove_character,
         }
+        self.lora_list = lora
         
         validate = await PromptProcessor.test_from_lora_rnd_prompt_available(test_prompt=False, kw_p=new_kp, kw=new_param)
         if validate is True:
@@ -257,6 +264,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         self,
         lora: list[str],
         enable_random_lora: bool,
+        rnd_lora_select_count,
         header: str,
         footer: str,
         max_tags: int,
@@ -338,7 +346,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         
         # テスト呼び出し + 必要ならLoRA名取得
         await self.update_prompt_settings(
-            lora, header, footer, max_tags, base_chance, add_lora_name, lora_weight, booru_blacklist, booru_pattern_blacklist, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character, enable_random_lora, rnd_lora_selection
+            lora, header, footer, max_tags, base_chance, add_lora_name, lora_weight, booru_blacklist, booru_pattern_blacklist, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character, enable_random_lora, rnd_lora_select_count
         )
         
         if disable_lora_in_adetailer:

@@ -12,6 +12,7 @@ from modules.utils.browse import select_folder
 from modules.utils.ui.register import RegisterComponent, Path
 from collections import Counter
 
+### TODO: review
 
 class AutoBlacklistManager(UiTabs):
     def title(self) -> str:

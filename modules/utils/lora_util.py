@@ -105,11 +105,8 @@ async def find_lora(lora_name: str, allow_none: bool = True) -> Optional[str | o
     
     raise: FileNotFoundError Allow_none=False で見つからなかった場合
     """
-    # Validate lora_name to prevent path traversal
-    if not lora_name or '..' in lora_name or '/' in lora_name or '\\' in lora_name:
-        if not allow_none:
-            raise FileNotFoundError(f"Invalid LoRA name: {lora_name}")
-        return None
+    if os.path.exists(lora_name): # TODO: なぜか forever/from loraから絶対パスが渡される場合があるから治す
+        return lora_name
     
     lp = os.path.join(api_path, "models/Lora", lora_name)
     

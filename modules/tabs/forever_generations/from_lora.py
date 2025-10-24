@@ -29,7 +29,7 @@ class LoRAToPrompt(UiTabs):
         default = forever_generation_from_lora.get()
 
         with gr.Blocks():
-            with gr.Row():
+            with gr.Group():
                 lora = r(
                     "lora",
                     gr.Dropdown(
@@ -40,15 +40,24 @@ class LoRAToPrompt(UiTabs):
                         scale=8,
                     ),
                 )
-                enable_random_lora = r(
-                    "enable_random_lora",
-                    gr.Checkbox(
-                        value=default.enable_random_lora if hasattr(default, 'enable_random_lora') else False,
-                        label="Random LoRA Selection",
-                        info="Randomly select one LoRA from the list for each generation",
-                        scale=2,
-                    ),
-                )
+                with gr.Row():
+                    enable_random_lora = r(
+                        "enable_random_lora",
+                        gr.Checkbox(
+                            value=default.enable_random_lora,
+                            label="Random LoRA Selection",
+                            info="Randomly select one LoRA from the list for each generation",
+                            scale=2,
+                        ),
+                    )
+                    rnd_lora_select_count = r(
+                        "rnd_lora_select_count",
+                        gr.Slider(
+                            1, 100, step=1, value=default.rnd_lora_select_count,
+                            interactive=default.enable_random_lora,
+                        ),
+                    )
+                
             with gr.Row():
                 with gr.Accordion(label="Prompt Settings", open=False):
                     with gr.Row():
@@ -926,12 +935,13 @@ class LoRAToPrompt(UiTabs):
                     inputs=[
                         lora, header, footer,
                         max_tags, base_chance, add_lora_name,
-                        lora_weight, booru_blacklist, booru_pattern_blacklist, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character
+                        lora_weight, booru_blacklist, booru_pattern_blacklist, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character,
+                        enable_random_lora, rnd_lora_select_count
                     ],
                 )
                 skip_img.click(fn=instance.skip_image, inputs=[], outputs=[skipped_img])
 
-            with gr.Group():
+            with gr.Blocks():
                 with gr.Row():
                     generate = gr.Button("Start", elem_classes=["green-button"])
                     stop = gr.Button("Stop", elem_classes=["red-button"],variant="stop")
@@ -978,6 +988,7 @@ class LoRAToPrompt(UiTabs):
             var = [
                 lora,
                 enable_random_lora,
+                rnd_lora_select_count,
                 header,
                 footer,
                 max_tags,
@@ -1068,4 +1079,15 @@ class LoRAToPrompt(UiTabs):
                 fn=forever_generation_from_lora.insta_save,
                 inputs=forever_generation_from_lora.values(),
                 outputs=[],
+            )
+            
+            enable_random_lora.change(
+                fn=lambda lora,enable: gr.Slider.update(interactive=enable, maximum=len(lora)),
+                inputs=[lora, enable_random_lora],
+                outputs=[rnd_lora_select_count],
+            )
+            lora.change(
+                fn=lambda lora,enable: gr.Slider.update(interactive=enable, maximum=len(lora)),
+                inputs=[lora, enable_random_lora],
+                outputs=[rnd_lora_select_count],
             )

@@ -62,8 +62,8 @@ class LoRAInfo(UiTabs):
                         sorted_tags = sorted(all_tags.items(), key=lambda x: x[1], reverse=True)
                         
                         # Format top 100 tags
-                        tags_text = "**Tag Frequencies (Top 100):**\n\n"
-                        for tag, freq in sorted_tags[:100]:
+                        tags_text = ""
+                        for tag, freq in sorted_tags:
                             tags_text += f"{tag}: {freq}\n"
                         
                         info_text += f"\n**Total Tags:** {len(all_tags)}\n"
@@ -78,7 +78,7 @@ class LoRAInfo(UiTabs):
                 except Exception as e:
                     metadata_text = f"Error reading metadata: {str(e)}"
                 
-                return info_text, tags_text, metadata_text
+                return info_text, tags_text, all_tags, metadata_text
                 
             except Exception as e:
                 error_msg = f"Error loading LoRA info: {str(e)}"
@@ -92,9 +92,6 @@ class LoRAInfo(UiTabs):
         default = lora_info_config.get()
         
         with gr.Blocks():
-            gr.Markdown("# LoRA Information Viewer")
-            gr.Markdown("View detailed information about LoRA models including trigger words, tags, and metadata.")
-            
             with gr.Row():
                 lora_dropdown = r(
                     "lora_name",
@@ -102,39 +99,33 @@ class LoRAInfo(UiTabs):
                         choices=list_lora(),
                         label="Select LoRA",
                         value=default.lora_name if hasattr(default, 'lora_name') else None,
-                        scale=8,
+                        scale=9,
                     ),
                 )
-                refresh_btn = gr.Button("🔄 Refresh List", variant="secondary", scale=1)
+                refresh_btn = gr.Button("🔄", variant="secondary", scale=1)
             
+            info_output = gr.Markdown(label="LoRA Information")
             with gr.Row():
-                load_btn = gr.Button("Load LoRA Info", variant="primary")
-            
-            with gr.Row():
-                with gr.Column():
-                    info_output = gr.Markdown(label="LoRA Information")
-                    
-            with gr.Accordion(label="Tag Frequencies", open=True):
                 tags_output = gr.Textbox(
                     label="Tags",
-                    lines=15,
+                    lines=12,
                     max_lines=30,
                     interactive=False,
                 )
+                tags_label = gr.Label(
+                    label="Tags", show_label=False
+                )
             
-            with gr.Accordion(label="Raw Metadata", open=False):
-                metadata_output = gr.Textbox(
+            with gr.Accordion(label="Raw Metadata", open=True):
+                metadata_output = gr.JSON(
                     label="Metadata",
-                    lines=15,
-                    max_lines=30,
-                    interactive=False,
                 )
             
             # Event handlers
-            load_btn.click(
+            lora_dropdown.change(
                 fn=get_lora_info,
                 inputs=[lora_dropdown],
-                outputs=[info_output, tags_output, metadata_output],
+                outputs=[info_output, tags_output, tags_label, metadata_output],
             )
             
             def refresh_lora_list():
@@ -144,12 +135,4 @@ class LoRAInfo(UiTabs):
                 fn=refresh_lora_list,
                 inputs=[],
                 outputs=[lora_dropdown],
-            )
-            
-            # Save config
-            save_btn = gr.Button("Save Configuration", variant="secondary")
-            save_btn.click(
-                fn=lora_info_config.insta_save,
-                inputs=lora_info_config.values(),
-                outputs=[],
             )
