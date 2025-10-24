@@ -6,6 +6,7 @@ from typing import Callable
 from utils import *
 
 from modules.prompt_processor import PromptProcessor
+from modules.utils.lora_util import list_lora_with_tags
 
 class LoRAToPrompt(UiTabs):
   def title(self) -> str:
@@ -31,10 +32,7 @@ class LoRAToPrompt(UiTabs):
 
     with gr.Blocks():
       lora = gr.Dropdown(
-        choices=[
-          x for x in os.listdir(os.path.join(shared.api_path, "models/Lora"))
-          if x.endswith(".safetensors")
-        ],
+        choices=list_lora_with_tags(),
         multiselect=True, value=[],
         label="Target LoRA"
       )
