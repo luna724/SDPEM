@@ -1,0 +1,13 @@
+// for gradio 3.41.0
+
+.red-button {
+	background: #c54336 !important;
+	border-color: #c54336 !important;
+	color: #ffffff !important;
+}
+
+.green-button {
+	background: #4ce950 !important;
+	border-color: #4ce950 !important;
+	color: #111111 !important;
+}

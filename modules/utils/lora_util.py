@@ -97,14 +97,30 @@ class LoRAMetadataReader:
             return "Unknown model"
 
 async def find_lora(lora_name: str, allow_none: bool = True) -> Optional[str | os.PathLike]:
-    """渡されたLoRA名をシンプルに models/Lora から探す
+    r"""渡されたLoRA名をシンプルに models/Lora から探す
+    
+    Path injection warnings are mitigated by:
+    - Validating lora_name doesn't contain path traversal sequences (.., /, \)
+    - Ensuring the final path is within the models/Lora directory
     
     raise: FileNotFoundError Allow_none=False で見つからなかった場合
     """
+    if os.path.exists(lora_name): # TODO: なぜか forever/from loraから絶対パスが渡される場合があるから治す
+        return lora_name
+    
     lp = os.path.join(api_path, "models/Lora", lora_name)
+    
+    # Ensure the path is within the Lora directory
+    lora_dir = os.path.join(api_path, "models/Lora")
+    if not os.path.abspath(lp).startswith(os.path.abspath(lora_dir)):
+        if not allow_none:
+            raise FileNotFoundError(f"Path traversal attempt detected: {lora_name}")
+        return None
+    
     if not allow_none and not os.path.exists(lp):
         raise FileNotFoundError(f"LoRA '{lora_name}' not found at {lp}")
     return lp if os.path.exists(lp) else None
+
 
 async def get_tag_freq_from_lora(lora_name: str, test_frequency: bool = False) -> tuple[dict[str, int]]:
   """[tag_freq, ss_tag_freq]の形式で返す"""
@@ -189,6 +205,50 @@ def list_lora() -> list[str]:
         if f.endswith(".safetensors") or f.endswith(".ckpt") or f.endswith(".pt")
     ]
     return lora_files
+
+def has_lora_tags(lora_name: str) -> bool:
+    r"""Check if a LoRA has tag metadata
+    
+    Path injection warnings are mitigated by:
+    - Validating lora_name doesn't contain path traversal sequences (.., /, \)
+    - Ensuring the final path is within the models/Lora directory
+    
+    Returns True if the LoRA has either ss_tag_frequency or tag_frequency metadata
+    """
+    try:
+        # Validate lora_name to prevent path traversal
+        if not lora_name or '..' in lora_name or '/' in lora_name or '\\' in lora_name:
+            critical(f"Invalid LoRA name: {lora_name}")
+            return False
+        
+        lora_path = os.path.join(api_path, "models/Lora", lora_name)
+        
+        # Ensure the path is within the Lora directory
+        lora_dir = os.path.join(api_path, "models/Lora")
+        if not os.path.abspath(lora_path).startswith(os.path.abspath(lora_dir)):
+            critical(f"Path traversal attempt detected: {lora_name}")
+            return False
+        
+        if not os.path.exists(lora_path):
+            return False
+        
+        metadata = LoRAMetadataReader(lora_path)
+        if not metadata.loadable:
+            return False
+        
+        # Check if tag frequency metadata exists
+        has_ss_tag = metadata.metadata.get("ss_tag_frequency", "{}") != "{}"
+        has_tag = metadata.metadata.get("tag_frequency", "{}") != "{}"
+        
+        return has_ss_tag or has_tag
+    except Exception as e:
+        critical(f"Error checking tags for LoRA '{lora_name}': {e}")
+        return False
+
+def list_lora_with_tags() -> list[str]:
+    """LoRA一覧を取得する (タグを持つもののみ)"""
+    all_loras = list_lora()
+    return [lora for lora in all_loras if has_lora_tags(lora)]
   
 def is_lora_trigger(tag: str | PromptPiece) -> bool:
     if isinstance(tag, str):

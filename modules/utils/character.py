@@ -5,6 +5,7 @@ import os
 from modules.utils.prompt import Prompt
 from modules.utils.lora_util import is_lora_trigger
 
+from logger import println, debug
 try:
     from logger import debug as _logger_debug, critical as _logger_critical  # type: ignore
 except Exception:  # pragma: no cover - optional dependency
@@ -59,7 +60,7 @@ class WAICharacters:
                         if norm:
                             characters.add(norm)
                 self.characters = characters
-            log_debug(f"[WAICharacters] Loaded {len(self.characters)} characters")
+            println(f"[WAICharacters] Loaded {len(self.characters)} characters")
         else:
             log_critical(f"Character data file not found at {self.path}")
             self.warn = True
@@ -75,7 +76,7 @@ class WAICharacters:
                 log_debug(f"[WAICharacters] Skipping LoRA trigger tag: {p.value}")
                 continue
             tag = (p.text or "").strip().lower()
-            log_debug(f"[WAICharacters] Checking tag: {p.value} -> {tag}")
+            # log_debug(f"[WAICharacters] Checking tag: {p.value} -> {tag}")
             if tag and tag in self.characters:
                 log_debug(f"[WAICharacters] Removed character tag: {p.value}")
                 prompt.remove(p)

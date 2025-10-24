@@ -6,6 +6,7 @@ from typing import Callable
 from utils import *
 
 from modules.prompt_processor import PromptProcessor
+from modules.utils.lora_util import list_lora_with_tags
 
 class LoRAToPrompt(UiTabs):
   def title(self) -> str:
@@ -31,10 +32,7 @@ class LoRAToPrompt(UiTabs):
 
     with gr.Blocks():
       lora = gr.Dropdown(
-        choices=[
-          x for x in os.listdir(os.path.join(shared.api_path, "models/Lora"))
-          if x.endswith(".safetensors")
-        ],
+        choices=list_lora_with_tags(),
         multiselect=True, value=[],
         label="Target LoRA"
       )
@@ -82,9 +80,13 @@ class LoRAToPrompt(UiTabs):
             0, 2, step=0.01, value=1.5, label="Prompt weight max",
             info="Maximum prompt weight",
           )
-      allow_duplicate = gr.Checkbox(
-        value=False, label="Allow duplicate tags",
-      )
+      with gr.Row():
+        allow_duplicate = gr.Checkbox(
+          value=False, label="Allow duplicate tags",
+        )
+        remove_character = gr.Checkbox(
+          value=True, label="Remove additional character tags",
+        )
         
       generate = gr.Button("Generate Prompt", variant="primary")
       output = gr.Textbox(
@@ -97,7 +99,7 @@ class LoRAToPrompt(UiTabs):
         inputs=[
           lora, header, footer,
           tag_count, base_chance, add_lora_name, lora_weight,
-          add_prompt_weight, prompt_weight_min, prompt_weight_max, allow_duplicate
+          add_prompt_weight, prompt_weight_min, prompt_weight_max, allow_duplicate, remove_character
         ],
         outputs=output
       )

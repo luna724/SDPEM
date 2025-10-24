@@ -1,0 +1,7 @@
+{
+  "acceptable_dirs": "",
+  "undesirable_dir": "",
+  "tagger_model": "WD1.4 Vit Tagger v3 (large)",
+  "threshold": 0.65,
+  "character_threshold": 0.45
+}

@@ -81,6 +81,9 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             println(f"[Forever]: {txt}")
         self.output += txt + "\n"
         return self.output
+    
+    def clear_stdout(self):
+        self.output = ""
 
     async def skip_image(self) -> bool:
         self.stdout("Skipping image..")
@@ -101,6 +104,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         self.payload = {}
         self.param = {}
         self.default_prompt_request_param = {}
+        self.processor_prompt_param = {}
         self.adetailer_param = {}
         self.freeu_param = {}
         self.regional_prompter_param_default = {}
@@ -135,12 +139,36 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         
         self.killable = False
         self.killMethod = "stop_generation_by_state_manager"
+        
+        
+        ### var
+        self.save_image_to_tmp = False
+        self.prompt_generation_max_tries = 500000
+        
+        # Random LoRA selection
+        self.lora_list: list[str] = []
+        self.enable_random_lora: bool = False
+        self.rnd_lora_select_count: int = 0
 
     async def get_payload(self) -> dict:
         p = self.param.copy()
+        
+        # Select LoRA for this generation
+        current_lora = self.lora_list
+        if self.enable_random_lora and len(self.lora_list) >= self.rnd_lora_select_count:
+            current_lora = random.choices(self.lora_list, k=self.rnd_lora_select_count)
+            self.stdout(f"[Random LoRA] Selected: {current_lora}")
+        
+        current_request_param = self.default_prompt_request_param.copy()
+        current_request_param["lora_name"] = current_lora
+        
+        println("[Forever]: curlora: " + str(current_lora))
+        
         try:
             prompt = await PromptProcessor.gather_from_lora_rnd_prompt(
-                **self.default_prompt_request_param
+                proc_kw=self.processor_prompt_param,
+                max_tries=self.prompt_generation_max_tries,
+                **current_request_param
             )
         except ValueError as e:
             raise gr.Error(
@@ -193,8 +221,15 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         self, lora, header, footer,
         tags, random_rate, add_lora_name, lora_weight,
         booru_blacklist, booru_pattern_blacklist,
-        prompt_weight_chance, prompt_weight_min, prompt_weight_max
+        prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character,
+        enable_random_lora, rnd_lora_selection
     ):
+        if enable_random_lora:
+            self.rnd_lora_select_count = min(max(1, rnd_lora_selection), len(lora))
+            if len(lora) < self.rnd_lora_select_count:
+                raise gr.Error(f"Not enough LoRAs selected for random selection ({len(lora)} < {self.rnd_lora_select_count})")
+        self.enable_random_lora = enable_random_lora
+        
         new_param = {
             "lora_name": lora,
             "header": header,
@@ -207,8 +242,12 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             "prompt_weight_min": prompt_weight_min,
             "prompt_weight_max": prompt_weight_max,
         } | setting.request_param(pop_for_processor=True)
+        new_kp = {
+            "remove_character": remove_character,
+        }
+        self.lora_list = lora
         
-        validate = await PromptProcessor.test_from_lora_rnd_prompt_available(test_prompt=False, kw=new_param)
+        validate = await PromptProcessor.test_from_lora_rnd_prompt_available(test_prompt=False, kw_p=new_kp, kw=new_param)
         if validate is True:
             self.default_prompt_request_param = new_param
             gr.Info("Prompt settings updated successfully.")
@@ -216,6 +255,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         else:
             raise gr.Error("Failed to update prompt settings. Please check your settings.")
 
+        self.processor_prompt_param = new_kp
         self.default_prompt_request_param = new_param
         self.booru_blacklist = booru_blacklist
         self.booru_pattern_blacklist = booru_pattern_blacklist  
@@ -223,6 +263,8 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
     async def start(
         self,
         lora: list[str],
+        enable_random_lora: bool,
+        rnd_lora_select_count,
         header: str,
         footer: str,
         max_tags: int,
@@ -296,11 +338,15 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         prompt_weight_max,
         enable_sag,
         sag_strength,
+        remove_character,
+        save_tmp_images,
+        prompt_generation_max_tries,
     ) -> AsyncGenerator[tuple[str, Image.Image], None]:
         self.default_prompt_request_param = setting.request_param().copy()
+        
         # テスト呼び出し + 必要ならLoRA名取得
         await self.update_prompt_settings(
-            lora, header, footer, max_tags, base_chance, add_lora_name, lora_weight, booru_blacklist, booru_pattern_blacklist, prompt_weight_chance, prompt_weight_min, prompt_weight_max
+            lora, header, footer, max_tags, base_chance, add_lora_name, lora_weight, booru_blacklist, booru_pattern_blacklist, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character, enable_random_lora, rnd_lora_select_count
         )
         
         if disable_lora_in_adetailer:
@@ -453,6 +499,10 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                 w, h = si.split(":")
                 s.append((int(w), int(h)))
         self.rp_canvas_res = s
+        
+        self.clear_stdout()
+        self.save_image_to_tmp = save_tmp_images
+        self.prompt_generation_max_tries = min(5000000, max(1, prompt_generation_max_tries)) # 1 ~ 5,000,000
 
         eta = ""
         progress = ""
@@ -656,9 +706,10 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                     await caption.unload_model()
 
                 for index, image_obj in enumerate(images, start=0):
-                    image_obj.save(
-                        f"./tmp/img/generated_{num_of_iter}_{index}-{num_of_loop}-{sha256(image_obj.tobytes())}.png"
-                    )
+                    if self.save_image_to_tmp:
+                        image_obj.save(
+                            f"./tmp/img/generated_{num_of_iter}_{index}-{num_of_loop}-{sha256(image_obj.tobytes())}.png"
+                        )
 
                     DATE = time.strftime("%Y-%m-%d")
                     fp = output_dir.format(DATE=DATE)

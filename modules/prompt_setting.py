@@ -8,6 +8,8 @@ import os
 class PromptSetting:
     def __init__(self, **values):
         self.values = values
+        
+        
     @classmethod
     def from_dict(cls, data):
         return cls(**data)
@@ -24,6 +26,10 @@ class PromptSetting:
 class PromptSettingManager:
     def __init__(self, name: str):
         # initialize regular attributes without touching settings
+        ## cache ##
+        self.blacklist_formatted: list[re.Pattern] = []
+        self.blacklist_last_hash: str = ""
+        
         self.name = name
         self.setting = {}
         self.config_path = "./config/prompt_settings"
@@ -58,14 +64,23 @@ class PromptSettingManager:
     def get(self, key, default=None):
         return self.setting.get(key, default)
     
+    def calculate_blacklist_hash(self) -> str:
+        blacklist = self.get("blacklist", "")
+        black_patterns = self.get("black_patterns", "")
+        combined = blacklist + black_patterns
+        return str(hash(str(combined)))
+    
     def obtain_blacklist(self, no_patterns = False) -> list[re.Pattern]:
+        if self.blacklist_last_hash == self.calculate_blacklist_hash():
+            return self.blacklist_formatted
+        
         if no_patterns:
-            return [
+            l = [
                 rf"^\s*{re.escape(tag.strip())}\s*$"
                 for tag in self.get("blacklist", "").split(",")
                 if tag.strip() != ""
             ] + self.get("black_patterns", "").splitlines()
-        return [
+        l = [
             re.compile(rf"^\s*{re.escape(tag.strip())}\s*$", re.IGNORECASE)
             for tag in self.get("blacklist", "").split(",")
             if tag.strip() != ""
@@ -74,6 +89,9 @@ class PromptSettingManager:
             for pattern in self.get("black_patterns", "").splitlines()
             if pattern.strip() != ""
         ]
+        self.blacklist_last_hash = self.calculate_blacklist_hash()
+        self.blacklist_formatted = l
+        return l
     
     async def setup(self) -> PromptSetting:
         opt = self.setting.copy()

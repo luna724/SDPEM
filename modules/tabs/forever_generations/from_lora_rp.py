@@ -13,6 +13,7 @@ class FromLoRARegionalPrompter(UiTabs):
         return 2
 
     def ui(self, outlet):
+        return
         forever_generation_from_lora_rp = RegisterComponent(
             Path("./defaults/forever_generation.from_lora_rp.json"),
             "forever_generations/from_lora_rp",

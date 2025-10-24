@@ -1,4 +1,5 @@
 import random
+import traceback
 from modules.prompt_setting import setting
 from modules.prompt_placeholder import placeholder
 from modules.utils.character import waic
@@ -30,7 +31,7 @@ class PromptProcessor:
         keep_map: dict[int, bool] = {}
         for piece in list(self.prompt):
             disweighted = piece.text
-            debug(f"[Blacklist] Checking tag: {piece.value} ({disweighted})")
+            # debug(f"[Blacklist] Checking tag: {piece.value} ({disweighted})")
             if is_lora_trigger(piece):
                 debug(f"[Blacklist] Skipping LoRA trigger tag: {piece.value}")
                 continue
@@ -91,6 +92,7 @@ class PromptProcessor:
         
             return True
         except Exception as e:
+            traceback.print_exc()
             debug(f"[LoraPrompt] test_from_lora_rnd_prompt_available failed: {e}")
             return False
     

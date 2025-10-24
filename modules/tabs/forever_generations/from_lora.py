@@ -1,6 +1,7 @@
 from modules.forever.from_lora import ForeverGenerationFromLoRA
 from modules.utils.browse import select_folder
 from modules.utils.ui.register import RegisterComponent
+from modules.utils.lora_util import list_lora_with_tags
 from modules.api.v1.items import sdapi
 from webui import UiTabs
 import gradio as gr
@@ -28,21 +29,35 @@ class LoRAToPrompt(UiTabs):
         default = forever_generation_from_lora.get()
 
         with gr.Blocks():
-            lora = r(
-                "lora",
-                gr.Dropdown(
-                    choices=[
-                        x
-                        for x in os.listdir(
-                            os.path.join(shared.api_path, "models/Lora")
-                        )
-                        if x.endswith(".safetensors")
-                    ],
-                    multiselect=True,
-                    value=default.lora,
-                    label="Target LoRA",
-                ),
-            )
+            with gr.Group():
+                lora = r(
+                    "lora",
+                    gr.Dropdown(
+                        choices=list_lora_with_tags(),
+                        multiselect=True,
+                        value=default.lora,
+                        label="Target LoRA",
+                        scale=8,
+                    ),
+                )
+                with gr.Row():
+                    enable_random_lora = r(
+                        "enable_random_lora",
+                        gr.Checkbox(
+                            value=default.enable_random_lora,
+                            label="Random LoRA Selection",
+                            info="Randomly select one LoRA from the list for each generation",
+                            scale=2,
+                        ),
+                    )
+                    rnd_lora_select_count = r(
+                        "rnd_lora_select_count",
+                        gr.Slider(
+                            1, 100, step=1, value=default.rnd_lora_select_count,
+                            interactive=default.enable_random_lora,
+                        ),
+                    )
+                
             with gr.Row():
                 with gr.Accordion(label="Prompt Settings", open=False):
                     with gr.Row():
@@ -138,7 +153,14 @@ class LoRAToPrompt(UiTabs):
                                     info="Maximum prompt weight",
                                 )
                             )
-    
+                    with gr.Row():
+                        remove_character = r(
+                            "remove_character",
+                            gr.Checkbox(
+                                value=default.remove_character, label="Remove additional character tags",
+                            ),
+                        )
+
                 with gr.Accordion(label="Parameter Settings", open=False):
                     with gr.Row():
                         s_method = r(
@@ -606,7 +628,24 @@ class LoRAToPrompt(UiTabs):
                                     placeholder="YYYY-MM-DD HH:MM:SS",
                                 ),
                             )
-                
+                    
+                    with gr.Row():
+                        save_tmp_images = r(
+                            "save_tmp_images",
+                            gr.Checkbox(
+                                label="Save Temporary Images",
+                                value=default.save_tmp_images,
+                                info="Enable saving of temporary images (./tmp/img/..)",
+                            )
+                        )
+                        prompt_generation_max_tries = r(
+                            "prompt_generation_max_tries",
+                            gr.Number(
+                                label="Prompt Generation Max Tries",
+                                value=default.prompt_generation_max_tries or 500000,
+                            )
+                        )
+                        
                     with gr.Group():
                         with gr.Row():
                             enable_neveroom_unet = r(
@@ -742,13 +781,7 @@ class LoRAToPrompt(UiTabs):
                         lora_base = r(
                             "lora_base",
                             gr.Dropdown(
-                                choices=[
-                                    x
-                                    for x in os.listdir(
-                                        os.path.join(shared.api_path, "models/Lora")
-                                    )
-                                    if x.endswith(".safetensors")
-                                ],
+                                choices=list_lora_with_tags(),
                                 multiselect=True,
                                 value=default.lora,
                                 label="Target LoRA",
@@ -902,58 +935,60 @@ class LoRAToPrompt(UiTabs):
                     inputs=[
                         lora, header, footer,
                         max_tags, base_chance, add_lora_name,
-                        lora_weight, booru_blacklist, booru_pattern_blacklist, prompt_weight_chance, prompt_weight_min, prompt_weight_max
+                        lora_weight, booru_blacklist, booru_pattern_blacklist, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character,
+                        enable_random_lora, rnd_lora_select_count
                     ],
                 )
                 skip_img.click(fn=instance.skip_image, inputs=[], outputs=[skipped_img])
 
-            generate = gr.Button("Start", variant="primary")
-            stop = gr.Button(
-                "Stop",
-                variant="primary",
-            )
-            with gr.Row():
-                with gr.Column():
-                    eta = gr.Textbox(
-                        label="ETA",
-                        placeholder="Estimated time of arrival",
-                        lines=1,
-                        max_lines=1,
-                        value="",
-                        scale=2,
-                        interactive=False,
-                    )
-                    progress = gr.Textbox(
-                        label="Progress",
-                        placeholder="Generation progress",
-                        lines=1,
-                        max_lines=1,
-                        value="",
-                        scale=2,
-                        interactive=False,
-                    )
-                    output = gr.Textbox(
-                        label="test",
-                        placeholder="",
-                        lines=5,
-                        max_lines=10,
-                        value="",
-                        scale=3,
-                    )
+            with gr.Blocks():
+                with gr.Row():
+                    generate = gr.Button("Start", elem_classes=["green-button"])
+                    stop = gr.Button("Stop", elem_classes=["red-button"],variant="stop")
+                with gr.Row():
+                    with gr.Column():
+                        eta = gr.Textbox(
+                            label="ETA",
+                            placeholder="Estimated time of arrival",
+                            lines=1,
+                            max_lines=1,
+                            value="",
+                            scale=2,
+                            interactive=False,
+                        )
+                        progress = gr.Textbox(
+                            label="Generation Progress",
+                            placeholder="N/A",
+                            lines=1,
+                            max_lines=1,
+                            value="",
+                            scale=2,
+                            interactive=False,
+                        )
+                        output = gr.Textbox(
+                            label="Logs",
+                            placeholder="",
+                            lines=12,
+                            max_lines=24,
+                            value="",
+                            scale=3,
+                        )
 
-                with gr.Column():
-                    progress_bar_html = gr.HTML(
-                        label="Progress Bar",
-                        value="<div style='width: 100%; height: 20px; background-color: #f3f3f3; border-radius: 5px;'><div style='width: 0%; height: 100%; background-color: #4caf50; border-radius: 5px;'></div></div>",
-                        scale=2,
-                        interactive=False,
-                    )
-                    image = gr.Image(
-                        label="Generated Image", type="pil", scale=3, interactive=False
-                    )
+                    with gr.Column():
+                        progress_bar_html = gr.HTML(
+                            label="Progress Bar",
+                            value="<div style='width: 100%; height: 20px; background-color: #f3f3f3; border-radius: 5px;'><div style='width: 0%; height: 100%; background-color: #4caf50; border-radius: 5px;'></div></div>",
+                            scale=2,
+                            interactive=False,
+                        )
+                        image = gr.Image(
+                            label="Generated Image", type="pil", scale=3, interactive=False
+                        )
 
             var = [
                 lora,
+                enable_random_lora,
+                rnd_lora_select_count,
                 header,
                 footer,
                 max_tags,
@@ -1027,6 +1062,9 @@ class LoRAToPrompt(UiTabs):
                 prompt_weight_max,
                 enable_sag,
                 sag_strength,
+                remove_character,
+                save_tmp_images,
+                prompt_generation_max_tries,
             ]
             save_all_param = gr.Button("Save current parameters", variant="secondary")
 
@@ -1041,4 +1079,15 @@ class LoRAToPrompt(UiTabs):
                 fn=forever_generation_from_lora.insta_save,
                 inputs=forever_generation_from_lora.values(),
                 outputs=[],
+            )
+            
+            enable_random_lora.change(
+                fn=lambda lora,enable: gr.Slider.update(interactive=enable, maximum=len(lora)),
+                inputs=[lora, enable_random_lora],
+                outputs=[rnd_lora_select_count],
+            )
+            lora.change(
+                fn=lambda lora,enable: gr.Slider.update(interactive=enable, maximum=len(lora)),
+                inputs=[lora, enable_random_lora],
+                outputs=[rnd_lora_select_count],
             )

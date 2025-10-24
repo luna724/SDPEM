@@ -119,7 +119,7 @@ class PromptPlaceholder: # pattern mode
         
         self.data = opt["data"]
         self.should_process: list[re.Pattern] = []
-        
+        self.initialized = False
         
         # TODO: PromptPlaceholder script mode!?
         self._func_pairs = { # 呼び出されてほしくないものは登録しない
@@ -161,6 +161,7 @@ class PromptPlaceholder: # pattern mode
                     flags=flag
                 )
             )
+        self.initialized = True
 
     def _mark_refill_snapshot(self, piece: PromptPiece) -> None:
         entries: list[dict[str, str]] = piece.ensure_meta("placeholder_refill", [])
@@ -183,7 +184,7 @@ class PromptPlaceholder: # pattern mode
         matched = 0
         for piece in prompt:
             target_text = piece.text
-            debug(f"[PromptPlaceholder] Checking '{piece.value}' ({target_text})")
+            # debug(f"[PromptPlaceholder] Checking '{piece.value}' ({target_text})")
             for pattern in self.should_process:
                 match = pattern.search(target_text)
                 if not match:
@@ -204,6 +205,8 @@ class PromptPlaceholderManager:
         self.placeholders = {}
         self.config_path = Path("./config/prompt_placeholder.json")
         self.config_default = Path("./defaults/DEF/!prompt_placeholder.json")
+        self.scripts: list[PromptPlaceholder] = []
+        self.initialized = False
 
         try:
             self.load()
@@ -211,14 +214,16 @@ class PromptPlaceholderManager:
             critical("[PromptPlaceholderManager] Failed to load prompt placeholders.")
             raise
 
-    def init(self):
-        self.placeholders = json.loads(
-            self.config_default.open("r", encoding="utf-8").read()
-        )
+    async def init(self):
+        self.scripts = await self.runners()
+        self.initialized = True
+    async def reload(self): return await self.init()
 
     def load(self):
         if not self.config_path.exists(): 
-            self.init()
+            self.placeholders = json.loads(
+                self.config_default.open("r", encoding="utf-8").read()
+            )
             self.save()
         self.placeholders = json.loads(self.config_path.open("r", encoding="utf-8").read())
         
@@ -250,14 +255,16 @@ class PromptPlaceholderManager:
             debug(f"[PromptPlaceholderManager] Deleted placeholder index {n}")
         return
     
-    def runner(self, n: str) -> PromptPlaceholder:
+    async def runner(self, n: str) -> PromptPlaceholder:
         data = self.get(n)
         if not data:
             raise ValueError(f"Placeholder '{n}' not found")
-        return PromptPlaceholder(data)
-    
-    def runners(self) -> list[PromptPlaceholder]:
-        return [PromptPlaceholder(p) for p in self.placeholders.values() if p]
+        d = PromptPlaceholder(data)
+        await d.apply_pattern()
+        return d
+
+    async def runners(self) -> list[PromptPlaceholder]:
+        return [await self.runner(p) for p in self.placeholders.keys()]
 
     def _coerce_prompt(self, prompt) -> tuple[Prompt, str]:
         if isinstance(prompt, Prompt):
@@ -269,9 +276,12 @@ class PromptPlaceholderManager:
         raise TypeError("prompt must be str, list, tuple, or Prompt instance")
 
     async def process_prompt(self, prompt) -> Prompt | list[str] | str:
+        if not self.initialized:
+            await self.init()
         prompt_obj, mode = self._coerce_prompt(prompt)
-        for p in self.runners():
-            await p.apply_pattern() # TODO: cache?
+        for p in self.scripts:
+            if not p.initialized:
+                await p.apply_pattern() # TODO: cache?
             prompt_obj = await p.process_prompt(prompt_obj)
 
         if mode == "prompt":
