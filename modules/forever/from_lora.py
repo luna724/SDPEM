@@ -24,6 +24,8 @@ from modules.prompt_processor import PromptProcessor
 import shared
 from utils import *
 
+# RP無効化 ./common.py に対応
+
 
 class LegacyImageProgressAPI:
     @staticmethod
@@ -161,8 +163,6 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         
         current_request_param = self.default_prompt_request_param.copy()
         current_request_param["lora_name"] = current_lora
-        
-        println("[Forever]: curlora: " + str(current_lora))
         
         try:
             prompt = await PromptProcessor.gather_from_lora_rnd_prompt(
@@ -555,7 +555,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                 eta = "N/A"
                 progress = "100%"
                 progress_bar_html = LegacyImageProgressAPI.progress_bar_html(100, -1)
-                image_obj = gr.Image.update(
+                image_obj = gr.Image(
                     height=p.height, width=p.width, value=image, interactive=False
                 )
 

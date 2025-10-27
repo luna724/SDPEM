@@ -92,7 +92,7 @@ class PngInfo(UiTabs):
                     type="pil",
                     image_mode="RGBA",
                     label="Input PNG image",
-                    source="upload", show_download_button=False,
+                    sources="upload", show_download_button=False,
                     interactive=True
                 )
             )

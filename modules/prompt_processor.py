@@ -133,8 +133,49 @@ class PromptProcessor:
                 fq.update(n1 | n2)
                 debug(f"[Lora] Gathered tags from {ln}: {fq}")
         if len(fq) < 1: raise ValueError("No tags found in the provided LoRA(s)")
-        rt = []
         
+        res = await cls.from_frequency_like(
+            fq,
+            weight_multiplier,
+            weight_multiplier_target_min,
+            weight_multiplier_target_max,
+            random_rate,
+            tags, disallow_duplicate,
+            prompt_weight_chance,
+            prompt_weight_min, prompt_weight_max,
+            max_tries=max_tries,
+            proc_kw=proc_kw,
+        )
+        
+        p = combine_prompt(res)
+        if add_lora_name:
+            for name in lora_name:
+                n = await read_lora_name(name, allow_none=True)
+                if n:
+                    p = p.rstrip(", ") + f", <lora:{n}:{str(lora_weight)}>"
+        c = cls(p)
+        main = await c.process(**proc_kw)
+        return separate_prompt(header) + main + separate_prompt(footer)
+    
+    @classmethod
+    async def from_frequency_like(
+        cls, 
+        fq: dict[str, float],
+        weight_multiplier: float,
+        weight_multiplier_target_min: float,
+        weight_multiplier_target_max: float,
+        random_rate: float,
+        tags: int, disallow_duplicate: bool,
+        prompt_weight_chance: float,
+        prompt_weight_min: float, prompt_weight_max: float,
+        max_tries: int = 500000,
+        proc_kw: dict = {"remove_character": True},
+        finalize = False,
+        header: str = "", footer: str = "",
+        **kw
+    ) -> list[str]:
+        tried = 0
+        rt = []
         for t, w in fq.items():
             mt = 1
             
@@ -143,7 +184,7 @@ class PromptProcessor:
             weight = (w * mt) / (100*random_rate)
             if weight > 0:
                 if await cls.will_be_filtered(t, proc_kw=proc_kw):
-                    debug(f"[LoraPrompt] Filtered tag from Lora: {t} ({weight})")
+                    debug(f"[FrequencyLike] Filtered tag from Lora: {t} ({weight})")
                     continue
                 rt.append((t, weight))
             
@@ -174,18 +215,14 @@ class PromptProcessor:
                         raise RuntimeError(f"Tried too many times to gather tags ({max_tries*2}), aborting")
             res = await cls(combine_prompt(prompts)).process(**proc_kw)
             if len(res) != tags:
-                debug(f"[LoraPrompt] Re-gathering tags, got {len(res)} tags, expected {tags}")
+                debug(f"[FrequencyLike] Re-gathering tags, got {len(res)} tags, expected {tags}")
                 prompts.clear()
             else:
                 proc = True
                 break
-        
+        if not finalize:
+            return res
         p = combine_prompt(res)
-        if add_lora_name:
-            for name in lora_name:
-                n = await read_lora_name(name, allow_none=True)
-                if n:
-                    p = p.rstrip(", ") + f", <lora:{n}:{str(lora_weight)}>"
         c = cls(p)
         main = await c.process(**proc_kw)
-        return separate_prompt(header) + main + separate_prompt(footer)
+        return separate_prompt(header.rstrip(",")) + main + separate_prompt(footer.rstrip(","))

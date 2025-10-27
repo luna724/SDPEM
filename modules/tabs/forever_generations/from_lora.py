@@ -918,13 +918,14 @@ class LoRAToPrompt(UiTabs):
                         )
 
             with gr.Row():
-                with gr.Row(scale=7):
-                    update_blacklist = gr.Button(
-                        "Update Prompt setting",
-                        variant="secondary",
-                        scale=4,
-                    )
-                    skip_img = gr.Button("Skip Image", variant="secondary", scale=6)
+                with gr.Column(scale=7):
+                    with gr.Row():
+                        update_blacklist = gr.Button(
+                            "Update Prompt setting",
+                            variant="secondary",
+                            scale=4,
+                        )
+                        skip_img = gr.Button("Skip Image", variant="secondary", scale=6)
                 skipped_img = gr.Checkbox(
                     value=False,
                     label="Skipped",
@@ -978,8 +979,6 @@ class LoRAToPrompt(UiTabs):
                         progress_bar_html = gr.HTML(
                             label="Progress Bar",
                             value="<div style='width: 100%; height: 20px; background-color: #f3f3f3; border-radius: 5px;'><div style='width: 0%; height: 100%; background-color: #4caf50; border-radius: 5px;'></div></div>",
-                            scale=2,
-                            interactive=False,
                         )
                         image = gr.Image(
                             label="Generated Image", type="pil", scale=3, interactive=False
@@ -1085,9 +1084,25 @@ class LoRAToPrompt(UiTabs):
                 fn=lambda lora,enable: gr.Slider.update(interactive=enable, maximum=len(lora)),
                 inputs=[lora, enable_random_lora],
                 outputs=[rnd_lora_select_count],
+                show_progress=False
             )
+            
+            def on_lora_change_a(lora, enable):
+                df = len(lora) <= 1
+                return (
+                    gr.Checkbox.update(
+                        value=False if df else enable,
+                        interactive=not df
+                    ),
+                    gr.Slider.update(
+                        interactive=not df and enable,
+                        maximum=len(lora)
+                    )
+                )
+
             lora.change(
-                fn=lambda lora,enable: gr.Slider.update(interactive=enable, maximum=len(lora)),
+                fn=on_lora_change_a,
                 inputs=[lora, enable_random_lora],
-                outputs=[rnd_lora_select_count],
+                outputs=[enable_random_lora, rnd_lora_select_count],
+                show_progress=False
             )

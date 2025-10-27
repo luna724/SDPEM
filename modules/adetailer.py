@@ -1,4 +1,5 @@
 from typing import *
+import gradio as gr
 from modules.generate import Txt2imgAPI, GenerationProgress
 from utils import *
 from pydantic import BaseModel
@@ -12,20 +13,28 @@ from io import BytesIO
 
 
 class ADetailerResult(BaseModel):
-  raw: dict
-  prompt: str
-  negative: str
-  width: int
-  height: int
-  images: List[str]
-  
-  async def convert_images(self) -> list[Image.Image]:
+    raw: dict
+    prompt: str
+    negative: str
+    width: int
+    height: int
+    images: List[str]
+    
+    async def convert_images(self) -> list[Image.Image]:
         """Convert list of base64 image strings to PIL Images."""
         return [
             Image.open(BytesIO(base64.b64decode(img)))
             for img in self.images
             if img != ""
         ]
+    
+    async def convert_images_into_gr(self, order: int = 0):
+        try:
+            imgs = await self.convert_images()
+            i = imgs[order]
+            return gr.Image(value=i, width=i.width, height=i.height)
+        except IndexError:
+            return None
 
 class ADetailerAPI(Txt2imgAPI):
   @staticmethod
@@ -35,7 +44,7 @@ class ADetailerAPI(Txt2imgAPI):
           json_for_print["init_images"] = [
               f"{len(json_for_print['init_images'])} images"
           ]
-      println(f"POST request to {path} with payload: {json_for_print}")
+      debug(f"POST request to {path} with payload: {json_for_print}")
       response = await shared.session.post(
           url=f"{shared.api_url}{path}",
           json=json,
