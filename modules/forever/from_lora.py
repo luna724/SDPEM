@@ -21,53 +21,11 @@ from modules.utils.util import sha256
 from modules.forever_generation import ForeverGeneration
 from modules.prompt_setting import setting
 from modules.prompt_processor import PromptProcessor
+from modules.forever.common import ForeverGenerationTemplate
 import shared
 from utils import *
 
 # RP無効化 ./common.py に対応
-
-
-class LegacyImageProgressAPI:
-    @staticmethod
-    def resize_eta(eta: float) -> str:
-        """ETA を h/m/s の形式に変換する"""
-        if eta == -1:
-            return "N/A"
-
-        converted = int(eta)
-        h = converted // 3600
-        converted -= h * 3600
-        m = converted // 60
-        converted -= m * 60
-        s = converted
-
-        eta = f""
-        if h > 0:
-            eta += f"{h}h "
-        if m > 0:
-            eta += f"{m}m "
-        if s > 0:
-            eta += f"{s}s"
-
-        return eta.strip()
-
-    @staticmethod
-    def status_text(s: int, total_s: int) -> str:
-        """受け取った引数を (s/total_s (steps)) (s/total_s%) に変換する"""
-        percentage = "{:.1f}".format(s / total_s * 100)
-        return f"({s}/{total_s} (steps)) ({percentage}%)"
-
-    @staticmethod
-    def progress_bar_html(progress: int, eta: float) -> str:
-        """UIのプログレスバーのHTML"""
-        eta = LegacyImageProgressAPI.resize_eta(eta)
-        return f"""
-        <div style="width: 100%; background-color: #e0e0e0; border-radius: 8px; overflow: hidden;">
-            <div style="width: {progress}%; height: 30px; background-color: #76c7c0; transition: width 0.3s;"></div>
-        </div>
-        <p style="text-align: center;">ETA: {eta} ({progress:.2f}%)</p>
-        """
-
 
 # TODO: @Codex
 STATE = None # TODO: ForeverGenerationFromLoRAの現在の状況を保持、外部にストリームするための関数
@@ -75,31 +33,7 @@ STATE = None # TODO: ForeverGenerationFromLoRAの現在の状況を保持、外�
 # 仕様自体は複数インスタンス対応してもいいが、どんな強靭なGPU使ってんのって話になるから単一保持の予定 (最新のインスタンスを保持する)
 
 # ForeverGeneration instanceは tab/.. によって保持され生涯有効
-class ForeverGenerationFromLoRA(ForeverGeneration):
-    def stdout(self, txt: str | None = None, silent: bool = False) -> str:
-        if txt is None:
-            return self.output
-        if not silent:
-            println(f"[Forever]: {txt}")
-        self.output += txt + "\n"
-        return self.output
-    
-    def clear_stdout(self):
-        self.output = ""
-
-    async def skip_image(self) -> bool:
-        self.stdout("Skipping image..")
-        gr.Info("Skipping..")
-        await Txt2imgAPI._post_requests(path="/sdapi/v1/interrupt", json={})
-        await Txt2imgAPI._post_requests(path="/sdapi/v1/skip", json={})
-        self.image_skipped = True
-        return True
-
-    def skipped(self):
-        self.image_skipped = False
-        self.stdout(f"Image skipped by {self.skipped_by}.")
-        self.skipped_by = "User"  # reset
-
+class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
     def __init__(self, payload: dict | None = None) -> None:
         super().__init__({})
         self.output = ""
@@ -179,15 +113,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                 "Failed to generate prompt after multiple attempts. Please adjust your Prompt Settings."
             )
 
-        sampler = random.choice(self.sampling_methods)
-        scheduler = random.choice(self.schedulers)
-        step = random.randint(self.steps[0], self.steps[1])
-        cfg_scale = (
-            random.randrange(self.cfg_scales[0] * 10, self.cfg_scales[1] * 10, 5) / 10
-        )
-        size = random.choice(self.sizes)
-        w = size[0]
-        h = size[1]
+        p = await self._get_payload()
 
         rpp = self.regional_prompter_param_default.copy()        
         try:
@@ -203,24 +129,13 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         p.update(
             {
                 "prompt": ", ".join(prompt),
-                "sampler_name": sampler,
-                "scheduler": scheduler,
-                "steps": step,
-                "cfg_scale": cfg_scale,
-                "width": w,
-                "height": h,
             }
         )
-
-        p["alwayson_scripts"].update(self.freeu_param)
-        p["alwayson_scripts"].update(self.neveroom_param)
-        p["alwayson_scripts"].update(self.sag_param)
         return p
     
     async def update_prompt_settings(
         self, lora, header, footer,
         tags, random_rate, add_lora_name, lora_weight,
-        booru_blacklist, booru_pattern_blacklist,
         prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character,
         enable_random_lora, rnd_lora_selection
     ):
@@ -256,9 +171,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             raise gr.Error("Failed to update prompt settings. Please check your settings.")
 
         self.processor_prompt_param = new_kp
-        self.default_prompt_request_param = new_param
-        self.booru_blacklist = booru_blacklist
-        self.booru_pattern_blacklist = booru_pattern_blacklist  
+        self.default_prompt_request_param = new_param 
 
     async def start(
         self,
@@ -300,20 +213,6 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         save_infotext,
         booru_filter_enable,
         booru_model,
-        booru_threshold,
-        booru_character_threshold,
-        booru_allow_rating,
-        booru_ignore_questionable,
-        booru_save_each_rate,
-        booru_merge_sensitive,
-        general_save_dir,
-        sensitive_save_dir,
-        questionable_save_dir,
-        explicit_save_dir,
-        booru_blacklist,
-        booru_pattern_blacklist,
-        booru_separate_save,
-        booru_blacklist_save_dir,
         active_rp,
         rp_mode,
         rp_calc,
@@ -346,7 +245,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
         
         # テスト呼び出し + 必要ならLoRA名取得
         await self.update_prompt_settings(
-            lora, header, footer, max_tags, base_chance, add_lora_name, lora_weight, booru_blacklist, booru_pattern_blacklist, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character, enable_random_lora, rnd_lora_select_count
+            lora, header, footer, max_tags, base_chance, add_lora_name, lora_weight, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character, enable_random_lora, rnd_lora_select_count
         )
         
         if disable_lora_in_adetailer:
@@ -469,19 +368,16 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             if timer is None:
                 raise gr.Error("Timer is not set. Please enable stop mode.")
 
-        caption: OnnxRuntimeTagger = None
-        if booru_filter_enable:
-            # TODO: wd以外
-            caption = OnnxRuntimeTagger(model_path=booru_model, find_path=True)
+        await self.prepare_caption_model(booru_filter_enable, booru_model)
 
+        self.early_booru_filter = True
+        self.booru_filter_enabled = booru_filter_enable
         self.disable_lora_in_adetailer = disable_lora_in_adetailer
         self.lora = lora
         self.sampling_methods = s_method
         self.schedulers = scheduler
         self.steps = (steps_min, steps_max)
         self.cfg_scales = (cfg_min, cfg_max)
-        self.booru_blacklist = booru_blacklist
-        self.booru_pattern_blacklist = booru_pattern_blacklist
         s = []
         for si in size.split(","):
             w, h = si.split(":")
@@ -541,23 +437,21 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
             status = i.get("success", "")
             if not ok and status == "in_progress":
                 p: GenerationProgress = i["progress"]
-                eta = LegacyImageProgressAPI.resize_eta(p.eta)
-                progress = LegacyImageProgressAPI.status_text(p.step, p.total_steps)
-                progress_bar_html = LegacyImageProgressAPI.progress_bar_html(
+                eta = ForeverGenerationTemplate.resize_eta(p.eta)
+                progress = ForeverGenerationTemplate.resize_steps(p.step, p.total_steps)
+                progress_bar_html = ForeverGenerationTemplate.resize_progress_bar(
                     p.progress, p.eta
                 )
                 image = await p.convert_image()
-                yield (eta, progress, progress_bar_html, image, self.stdout(), self.image_skipped)
+                yield self.yielding(eta, progress, progress_bar_html, image)
             elif ok and status == "completed":
                 p: GenerationResult = i["result"]
                 image = (await p.convert_images())[0]
                 num_of_iter += 1
                 eta = "N/A"
                 progress = "100%"
-                progress_bar_html = LegacyImageProgressAPI.progress_bar_html(100, -1)
-                image_obj = gr.Image(
-                    height=p.height, width=p.width, value=image, interactive=False
-                )
+                progress_bar_html = self.resize_progress_bar(100, -1)
+                yield self.yielding(eta, progress, progress_bar_html, image=await p.convert_images_into_gr())
 
                 if self.image_skipped:
                     self.skipped()
@@ -565,27 +459,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                 num_of_image += len(p.images)
 
                 # caption filter
-                if booru_filter_enable:
-                    await caption.load_model_cuda()
-                    self.stdout("Processing image with Booru Filter..")
-                    p.images = await self.caption_filter(
-                        caption,
-                        p,
-                        booru_threshold,
-                        booru_character_threshold,
-                        booru_allow_rating,
-                        booru_ignore_questionable,
-                        booru_save_each_rate,
-                        booru_merge_sensitive,
-                        general_save_dir,
-                        sensitive_save_dir,
-                        questionable_save_dir,
-                        explicit_save_dir,
-                        booru_separate_save,
-                        booru_blacklist_save_dir,
-                        before_adetailer=True,
-                    )
-                    await caption.unload_model()
+                p.images = await self.booru_filter(i, p, await p.convert_images(), True, )
 
                 if adetailer:
                     adp = self.adetailer_param
@@ -620,13 +494,12 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                             "steps": 120,
                             "alwayson_scripts": adp,
                         }
-                    yield (
+                    yield self.yielding(
                         eta,
                         progress,
                         progress_bar_html,
                         image,
                         self.stdout("Generation completed. Processing ADetailer.."),
-                        self.image_skipped
                     )
                     ad_api = ADetailerAPI(ad_param)
                     images = []
@@ -634,7 +507,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                         if self.image_skipped:
                             self.stdout("AD-Image skipped by skip event.")
                             continue
-                        self.stdout(
+                        yield self.stdnow(
                             f"[{index}/{len(p.images)}] Processing image with ADetailer.."
                         )
                         async for processing in ad_api.generate_with_progress(
@@ -642,37 +515,33 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                         ):
                             if processing[0] is False:
                                 pr: GenerationProgress = processing[2]
-                                eta_ = LegacyImageProgressAPI.resize_eta(pr.eta)
-                                progress_ = LegacyImageProgressAPI.status_text(
+                                eta_ = self.resize_eta(pr.eta)
+                                progress_ = self.resize_steps(
                                     pr.step, pr.total_steps
                                 )
                                 progress_bar_html_ = (
-                                    LegacyImageProgressAPI.progress_bar_html(
+                                    self.resize_progress_bar(
                                         pr.progress, pr.eta
                                     )
                                 )
-                                i_ = await pr.convert_image()
-                                yield (
+                                yield self.yielding(
                                     eta_,
                                     progress_,
                                     progress_bar_html_,
-                                    i_,
-                                    self.stdout(),
-                                    self.image_skipped
+                                    await pr.convert_image_into_gr(),
                                 )
                                 await asyncio.sleep(1.5)  # Prevent OSError
                             elif processing[0] is True:
                                 result: ADetailerResult = processing[1]
                                 images += await result.convert_images()
-                                yield (
+                                yield self.yielding(
                                     eta,
                                     progress,
                                     progress_bar_html,
-                                    images[0],
+                                    await result.convert_images_into_gr(),
                                     self.stdout(
                                         f"[{index}/{len(p.images)}] ADetailer completed."
                                     ),
-                                    self.image_skipped
                                 )
                 else:
                     images = await p.convert_images()
@@ -682,28 +551,7 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                     continue
 
                 # caption filter after adetailer
-                if booru_filter_enable:
-                    await caption.load_model_cuda()
-                    self.stdout("Processing image with Booru Filter..")
-                    p._booru_image_bridge = images
-                    images = await self.caption_filter(
-                        caption,
-                        p,
-                        booru_threshold,
-                        booru_character_threshold,
-                        booru_allow_rating,
-                        booru_ignore_questionable,
-                        booru_save_each_rate,
-                        booru_merge_sensitive,
-                        general_save_dir,
-                        sensitive_save_dir,
-                        questionable_save_dir,
-                        explicit_save_dir,
-                        booru_separate_save,
-                        booru_blacklist_save_dir,
-                        before_adetailer=False,
-                    )
-                    await caption.unload_model()
+                images = await self.booru_filter(i, p, images, False)
 
                 for index, image_obj in enumerate(images, start=0):
                     if self.save_image_to_tmp:
@@ -749,198 +597,15 @@ class ForeverGenerationFromLoRA(ForeverGeneration):
                         image_obj.save(fn, format=output_format)
                     self.stdout(f"[{index+1}/{len(images)}] Image saved as {fn}")
 
-                yield (eta, progress, progress_bar_html, image_obj, self.stdout(), self.image_skipped)
+                yield self.yielding(eta, progress, progress_bar_html, image_obj)
 
             elif not ok and status == "error":
                 raise gr.Error("Generation failed due to an error.")
-        yield (
+        yield self.yielding(
             "N/A",
             "N/A",
-            LegacyImageProgressAPI.progress_bar_html(0, -1),
+            self.resize_progress_bar(0, -1),
             None,
             self.stdout("Generation Stopped."),
-            self.image_skipped
+            False,
         )
-
-    async def stop_generation(self):
-        self.n_of_img = 2140000000
-        self.image_skipped = False
-        self.skipped_by = "User"
-        gr.Warning("Generation will be stop after this iteration.")
-        await super().stop_generation()
-    async def stop_generation_by_state_manager(self, sm: StateManager) -> str: # TODO
-        await self.stop_generation()
-    
-    
-    async def caption_filter(
-        self,
-        caption: OnnxRuntimeTagger,
-        p: GenerationResult,
-        booru_threshold,
-        booru_character_threshold,
-        booru_allow_rating,
-        booru_ignore_questionable,
-        booru_save_each_rate,
-        booru_merge_sensitive,
-        general_save_dir,
-        sensitive_save_dir,
-        questionable_save_dir,
-        explicit_save_dir,
-        # booru_blacklist,
-        # booru_pattern_blacklist,
-        booru_separate_save,
-        booru_blacklist_save_dir,
-        before_adetailer: bool,
-    ) -> list[str] | list[Image.Image]:  # base64 encoded images
-        """
-        booruでなんやかんやして画像をフィルタリングする
-        okな画像はそのままで返す
-
-        before_adetailer の場合は list[b64img] を返し、
-        after_adetailer の場合は list[Image.Image] を返す
-        """
-        booru_blacklist = self.booru_blacklist
-        booru_pattern_blacklist = self.booru_pattern_blacklist
-        
-        def save_blacklisted_image(
-            i: Image.Image,
-            rate: str,
-        ):
-            if not booru_separate_save:
-                return
-            self.stdout(f"[Caption]: Saving blacklisted image with rate: {rate}")
-            os.makedirs(booru_blacklist_save_dir, exist_ok=True)
-            fn = f"[{rate}] {p.seed} - " + sha256(i.tobytes()) + ".png"
-            fp = os.path.join(booru_blacklist_save_dir, fn)
-            info = PngImagePlugin.PngInfo()
-            info.add_text("parameters", p.infotext)
-            i.save(fp, format="PNG", pnginfo=info)
-            self.stdout(f"[Caption]: Blacklisted image saved as {fp}")
-            return
-
-        def save_separated_rate(
-            i: Image.Image,
-            rate: str,
-        ):
-            if not booru_save_each_rate:
-                return
-            self.stdout(f"[Caption]: Saving image with rate: {rate}")
-            DATE = time.strftime("%Y-%m-%d")
-            if rate == "general" or (rate == "sensitive" and booru_merge_sensitive):
-                fp = general_save_dir.format(DATE=DATE)
-            elif rate == "sensitive":
-                fp = sensitive_save_dir.format(DATE=DATE)
-            elif rate == "questionable":
-                fp = questionable_save_dir.format(DATE=DATE)
-            elif rate == "explicit":
-                fp = explicit_save_dir.format(DATE=DATE)
-            else:
-                critical(f"[Caption]: Unknown rate: {rate}. Skipping save.")
-                return
-            os.makedirs(fp, exist_ok=True)
-            img_files = sorted(
-                [
-                    f
-                    for f in os.listdir(fp)
-                    if re.match(r"^\d{5}-\d+.png$", f) is not None
-                ],
-                key=lambda x: int(x.split("-")[0]),
-            )
-            image_count = int(img_files[-1].split("-")[0]) if img_files else 0
-            seed = p.seed if p.seed is not None else 0
-            image_name = f"{(image_count + 1):05d}-{seed}.png"
-            fn = os.path.join(fp, image_name)
-            info = PngImagePlugin.PngInfo()
-            info.add_text("parameters", p.infotext)
-            i.save(fn, format="PNG", pnginfo=info)
-            self.stdout(f"[Caption]: Image saved as {fn}")
-            return
-
-        if before_adetailer and booru_separate_save:
-            # 完成品を保存するならadetailer後に保存する
-            return p.images
-
-        if before_adetailer:
-            images = p.images.copy()
-        else:
-            images = p._booru_image_bridge
-        allow_image = []
-        for img in images:
-            blacklisted = False
-
-            if before_adetailer:
-                image = Image.open(BytesIO(base64.b64decode(img)))
-            else:
-                image = img
-            tags, character_tags, rating = await caption.predict(
-                image.convert("RGBA"),
-                threshold=booru_threshold,
-                character_threshold=booru_character_threshold,
-            )
-
-            rate: str = max(rating, key=rating.get, default="general")
-            general_rate: float = rating.get("general", 0)
-            sensitive_rate: float = rating.get("sensitive", 0)
-            questionable_rate: float = rating.get("questionable", 0)
-            explicit_rate: float = rating.get("explicit", 0)
-            txtprompt = ", ".join(
-                        [
-                            x[0]
-                            for x in sorted(
-                                tags.items(), key=lambda x: x[1], reverse=True
-                            )
-                        ]
-                    )
-            self.stdout(
-                f"[Caption]: output: {txtprompt}"
-            )
-            
-            if (
-                general_rate == 0
-                and sensitive_rate == 0
-                and questionable_rate == 0
-                and explicit_rate == 0
-            ):
-                self.stdout("No rating found in the image.")
-                questionable_rate = 1
-
-            if booru_ignore_questionable and rate == "questionable":
-                d = rating.copy()
-                d.pop("questionable", None)
-                rate = max(d, key=d.get, default="general")
-                self.stdout(f"Ignoring questionable rating. (questionable -> {rate})")
-            if not rate in booru_allow_rating and not booru_save_each_rate:
-                save_blacklisted_image(img, rate)
-                continue
-
-            # blacklist check
-            # TODO
-            b = [
-                re.compile(rf"^\s*{re.escape(tag.strip())}\s*$", re.IGNORECASE)
-                for tag in booru_blacklist.split(",")
-                if tag.strip() != ""
-            ] + [
-                re.compile(pattern, re.IGNORECASE)
-                for pattern in booru_pattern_blacklist.splitlines()
-                if pattern.strip() != ""
-            ]
-            debug(f"[Booru blacklist registered]: {len(b)} patterns.")
-
-            itms = chain(tags.items(), character_tags.items())
-            for tag, _ in itms:
-                # debug(f"[Checking tag]: {tag}")
-                if any(bl.search(tag) for bl in b):
-                    self.stdout(
-                        f"[Caption]: Tag '{tag}' is blacklisted. Skipping image."
-                    )
-                    blacklisted = True
-                    save_blacklisted_image(image, rate)
-                    break
-            if blacklisted:
-                continue
-
-            if booru_save_each_rate and not before_adetailer:
-                save_separated_rate(image, rate)
-            else:
-                allow_image.append(img)
-        return allow_image

@@ -77,8 +77,9 @@ class ForeverGenerationTemplate(ForeverGeneration):
         percentage = "{:.1f}".format(s / total_s * 100)
         return f"({s}/{total_s} (steps)) ({percentage}%)"
     
-    def resize_progress_bar(self, progress: float, eta: float) -> str:
-        eta_text = self.resize_eta(eta)
+    @classmethod
+    def resize_progress_bar(cls, progress: float, eta: float) -> str:
+        eta_text = cls.resize_eta(eta)
         clamped_progress = max(0.0, min(progress, 100.0))
         return (
             "<div style='display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;'>"
@@ -231,10 +232,10 @@ class ForeverGenerationTemplate(ForeverGeneration):
         p = self.param.copy()
         sampler = random.choice(self.sampling_methods)
         scheduler = random.choice(self.schedulers)
-        step = random.randint(self.steps[0], self.steps[1])
+        step = random.randint(self.steps[0], self.steps[1]) if self.steps[0] < self.steps[1] else self.steps[0]
         cfg_scale = (
             random.randrange(self.cfg_scales[0] * 10, self.cfg_scales[1] * 10, 5) / 10
-        )
+        ) if self.cfg_scales[0] < self.cfg_scales[1] else self.cfg_scales[0]
         size = random.choice(self.sizes)
         w = size[0]
         h = size[1]
