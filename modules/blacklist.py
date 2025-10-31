@@ -135,7 +135,7 @@ class BlacklistFilterRuleManager:
         
         try:
             self.load()
-        except:
+        except Exception:
             critical("[BlacklistFilterRuleManager] Failed to load blacklist filter rules.")
             raise
     
@@ -229,13 +229,11 @@ class BlacklistFilterRuleManager:
             
             disweighted = piece.text
             matched_blacklist = False
-            matched_pattern = None
             
             # Check if this piece matches any blacklist pattern
             for pattern in blacklist_patterns:
                 if pattern.search(disweighted):
                     matched_blacklist = True
-                    matched_pattern = pattern
                     break
             
             if not matched_blacklist:
