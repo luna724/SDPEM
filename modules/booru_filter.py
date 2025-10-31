@@ -13,7 +13,7 @@ class BooruOptions:
             os.makedirs(self.explicit_save_dir, exist_ok=True)
             if not self.booru_merge_sensitive:
                 os.makedirs(self.questionable_save_dir, exist_ok=True)
-        if self.booru_separate_save:
+        if self.booru_save_blacklisted:
             os.makedirs(self.booru_blacklist_save_dir, exist_ok=True)
     
     def __init__(
@@ -28,7 +28,7 @@ class BooruOptions:
         sensitive_save_dir,
         questionable_save_dir,
         explicit_save_dir,
-        booru_separate_save,
+        booru_save_blacklisted,
         booru_blacklist_save_dir,
         booru_blacklist
     ):
@@ -42,7 +42,7 @@ class BooruOptions:
         self.sensitive_save_dir = sensitive_save_dir
         self.questionable_save_dir = questionable_save_dir
         self.explicit_save_dir = explicit_save_dir
-        self.booru_separate_save = booru_separate_save
+        self.booru_save_blacklisted = booru_save_blacklisted
         self.booru_blacklist_save_dir = booru_blacklist_save_dir
         self.booru_blacklist: list[re.Pattern] = booru_blacklist
         
@@ -74,7 +74,7 @@ class BooruFilterSettingManager:
 
     async def push_ui(self, *opts):
         options = [
-            "filter_enable", "model", "threshold", "character_threshold", "allow_rating", "ignore_questionable", "save_each_rate", "merge_sensitive", "general_save_dir", "sensitive_save_dir", "questionable_save_dir", "explicit_save_dir", "blacklist", "pattern_blacklist", "separate_save", "blacklist_save_dir"
+            "filter_enable", "model", "threshold", "character_threshold", "allow_rating", "ignore_questionable", "save_each_rate", "merge_sensitive", "general_save_dir", "sensitive_save_dir", "questionable_save_dir", "explicit_save_dir", "blacklist", "pattern_blacklist", "save_blacklisted", "blacklist_save_dir"
         ]
         
         if len(options) != len(opts):
@@ -129,7 +129,7 @@ class BooruFilterSettingManager:
             sensitive_save_dir=self.get("sensitive_save_dir"),
             questionable_save_dir=self.get("questionable_save_dir"),
             explicit_save_dir=self.get("explicit_save_dir"),
-            booru_separate_save=self.get("separate_save"),
+            booru_save_blacklisted=self.get("save_blacklisted"),
             booru_blacklist_save_dir=self.get("blacklist_save_dir"),
             booru_blacklist=self.obtain_blacklist()
         )

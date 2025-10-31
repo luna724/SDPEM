@@ -305,6 +305,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
             "negative_prompt": negative,
             "batch_size": batch_size,
             "n_iter": batch_count,
+   
             "restore_faces": False,
             "tiling": False,
             "save_images": False,
@@ -462,6 +463,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
             gr.Info("Prompt settings updated successfully.")
             self.stdout("Prompt settings updated successfully.")
         else:
+            self.stdout("Prompt settings update failed.")
             raise gr.Error("Failed to update prompt settings. Please check your settings.")
 
         self.processor_prompt_param = new_kp
@@ -610,9 +612,12 @@ class ForeverGenerationTemplate(ForeverGeneration):
             return
         
         for index, image_obj in enumerate(images, start=0):
+            fp=f"./tmp/img/generated_skipped_{self.num_of_iter}_{index}-{self.num_of_loop}-{sha256(image_obj.tobytes())}.png"
             image_obj.save(
-                f"./tmp/img/generated_skipped_{self.num_of_iter}_{index}-{self.num_of_loop}-{sha256(image_obj.tobytes())}.png"
+                fp
             )
+            self.stdout(f"Saved temporary image to {fp} ({reason})")
+            
         return
     
     async def booru_filter(
@@ -622,9 +627,18 @@ class ForeverGenerationTemplate(ForeverGeneration):
     ) -> list[Image.Image]:
         if not self.booru_filter_enabled:
             return images
-        if not self.early_booru_filter and is_early:
+        
+        # earlyがオンならあとのをスキップする
+        # save_blacklisted がオンなら earlyがスキップされてるから
+        if (self.early_booru_filter is False and is_early
+            and booru_filter.get("save_blacklisted", False) is False
+        ):
             return images
-        if not booru_filter.get("save_each_rate", False) and not is_early and self.early_booru_filter:
+        
+        if (booru_filter.get("save_each_rate", False) is False
+            and is_early is False
+            and self.early_booru_filter
+        ):
             return images
         if not is_early:
             p._booru_image_bridge = images
@@ -707,9 +721,10 @@ class ForeverGenerationTemplate(ForeverGeneration):
             
             if self.num_of_iter != self.prv_generation_c:
                 await self.on_iter_start(i)
-                yield self.stdnow(
-                    f"Starting generation ({self.num_of_iter + 1} / inf) with Prompt: {i.payload.get('prompt', 'N/A')}",
-                    silent=True,
+                yield self.yielding(
+                    image=gr.Image(interactive=False,value=None,),
+                    stdout=self.stdout(f"Starting generation ({self.num_of_iter + 1} / inf) with Prompt: {i.payload.get('prompt', 'N/A')}",
+                    silent=True),
                 )
                 self.prv_generation_c = self.num_of_iter
 
@@ -814,7 +829,6 @@ class ForeverGenerationTemplate(ForeverGeneration):
                     yield self.yielding(
                         eta, progress, progress_bar_html, image,
                         self.stdout(f"Generation completed. ({len(to_proc)})"),
-                        self.image_skipped,
                     )
                     images = to_proc # fallback: ADetailer無効時
                 
@@ -909,7 +923,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
             i: Image.Image,
             rate: str,
         ):
-            if not opt.booru_separate_save:
+            if not opt.booru_save_blacklisted:
                 return
             self.stdout(f"[Caption]: Saving blacklisted image with rate: {rate}")
             os.makedirs(opt.booru_blacklist_save_dir, exist_ok=True)
@@ -959,7 +973,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
             self.stdout(f"[Caption]: Image saved as {fn}")
             return
 
-        if before_adetailer and opt.booru_separate_save:
+        if before_adetailer and opt.booru_save_blacklisted:
             # 完成品を保存するならadetailer後に保存する
             return p.images
 

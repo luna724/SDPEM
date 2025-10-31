@@ -14,6 +14,7 @@ from PIL import Image, PngImagePlugin
 from modules.adetailer import ADetailerAPI, ADetailerResult
 from modules.generate import GenerationProgress, GenerationResult, Txt2imgAPI
 from modules.tagger.predictor import OnnxRuntimeTagger
+from modules.utils.exceptions import notEnoughTag
 from modules.utils.pnginfo import make_info
 from modules.utils.state import StateManager
 from modules.utils.timer import TimerInstance
@@ -90,20 +91,36 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
         p = self.param.copy()
         
         # Select LoRA for this generation
-        current_lora = self.lora_list
-        if self.enable_random_lora and len(self.lora_list) >= self.rnd_lora_select_count:
-            current_lora = random.choices(self.lora_list, k=self.rnd_lora_select_count)
-            self.stdout(f"[Random LoRA] Selected: {current_lora}")
+        def select_lora() -> list[str]:
+            current_lora = self.lora_list
+            if self.enable_random_lora and len(self.lora_list) >= self.rnd_lora_select_count:
+                current_lora = random.choices(self.lora_list, k=self.rnd_lora_select_count)
+                self.stdout(f"[Random LoRA] Selected: {current_lora}")
+            return current_lora
+        
         
         current_request_param = self.default_prompt_request_param.copy()
-        current_request_param["lora_name"] = current_lora
+        prompt_generated = False
         
         try:
-            prompt = await PromptProcessor.gather_from_lora_rnd_prompt(
-                proc_kw=self.processor_prompt_param,
-                max_tries=self.prompt_generation_max_tries,
-                **current_request_param
-            )
+            for t in range(10):
+                current_request_param["lora_name"] = select_lora()
+                try:
+                    prompt = await PromptProcessor.gather_from_lora_rnd_prompt(
+                        proc_kw=self.processor_prompt_param,
+                        max_tries=self.prompt_generation_max_tries,
+                        **current_request_param
+                    )
+                except notEnoughTag:
+                    self.stdout(f"[Random LoRA] Not enough tags could be gathered with the current LoRA selection. Retrying... ({t+1})")
+                    continue
+                except Exception:
+                    raise 
+                prompt_generated = True
+                break
+            if not prompt_generated:
+                raise ValueError("Failed to generate prompt after 10 attempts.")
+            
         except ValueError as e:
             raise gr.Error(
                 f"Failed to generate prompt. Please check your Prompt Settings. ({e})"

@@ -3,6 +3,7 @@ import traceback
 from modules.prompt_setting import setting
 from modules.prompt_placeholder import placeholder
 from modules.utils.character import waic
+from modules.utils.exceptions import notEnoughTag
 from modules.utils.lora_util import find_lora, get_tag_freq_from_lora, read_lora_name, is_lora_trigger
 from modules.utils.prompt import Prompt, separate_prompt, combine_prompt
 
@@ -27,6 +28,7 @@ class PromptProcessor:
         self.filtered_tags: list[str] = []
         
     def proc_blacklist(self) -> Prompt:
+        ## move to blacklist.py TODO@Copilot
         blacklist = setting.obtain_blacklist()
         keep_map: dict[int, bool] = {}
         for piece in list(self.prompt):
@@ -193,7 +195,7 @@ class PromptProcessor:
                 raise RuntimeError(f"Tried too many times ({max_tries}) to gather tags, aborting")
         rt = sorted(rt, key=lambda x: x[1])
         if len(rt) < tags and disallow_duplicate:
-            raise ValueError(f"Not enough filtered tags found ({len(rt)} found, {tags} required)")
+            raise notEnoughTag(f"Not enough filtered tags found ({len(rt)} found, {tags} required)")
         
         tried = 0
         proc = True

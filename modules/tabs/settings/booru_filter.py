@@ -249,10 +249,10 @@ class Prompt(UiTabs):
                 ),
             )
         with gr.Row():
-            separate_save = r(
-                "separate_save",
+            save_blacklisted = r(
+                "save_blacklisted",
                 gr.Checkbox(
-                    value=default.separate_save,
+                    value=default.save_blacklisted,
                     label="Blacklisted Save Option",
                     info="If enabled, blacklisted images will be saved to separate directory",
                     scale=10,

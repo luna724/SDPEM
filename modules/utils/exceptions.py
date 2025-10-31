@@ -1,0 +1,2 @@
+class notEnoughTag(Exception):
+    pass
