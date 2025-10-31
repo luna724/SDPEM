@@ -77,12 +77,13 @@
 
 ### not_has (条件が含まれていない場合に残す)
 
-複数の条件がある場合、**すべての条件が含まれていない**場合にのみターゲットを残します。
+複数の条件がある場合、**いずれかの条件が含まれている**場合にターゲットをフィルタします。つまり、**すべての条件が含まれていない**場合にのみターゲットを残します。
 
 例: `conditions: ["sword", "knight"]`
 - `"weapon, gun, modern"` → weaponを残す (swordもknightも含まれていない)
 - `"weapon, sword, battle"` → weaponをフィルタ (swordが含まれている)
 - `"weapon, knight, armor"` → weaponをフィルタ (knightが含まれている)
+- `"weapon, sword, knight"` → weaponをフィルタ (両方含まれている)
 
 ### has (条件が含まれている場合に残す)
 
@@ -92,6 +93,7 @@
 - `"red eyes, vampire, gothic, pale"` → red eyesを残す (両方含まれている)
 - `"red eyes, vampire, modern"` → red eyesをフィルタ (gothicが含まれていない)
 - `"red eyes, gothic, night"` → red eyesをフィルタ (vampireが含まれていない)
+- `"red eyes, angry, modern"` → red eyesをフィルタ (どちらも含まれていない)
 
 ## パターンマッチング
 

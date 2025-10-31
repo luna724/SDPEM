@@ -103,21 +103,20 @@ class BlacklistFilterRule:
         if not self.enabled or not self.initialized:
             return False
         
-        # Count how many conditions are matched in the prompt
-        matched_count = 0
+        # Track which specific conditions are matched in the prompt
+        matched_conditions = set()
         for piece in prompt:
             target_text = piece.text
-            for cond_pattern in self.compiled_conditions:
+            for idx, cond_pattern in enumerate(self.compiled_conditions):
                 if cond_pattern.search(target_text):
-                    matched_count += 1
-                    break  # Count each prompt piece only once
+                    matched_conditions.add(idx)
         
         if self.rule_type == "has":
             # Keep the target if ALL conditions are present
-            return matched_count >= len(self.conditions) and len(self.conditions) > 0
+            return len(matched_conditions) == len(self.conditions) and len(self.conditions) > 0
         elif self.rule_type == "not_has":
             # Keep the target if NONE of the conditions are present
-            return matched_count == 0 and len(self.conditions) > 0
+            return len(matched_conditions) == 0 and len(self.conditions) > 0
         
         return False
 

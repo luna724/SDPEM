@@ -204,6 +204,50 @@ async def test_case_insensitivity():
     print("\n=== Case Insensitivity Tests Passed! ===\n")
 
 
+async def test_has_with_multiple_conditions():
+    """Test 'has' rule with multiple conditions - all must be present"""
+    print("\n=== Test: 'has' with Multiple Conditions ===")
+    
+    rule_data = {
+        "name": "multi_has_rule",
+        "description": "Keep only if both vampire AND gothic are present",
+        "enabled": True,
+        "version": 1.0,
+        "data": {
+            "version": 1.0,
+            "target": "red eyes",
+            "rule_type": "has",
+            "conditions": ["vampire", "gothic"],
+            "is_pattern": False,
+            "flags": ["IGNORECASE"],
+        }
+    }
+    
+    rule = BlacklistFilterRule(rule_data)
+    await rule.prepare_rule()
+    
+    # Test: Both conditions present - should keep
+    prompt1 = Prompt("red eyes, vampire, gothic, pale skin")
+    assert rule.should_keep(prompt1), "Should keep when both conditions are present"
+    print("✓ Keeps target when ALL conditions are present")
+    
+    # Test: Only one condition present - should NOT keep
+    prompt2 = Prompt("red eyes, vampire, modern")
+    assert not rule.should_keep(prompt2), "Should NOT keep when only vampire is present"
+    print("✓ Filters target when only one condition is present")
+    
+    prompt3 = Prompt("red eyes, gothic, night")
+    assert not rule.should_keep(prompt3), "Should NOT keep when only gothic is present"
+    print("✓ Filters target when only other condition is present")
+    
+    # Test: Neither condition present - should NOT keep
+    prompt4 = Prompt("red eyes, angry, modern")
+    assert not rule.should_keep(prompt4), "Should NOT keep when neither condition is present"
+    print("✓ Filters target when no conditions are present")
+    
+    print("\n=== Multiple Conditions 'has' Tests Passed! ===\n")
+
+
 async def run_all_tests():
     """Run all minimal tests"""
     print("\n" + "="*60)
@@ -214,6 +258,7 @@ async def run_all_tests():
         await test_basic_rule_logic()
         await test_pattern_matching()
         await test_case_insensitivity()
+        await test_has_with_multiple_conditions()
         
         print("\n" + "="*60)
         print("ALL TESTS PASSED SUCCESSFULLY!")
