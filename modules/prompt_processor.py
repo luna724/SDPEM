@@ -2,6 +2,7 @@ import random
 import traceback
 from modules.prompt_setting import setting
 from modules.prompt_placeholder import placeholder
+from modules.blacklist import blacklist_filter_rules
 from modules.utils.character import waic
 from modules.utils.exceptions import notEnoughTag
 from modules.utils.lora_util import find_lora, get_tag_freq_from_lora, read_lora_name, is_lora_trigger
@@ -27,26 +28,22 @@ class PromptProcessor:
         self.filtered = 0
         self.filtered_tags: list[str] = []
         
-    def proc_blacklist(self) -> Prompt:
-        ## move to blacklist.py TODO@Copilot
+    async def proc_blacklist(self) -> Prompt:
         blacklist = setting.obtain_blacklist()
-        keep_map: dict[int, bool] = {}
+        
+        # Apply filter rules to get keep_map
+        keep_map = await blacklist_filter_rules.apply_filter_rules(self.prompt, blacklist)
+        
+        # Update filtered count and tags based on keep_map
         for piece in list(self.prompt):
-            disweighted = piece.text
-            # debug(f"[Blacklist] Checking tag: {piece.value} ({disweighted})")
             if is_lora_trigger(piece):
                 debug(f"[Blacklist] Skipping LoRA trigger tag: {piece.value}")
                 continue
-            matched = False
-            for pattern in blacklist:
-                match = pattern.search(disweighted)
-                if match:
-                    debug(f"[Blacklist] Filtered tag: {piece.value} ({pattern.pattern})")
-                    self.filtered += 1
-                    self.filtered_tags.append(piece.value)
-                    matched = True
-                    break
-            keep_map[id(piece)] = not matched
+            
+            if not keep_map.get(id(piece), True):
+                debug(f"[Blacklist] Filtered tag: {piece.value}")
+                self.filtered += 1
+                self.filtered_tags.append(piece.value)
 
         self.prompt.filter_inplace(lambda item: keep_map.get(id(item), True))
         return self.prompt
@@ -69,7 +66,7 @@ class PromptProcessor:
         if do_placeholder:
             self.prompt = await self.proc_placeholder()
         if do_blacklist:
-            self.prompt = self.proc_blacklist()
+            self.prompt = await self.proc_blacklist()
             self.prompt.refill_placeholder_entries()
 
         self.prompt.filter_inplace(lambda piece: len(piece.value.strip()) > 0)
