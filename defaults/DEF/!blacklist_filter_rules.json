@@ -1,0 +1,38 @@
+{
+  "example_blindfold_rule": {
+    "name": "example_blindfold_rule",
+    "description": "Example: Keep 'blindfold' only when 'looking at viewer' is NOT in the prompt",
+    "enabled": false,
+    "version": 1.0,
+    "data": {
+      "version": 1.0,
+      "target": "blindfold",
+      "rule_type": "not_has",
+      "conditions": [
+        "looking at viewer"
+      ],
+      "is_pattern": false,
+      "flags": [
+        "IGNORECASE"
+      ]
+    }
+  },
+  "example_vampire_rule": {
+    "name": "example_vampire_rule",
+    "description": "Example: Keep 'red eyes' only when 'vampire' IS in the prompt",
+    "enabled": false,
+    "version": 1.0,
+    "data": {
+      "version": 1.0,
+      "target": "red eyes",
+      "rule_type": "has",
+      "conditions": [
+        "vampire"
+      ],
+      "is_pattern": false,
+      "flags": [
+        "IGNORECASE"
+      ]
+    }
+  }
+}
