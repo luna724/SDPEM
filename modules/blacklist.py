@@ -223,6 +223,7 @@ class BlacklistFilterRuleManager:
         
         for piece in list(prompt):
             # Skip LoRA trigger tags - they should always be kept
+            debug(f"[BlacklistFilter] Evaluating tag: {piece.value}")
             if is_lora_trigger(piece):
                 keep_map[id(piece)] = True
                 continue
@@ -239,11 +240,13 @@ class BlacklistFilterRuleManager:
             if not matched_blacklist:
                 # Not in blacklist, keep it
                 keep_map[id(piece)] = True
+                debug(f"[BlacklistFilter] Tag not in blacklist, keeping: {piece.value}")
                 continue
             
             # Check if any filter rule applies to this blacklisted tag
             should_keep = False
             for rule in self.scripts:
+                debug(f"[BlacklistFilter] Checking rule '{rule.name}' for tag: {piece.value}")
                 if rule.matches_target(disweighted):
                     if rule.should_keep(prompt):
                         debug(f"[BlacklistFilterRule] Rule '{rule.name}' keeps tag: {piece.value}")

@@ -57,11 +57,24 @@ class ADetailerAPI(Txt2imgAPI):
           raise RuntimeError(f"API request failed with status {response.status_code}")
   
   async def generate_with_progress(
-        self, **override_payload
+        self, init_images: list[str] | list[Image.Image] = None, **override_payload
     ) -> AsyncGenerator[
         tuple[bool, Optional[ADetailerResult], Optional[GenerationProgress]], None
     ]:
         payload = self.payload | override_payload
+        if init_images is not None:
+            payload["init_images"] = []
+            for img in init_images:
+                if isinstance(img, Image.Image):
+                    buffered = BytesIO()
+                    img.save(buffered, format="PNG")
+                    img_str = base64.b64encode(buffered.getvalue()).decode()
+                    payload["init_images"].append(f"{img_str}")
+                elif isinstance(img, str):
+                    payload["init_images"].append(img)
+                else:
+                    raise ValueError("init_images must be a list of PIL Images or base64 strings.")
+        
         generation_task = asyncio.create_task(
             self._post_requests("/sdapi/v1/img2img", payload)
         )

@@ -828,7 +828,7 @@ class LoRAToPrompt(UiTabs):
             )
             
             enable_random_lora.change(
-                fn=lambda lora,enable: gr.Slider.update(interactive=enable, maximum=len(lora)),
+                fn=lambda lora,enable: gr.Slider(interactive=enable, maximum=len(lora)),
                 inputs=[lora, enable_random_lora],
                 outputs=[rnd_lora_select_count],
                 show_progress=False
@@ -837,11 +837,11 @@ class LoRAToPrompt(UiTabs):
             def on_lora_change_a(lora, enable):
                 df = len(lora) <= 1
                 return (
-                    gr.Checkbox.update(
+                    gr.Checkbox(
                         value=False if df else enable,
                         interactive=not df
                     ),
-                    gr.Slider.update(
+                    gr.Slider(
                         interactive=not df and enable,
                         maximum=len(lora)
                     )
