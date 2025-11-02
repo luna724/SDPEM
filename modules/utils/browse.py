@@ -10,7 +10,14 @@ def select_folder() -> str:
     folder_path = filedialog.askdirectory(title="Select a Folder")
     root.destroy() 
     return folder_path
-  
+
+def select_folders() -> list[str]:
+    root = tk.Tk()
+    root.withdraw()  # Tkinterウィンドウを非表示にする
+    folder_path = filedialog.askdirectory(title="Select a Folder")
+    root.destroy() 
+    return folder_path
+
 
 def select_file() -> str:
     root = tk.Tk()

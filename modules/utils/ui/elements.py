@@ -3,11 +3,13 @@ from typing import Any
 
 from gradio_client.serializing import SimpleSerializable
 
+
 def return_empty(c: int):
-    return tuple([gr.update() for _ in range(c)])
+    return tuple(gr.update() for _ in range(c))
+
 
 #@codex
-class AnyComponentValue(gr.components.base.IOComponent):
+class AnyComponentValue(gr.State):
     """
     UIには表示されず、任意の値を
     gr.Button.click() の inputs に渡すための隠しコンポーネント。
@@ -20,8 +22,8 @@ class AnyComponentValue(gr.components.base.IOComponent):
 
     def __init__(self, value: Any = None, **kwargs):
         # 完全非表示・非対話にして値をそのまま保持
-        super().__init__(value=None, visible=False, interactive=False, **kwargs)
-        # IOComponent.__init__ は postprocess(value) を通すため、改めて値を保持
+        super().__init__(value=value, **kwargs)
+        # State は postprocess を通さず保持するが、明示的に値を持たせておく
         self.value = value
 
     # Blocks の設定上、このコンポーネントを "state" として扱わせる

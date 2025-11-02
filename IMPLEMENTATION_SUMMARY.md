@@ -1,119 +1,154 @@
-# Implementation Summary: LoRA Features
+# Blacklist Filter Rules - Implementation Summary
 
-This document summarizes the implementation of the LoRA-related features as requested in the issue.
+## Overview
+This PR implements a conditional blacklist filtering feature as requested in the issue. The feature allows certain tags to be excluded from the blacklist under specific conditions based on the presence or absence of other tags in the prompt.
 
-## Features Implemented
+## Files Changed
 
-### 1. Hide LoRAs Without Tags ✅
+### New Files
+1. **modules/blacklist.py** (266 lines)
+   - BlacklistFilterRule class: Represents individual filter rules
+   - BlacklistFilterRuleManager class: Manages all filter rules
+   - Similar structure to prompt_placeholder.py for consistency
 
-**Files Modified:**
-- `modules/utils/lora_util.py` - Added `has_lora_tags()` and `list_lora_with_tags()` functions
-- `modules/tabs/forever_generations/from_lora.py` - Updated to filter LoRAs
-- `modules/tabs/prompt_generators/from_lora.py` - Updated to filter LoRAs
+2. **defaults/DEF/!blacklist_filter_rules.json**
+   - Default configuration with example rules
+   - Includes examples for both "has" and "not_has" rule types
 
-**Implementation:**
-- Created `has_lora_tags(lora_name)` function that checks if a LoRA has tag metadata (ss_tag_frequency or tag_frequency)
-- Created `list_lora_with_tags()` function that returns only LoRAs that have tag information
-- Updated all LoRA dropdown selections to use `list_lora_with_tags()` instead of listing all LoRAs
-- Added path validation to prevent path traversal attacks
+3. **docs/blacklist_filter_rules.md** (167 lines)
+   - Comprehensive Japanese documentation
+   - Usage examples, configuration guide, and implementation details
 
-### 2. Random LoRA Selection ✅
+4. **Test Files**
+   - test_blacklist_minimal.py (276 lines): Unit tests without dependencies
+   - test_blacklist_filter.py (241 lines): Full integration tests
+   - verify_blacklist_integration.py (137 lines): Manual verification script
 
-**Files Modified:**
-- `modules/forever/from_lora.py` - Added random selection logic
-- `modules/tabs/forever_generations/from_lora.py` - Added UI checkbox
-- `defaults/DEF/forever_generation.from_lora.json` - Added configuration field
+### Modified Files
+1. **modules/prompt_processor.py**
+   - Added import for blacklist_filter_rules
+   - Modified proc_blacklist() to be async and use filter rules
+   - Updated process() to await proc_blacklist()
 
-**Implementation:**
-- Added `enable_random_lora` checkbox in the UI
-- Modified `ForeverGenerationFromLoRA` class to store LoRA list and random selection flag
-- Updated `get_payload()` method to randomly select one LoRA from the list when enabled
-- Each generation randomly picks a LoRA, allowing diverse image generation with different LoRA styles
+## Key Features
 
-### 3. LoRA Info Viewer ✅
+### Rule Types
+1. **"not_has"**: Keep target tag if specified conditions are NOT present
+2. **"has"**: Keep target tag if specified conditions ARE present
 
-**Files Created:**
-- `modules/tabs/miscs/lora_info.py` - New tab for LoRA information
-- `defaults/DEF/miscs.lora_info.json` - Configuration file
+### Support
+- Multiple conditions per rule
+- Pattern matching with regex
+- Case-insensitive matching (configurable)
+- LoRA trigger tag preservation
 
-**Features:**
-- Displays LoRA metadata including:
-  - LoRA file name
-  - Trigger word (from metadata)
-  - Base model detection (SDXL vs SD1.5)
-  - Tag availability status
-  - Total tag count
-- Shows top 100 tags with frequencies
-- Displays raw metadata in JSON format
-- Refresh button to update LoRA list
+## Example from Issue
 
-### 4. Auto-Blacklist Manager ✅
+### Setup
+- Blacklist: `blindfold`
+- Rule: Keep `blindfold` if `looking at viewer` is NOT present (not_has)
 
-**Files Created:**
-- `modules/tabs/miscs/auto_blacklist.py` - New tab for auto-blacklist analysis
-- `defaults/DEF/miscs.auto_blacklist.json` - Configuration file
-
-**Features:**
-- Analyzes acceptable vs undesirable images using tagger
-- Automatically suggests blacklist tags based on:
-  - Tags appearing frequently (>50%) in undesirable images
-  - Tags appearing rarely (<20%) in acceptable images
-- Provides suggestions in both detailed and comma-separated formats
-- Shows analysis summary with image counts
-- Easy copy-paste format for blacklist configuration
-
-## Security Enhancements
-
-All path-related code has been secured against path traversal attacks:
-
-1. **LoRA Path Validation:**
-   - Checks for invalid characters (.., /, \) in LoRA names
-   - Ensures all LoRA paths stay within the models/Lora directory
-   - Added to `find_lora()` and `has_lora_tags()` functions
-
-2. **Directory Path Validation:**
-   - Created `validate_path()` function for Auto-Blacklist Manager
-   - Validates that user-provided directories exist and are actually directories
-   - Uses absolute paths to prevent ambiguity
-
-## Usage
-
-### Using Random LoRA Selection:
-1. Select multiple LoRAs in the "Target LoRA" dropdown
-2. Enable "Random LoRA Selection" checkbox
-3. Each generation will randomly pick one LoRA from your selection
-
-### Using LoRA Info Viewer:
-1. Navigate to "Misc" → "LoRA Info" tab
-2. Select a LoRA from the dropdown
-3. Click "Load LoRA Info" to view details
-4. View tags, metadata, and trigger words
-
-### Using Auto-Blacklist Manager:
-1. Navigate to "Misc" → "Auto-Blacklist Manager" tab
-2. Specify directories containing acceptable images (comma-separated)
-3. Specify directory containing undesirable images
-4. Click "Analyze Images"
-5. Review suggestions and copy to your blacklist configuration
+### Results
+- Input: `blindfold, looking at viewer, open eyes`
+  - Output: `looking at viewer, open eyes` ✓
+  
+- Input: `blindfold, open eyes, open mouth`
+  - Output: `blindfold, open eyes, open mouth` ✓
 
 ## Testing
 
-All Python files pass syntax validation:
-- ✅ modules/utils/lora_util.py
-- ✅ modules/forever/from_lora.py
-- ✅ modules/tabs/forever_generations/from_lora.py
-- ✅ modules/tabs/prompt_generators/from_lora.py
-- ✅ modules/tabs/miscs/lora_info.py
-- ✅ modules/tabs/miscs/auto_blacklist.py
+### Test Results
+- ✅ All unit tests passing (test_blacklist_minimal.py)
+- ✅ Integration verification passing (verify_blacklist_integration.py)
+- ✅ CodeQL security scan: 0 alerts
+- ✅ Code review feedback addressed
 
-All JSON configuration files are valid:
-- ✅ defaults/DEF/forever_generation.from_lora.json
-- ✅ defaults/DEF/miscs.lora_info.json
-- ✅ defaults/DEF/miscs.auto_blacklist.json
+### Test Coverage
+- Basic rule logic (has/not_has)
+- Pattern matching
+- Case insensitivity
+- Multiple condition handling
+- Target matching accuracy
+- Configuration loading/saving
 
-## Notes
+## Architecture
 
-- The path injection warnings from CodeQL are mitigated with proper validation
-- The Auto-Blacklist Manager is designed to work with the existing tagger infrastructure
-- Random LoRA selection integrates seamlessly with the existing prompt generation system
-- All features maintain backward compatibility with existing configurations
+### Design Decisions
+1. **Similar to prompt_placeholder.py**: Maintains consistency with existing codebase
+2. **Lazy import**: Avoids circular dependency with lora_util
+3. **Set-based matching**: Tracks which specific conditions are matched for accuracy
+4. **Async integration**: Seamlessly integrates with existing async processing
+
+### Configuration Flow
+```
+defaults/DEF/!blacklist_filter_rules.json (default)
+    ↓ (auto-copied on first run)
+config/blacklist_filter_rules.json (user config)
+    ↓ (loaded by)
+BlacklistFilterRuleManager
+    ↓ (used by)
+PromptProcessor.proc_blacklist()
+```
+
+## Usage
+
+### Add a Rule Programmatically
+```python
+from modules.blacklist import blacklist_filter_rules
+
+rule_data = {
+    "name": "my_rule",
+    "description": "Description",
+    "enabled": True,
+    "version": 1.0,
+    "data": {
+        "version": 1.0,
+        "target": "target_tag",
+        "rule_type": "not_has",
+        "conditions": ["condition1", "condition2"],
+        "is_pattern": False,
+        "flags": ["IGNORECASE"],
+    }
+}
+
+blacklist_filter_rules.push("my_rule", rule_data)
+await blacklist_filter_rules.reload()
+```
+
+### Edit Configuration File
+Edit `config/blacklist_filter_rules.json` and reload the application.
+
+## Security
+
+- CodeQL scan: 0 alerts
+- No external code execution
+- Regex patterns are compiled safely
+- Configuration file paths are validated
+
+## Performance Considerations
+
+- Rules are compiled once and cached
+- Set-based condition matching is O(n×m) where n=prompt pieces, m=conditions
+- Lazy initialization avoids startup overhead
+
+## Future Enhancements (Not in Scope)
+
+- UI for rule management (mentioned in issue but not required for this PR)
+- Rule priority/ordering when multiple rules match
+- More complex condition logic (AND/OR combinations)
+- Condition negation within rules
+
+## Compatibility
+
+- No breaking changes to existing functionality
+- Existing blacklist behavior preserved when no rules are defined
+- LoRA trigger tags always preserved
+- Works with existing prompt_processor flow
+
+## Documentation
+
+See `docs/blacklist_filter_rules.md` for:
+- Complete feature documentation (Japanese)
+- Configuration examples
+- Usage patterns
+- Implementation details

@@ -10,7 +10,8 @@ from PIL import Image
 from modules.prompt_setting import setting
 from modules.utils.ui.globals import get_components
 from modules.utils.ui.register import RegisterComponent, Path
-import modules.utils.ui.js as js
+from modules.utils.pnginfo import read_pnginfo
+import modules.utils.ui.js as jsc
 
 class PngInfo(UiTabs):
     def title(self) -> str:
@@ -18,20 +19,6 @@ class PngInfo(UiTabs):
     def index(self) -> int:
         return 3
     def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> None:
-        async def read_pnginfo(
-            img: Image.Image,
-            clear_image: bool, only_prompt: bool, show_raw: bool
-        ) -> tuple[str, Image.Image|None]:
-            if img is None: raise gr.Error("No image provided")
-            if not hasattr(img, "info"):
-                raise gr.Error("Image has no metadata")
-            
-            info = img.info
-            if show_raw: i = json.dumps(info, indent=2, ensure_ascii=False)
-            else: i = info.get("parameters", "")
-            if clear_image: img = None
-            if only_prompt: i = i.split("\nNegative prompt: ")[0].strip()
-            return i, img
         async def read_pnginfo_onchange(i, *args, **kw):
             if i is not None: return await read_pnginfo(i, *args, **kw)
             return gr.update(), gr.update()
@@ -48,7 +35,7 @@ class PngInfo(UiTabs):
                 type="pil",
                 image_mode="RGBA",
                 label="Input PNG image",
-                source="upload", show_download_button=False
+                sources="upload", show_download_button=False
             )
         
             out_info = gr.Textbox(
@@ -99,7 +86,7 @@ class PngInfo(UiTabs):
                 outputs=[adv_out],
             ).then(
                 fn=None,
-                _js=js.click("pnginfo_advanced_tab-button")
+                js=jsc.click("pnginfo_advanced_tab-button")
             )
         else:
             gr.Markdown("`PngInfo+` is not available.")

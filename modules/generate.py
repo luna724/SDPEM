@@ -1,6 +1,7 @@
 import shared
 import base64
 import traceback
+import gradio as gr
 import json
 import asyncio
 from typing import List, Optional, AsyncGenerator
@@ -37,6 +38,11 @@ class GenerationProgress(BaseModel):
             )
             return None
 
+    async def convert_image_into_gr(self):
+        i = await self.convert_image()
+        if i is None:
+            return None
+        return gr.Image(value=i, width=i.width, height=i.height)
 
 class GenerationResult(BaseModel):
     raw: dict
@@ -60,6 +66,14 @@ class GenerationResult(BaseModel):
             for img in self.images
             if img != ""
         ]
+    
+    async def convert_images_into_gr(self, order: int = 0):
+        try:
+            imgs = await self.convert_images()
+            i = imgs[order]
+            return gr.Image(value=i, width=i.width, height=i.height)
+        except IndexError:
+            return None
 
 
 class Txt2imgAPI:
@@ -107,7 +121,8 @@ class Txt2imgAPI:
             while not generation_task.done():
                 progress = await self.get_progress()
                 # println(f"[in generate.py] Progress: {progress}")
-                yield False, None, progress
+                if progress is not None:
+                    yield False, None, progress
                 await asyncio.sleep(0.8)
 
             response = await generation_task

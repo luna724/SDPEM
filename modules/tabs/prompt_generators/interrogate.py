@@ -51,7 +51,7 @@ class Interrogate(UiTabs):
                             type="pil",
                             image_mode="RGBA",
                             label="Input image",
-                            source="upload",
+                            sources="upload",
                         )
 
                         model = gr.Dropdown(
