@@ -186,6 +186,17 @@ class LoRAToPrompt(UiTabs):
                                 value=default.remove_character, label="Remove additional character tags",
                             ),
                         )
+                    instance_blacklist = r(
+                        "instance_blacklist",
+                        gr.Textbox(
+                            label="Instance Blacklist",
+                            placeholder="Enter regex patterns (comma or newline separated)",
+                            value=default.values.get("instance_blacklist", ""),
+                            lines=2,
+                            max_lines=5,
+                            info="Captured at Start, compiled as regex, and applied only to that run.",
+                        ),
+                    )
 
                 with gr.Accordion(label="Parameter Settings", open=False):
                     with gr.Row():
@@ -597,6 +608,7 @@ class LoRAToPrompt(UiTabs):
                 prompt_weight_chance,
                 prompt_weight_min,
                 prompt_weight_max,
+                instance_blacklist,
                 output_dir,
                 output_format,
                 output_name,

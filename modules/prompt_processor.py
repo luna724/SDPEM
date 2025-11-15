@@ -1,5 +1,7 @@
 import random
 import traceback
+from re import Pattern
+
 from modules.prompt_setting import setting
 from modules.prompt_placeholder import placeholder
 from modules.blacklist import blacklist_filter_rules
@@ -28,9 +30,14 @@ class PromptProcessor:
         self.filtered = 0
         self.filtered_tags: list[str] = []
         
-    async def proc_blacklist(self) -> Prompt:
+    async def proc_blacklist(
+        self,
+        extra_blacklist: list[Pattern[str]] | None = None,
+    ) -> Prompt:
         blacklist = setting.obtain_blacklist()
-        
+        if extra_blacklist:
+            blacklist = blacklist + list(extra_blacklist)
+
         # Apply filter rules to get keep_map
         keep_map = await blacklist_filter_rules.apply_filter_rules(self.prompt, blacklist)
         
@@ -62,11 +69,12 @@ class PromptProcessor:
         do_blacklist: bool = True, do_placeholder: bool = True,
         remove_character: bool = False,
         restore_placeholder_test: None = None,
+        special_blacklist: list[Pattern[str]] | None = None,
     ) -> list[str]:
         if do_placeholder:
             self.prompt = await self.proc_placeholder()
         if do_blacklist:
-            self.prompt = await self.proc_blacklist()
+            self.prompt = await self.proc_blacklist(extra_blacklist=special_blacklist)
             self.prompt.refill_placeholder_entries()
 
         self.prompt.filter_inplace(lambda piece: len(piece.value.strip()) > 0)
