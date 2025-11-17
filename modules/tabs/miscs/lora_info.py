@@ -116,6 +116,26 @@ class LoRAInfo(UiTabs):
                     label="Tags", show_label=False
                 )
             
+            with gr.Accordion(label="LoRA Desc", open=False):
+                with gr.Row():
+                    preview_image = gr.Image(
+                        label="LoRA Preview Image", type="pil", interactive=False
+                    )
+
+                    with gr.Column():
+                        activation_text = gr.Textbox(
+                            label="Activation Text", lines=1, interactive=False, show_copy_button=True
+                        )
+                        preferred_weight = gr.Slider(
+                            label="Preferred Weight", minimum=0.0, maximum=2.0, step=0.01, interactive=False
+                        )
+                        activation_neg = gr.Textbox(
+                            label="Activation Negative prompt", lines=1, interactive=False, show_copy_button=True
+                        )
+                        notes = gr.Textbox(
+                            label="Notes", lines=4, interactive=False, show_copy_button=True
+                        )
+            
             with gr.Accordion(label="Raw Metadata", open=True):
                 metadata_output = gr.JSON(
                     label="Metadata",

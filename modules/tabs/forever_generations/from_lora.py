@@ -428,6 +428,16 @@ class LoRAToPrompt(UiTabs):
                                 ),
                             )
                     
+                    with gr.Accordion(label="Experimental", open=False):
+                        merge_adetailer_test = r(
+                            "merge_adetailer_test",
+                            gr.Checkbox(
+                                label="Merge ADetailer Test (Experimental)",
+                                value=default.merge_adetailer_test or False,
+                                info="Merge ADetailer into the main generation process (Experimental)",
+                            )
+                        )
+                        
                     
             with gr.Row():
                 with gr.Accordion(label="Output Options", open=False):
@@ -811,6 +821,9 @@ class LoRAToPrompt(UiTabs):
                 remove_character,
                 save_tmp_images,
                 prompt_generation_max_tries,
+                
+                #
+                merge_adetailer_test
             ]
             save_all_param = gr.Button("Save current parameters", variant="secondary")
 

@@ -6,6 +6,7 @@ import json
 import os
 import re
 import time
+import traceback
 from typing import *
 import gradio as gr
 import random
@@ -62,6 +63,9 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
         self.divine_ratio: list[str]
         self.rp_auto_res: bool
         self.rp_canvas_res: list[tuple[int, int]] = []
+        
+        self.adetailer: bool
+        self.separate_adetailer: bool = True
 
         self.n_of_img = 2140000000
         self.image_skipped = False
@@ -109,13 +113,16 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
                     prompt = await PromptProcessor.gather_from_lora_rnd_prompt(
                         proc_kw=self.processor_prompt_param,
                         max_tries=self.prompt_generation_max_tries,
-                        **current_request_param
+                        **current_request_param,
                     )
-                except notEnoughTag:
-                    self.stdout(f"[Random LoRA] Not enough tags could be gathered with the current LoRA selection. Retrying... ({t+1})")
-                    continue
-                except Exception:
-                    raise 
+                    if len(prompt) == 0:
+                        raise ValueError("No prompt could be generated.")
+                    
+                except Exception as e:
+                    self.stdout(f"[Random LoRA] Not enough tags could be gathered with the current LoRA selection. Retrying... ({t+1}) ({e})")
+                    traceback.print_exc();
+                    continue 
+                
                 prompt_generated = True
                 break
             if not prompt_generated:
@@ -137,6 +144,8 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
             rpp["Regional Prompter"]["args"][3] = random.choice(self.rp_matrix_mode)
             rpp["Regional Prompter"]["args"][6] = random.choice(self.divine_ratio)
             rpp["Regional Prompter"]["args"][11] = self.rp_calculation
+            println(f"[Regional Prompter] Matrix Mode: {rpp['Regional Prompter']['args'][3]}, Divine Ratio: {rpp['Regional Prompter']['args'][6]}, Calculation: {rpp['Regional Prompter']['args'][11]}")
+            
         except (IndexError, KeyError):
             warn(
                 "IndexError or KeyError occurred while updating Regional Prompter parameters."
@@ -148,6 +157,29 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
                 "prompt": ", ".join(prompt),
             }
         )
+        
+        if self.adetailer and not self.separate_adetailer:
+            adp = self.adetailer_param.copy()
+            try:
+                ad_prompt = p.prompt
+                if self.disable_lora_in_adetailer:
+                    ad_prompt = ", ".join(
+                        [
+                            p
+                            for p in ad_prompt.split(",")
+                            if not p.strip() in self.lora_names
+                        ]
+                    )
+                adp["ADetailer"]["args"][2]["ad_prompt"] = ad_prompt
+                adp["ADetailer"]["args"][3]["ad_prompt"] = ad_prompt
+                # adp.update(self.freeu_param)
+            except (IndexError, KeyError):
+                warn(
+                    "IndexError or KeyError occurred while updating ADetailer parameters."
+                )
+            finally:
+                p["alwayson_scripts"].update(adp)
+        
         return p
     
     async def update_prompt_settings(
@@ -257,6 +289,9 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
         remove_character,
         save_tmp_images,
         prompt_generation_max_tries,
+        
+        #
+        merge_adetailer_test: bool,
     ) -> AsyncGenerator[tuple[str, Image.Image], None]:
         self.default_prompt_request_param = setting.request_param().copy()
         
@@ -312,6 +347,9 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
             if adetailer
             else {}
         )
+        self.adetailer = adetailer
+        self.separate_adetailer = not merge_adetailer_test
+        
 
         freeu_preset = (
             [1.3, 1.4, 0.9, 0.2] if preset == "SDXL" else [1.5, 1.6, 0.9, 0.2]
@@ -404,7 +442,7 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
         self.rp_enabled = active_rp
         self.rp_matrix_mode = matrix_split
         self.rp_calculation = rp_calc
-        self.divine_ratio = matrix_divide.split(",")
+        self.divine_ratio = matrix_divide.split(";")
         self.rp_auto_res = matrix_canvas_res_auto
         if self.rp_enabled and not self.rp_auto_res:
             s = []
@@ -478,7 +516,7 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
                 # caption filter
                 p.images = await self.booru_filter(i, p, await p.convert_images(), True, )
 
-                if adetailer:
+                if self.adetailer and self.separate_adetailer:
                     adp = self.adetailer_param
                     try:
                         ad_prompt = p.prompt

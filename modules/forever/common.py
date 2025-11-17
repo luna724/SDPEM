@@ -651,7 +651,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
         self.stdout("Processing image with Booru Filter..")
         to_proc = await self.caption_filter(
             self.booru_model, p,
-            before_adetailer=True
+            before_adetailer=is_early
         )
         await self.booru_model.unload_model()
         self.stdout("Booru Filter processing done.")
@@ -1031,7 +1031,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
                 continue
 
             # blacklist check
-            b = self.booru_blacklist
+            b = opt.booru_blacklist
 
             itms = chain(tags.items(), character_tags.items())
             for tag, _ in itms:

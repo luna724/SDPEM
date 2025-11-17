@@ -66,7 +66,7 @@ class PngInfo(UiTabs):
             inputs=[in_image, clear_image, only_prompt, show_raw],
             outputs=[out_info, in_image]
         )
-        in_image.change(
+        in_image.input(
             fn=read_pnginfo_onchange,
             inputs=[in_image, clear_image, only_prompt, show_raw],
             outputs=[out_info, in_image]
