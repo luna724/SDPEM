@@ -93,7 +93,7 @@ class PromptProcessor:
         if kw is None:
             kw = {}
         try:
-            c = await PromptProcessor.gather_from_lora_rnd_prompt(**kw)
+            c = await PromptProcessor.gather_from_lora_rnd_prompt(proc_kw=kw_p, **kw)
             if test_prompt:
                 return len(c) > 0
         

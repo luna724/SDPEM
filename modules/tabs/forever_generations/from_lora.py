@@ -160,6 +160,18 @@ class LoRAToPrompt(UiTabs):
                                 value=default.remove_character, label="Remove additional character tags",
                             ),
                         )
+                    
+                    blacklist = r(
+                        "blacklist",
+                        gr.Textbox(
+                            label="Instance Blacklist",
+                            placeholder="Enter regex patterns (comma separated)",
+                            value=default.blacklist,
+                            lines=2,
+                            max_lines=5,
+                            info="applied only to that run.",
+                        ),
+                    )
 
                 with gr.Accordion(label="Parameter Settings", open=False):
                     with gr.Row():
@@ -717,7 +729,7 @@ class LoRAToPrompt(UiTabs):
                         lora, header, footer,
                         max_tags, base_chance, add_lora_name,
                         lora_weight, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character,
-                        enable_random_lora, rnd_lora_select_count
+                        enable_random_lora, rnd_lora_select_count, blacklist
                     ],
                 )
                 skip_img.click(fn=instance.skip_image, inputs=[], outputs=[skipped_img])
@@ -821,6 +833,7 @@ class LoRAToPrompt(UiTabs):
                 remove_character,
                 save_tmp_images,
                 prompt_generation_max_tries,
+                blacklist,
                 
                 #
                 merge_adetailer_test

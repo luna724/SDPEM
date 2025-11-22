@@ -186,7 +186,7 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
         self, lora, header, footer,
         tags, random_rate, add_lora_name, lora_weight,
         prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character,
-        enable_random_lora, rnd_lora_selection
+        enable_random_lora, rnd_lora_selection, blacklist: str,
     ):
         if enable_random_lora:
             self.rnd_lora_select_count = min(max(1, rnd_lora_selection), len(lora))
@@ -208,6 +208,7 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
         } | setting.request_param(pop_for_processor=True)
         new_kp = {
             "remove_character": remove_character,
+            "special_blacklist": [re.compile(x.strip(), re.IGNORECASE) for x in blacklist.split(",") if x.strip()],
         }
         self.lora_list = lora
         
@@ -289,6 +290,7 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
         remove_character,
         save_tmp_images,
         prompt_generation_max_tries,
+        blacklist: str,
         
         #
         merge_adetailer_test: bool,
@@ -297,7 +299,7 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
         
         # テスト呼び出し + 必要ならLoRA名取得
         await self.update_prompt_settings(
-            lora, header, footer, max_tags, base_chance, add_lora_name, lora_weight, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character, enable_random_lora, rnd_lora_select_count
+            lora, header, footer, max_tags, base_chance, add_lora_name, lora_weight, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character, enable_random_lora, rnd_lora_select_count, blacklist
         )
         
         if disable_lora_in_adetailer:
