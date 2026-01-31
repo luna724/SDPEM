@@ -14,7 +14,7 @@ from modules.database.logger import GenerationLogger, TagStatsManager
 def example_generation_logging():
     """Example of logging a generation."""
     
-    # Initialize the logger (uses default path: /assets/generation_records.jsonl)
+    # Initialize the logger (uses default path: assets/generation_records.jsonl)
     logger = GenerationLogger()
     
     # Prepare data from a generation
@@ -93,7 +93,7 @@ def example_reading_logs():
 def example_tag_statistics():
     """Example of managing tag statistics."""
     
-    # Initialize the manager (uses default path: /assets/tag_stats/)
+    # Initialize the manager (uses default path: assets/tag_stats/)
     manager = TagStatsManager()
     
     # Load stats for a specific tag

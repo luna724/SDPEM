@@ -15,8 +15,8 @@ from pydantic import BaseModel, Field
 
 # Get project root directory (parent of modules directory)
 _current_file = Path(__file__).resolve()
-_modules_dir = _current_file.parent.parent
-PROJECT_ROOT = _modules_dir.parent
+_database_module_parent = _current_file.parent.parent
+PROJECT_ROOT = _database_module_parent.parent
 
 
 # ================================================================================
@@ -82,6 +82,9 @@ class TagStats(BaseModel):
 class GenerationLogger:
     """Logger for generation records, saves to JSONL format."""
     
+    # Threshold for determining ghost tags (tags detected but not in prompt)
+    GHOST_TAG_THRESHOLD = 0.7
+    
     def __init__(self, records_path: str = "assets/generation_records.jsonl"):
         """
         Initialize GenerationLogger.
@@ -140,10 +143,10 @@ class GenerationLogger:
         prompt_tag_set = set(prompt_tags)
         
         lost = [tag for tag in prompt_tags if tag not in inferred_tag_names]
-        # Ghost tags are those with high confidence (>0.7) that weren't in input
+        # Ghost tags are those with high confidence that weren't in input
         ghost = [
             tag.tag for tag in inferred_tag_objects
-            if tag.tag not in prompt_tag_set and tag.score > 0.7
+            if tag.tag not in prompt_tag_set and tag.score > self.GHOST_TAG_THRESHOLD
         ]
         
         mismatch = MismatchData(lost=lost, ghost=ghost)
@@ -199,6 +202,9 @@ class GenerationLogger:
 
 class TagStatsManager:
     """Manager for tag statistics, saves to individual JSON files."""
+    
+    # Threshold for determining if a tag was detected
+    DETECTION_THRESHOLD = 0.5
     
     def __init__(self, stats_dir: str = "assets/tag_stats"):
         """
@@ -289,8 +295,11 @@ class TagStatsManager:
         Args:
             log: GenerationLog to process
         """
-        # Track which tags were detected
-        detected_tags = {tag.tag for tag in log.inferred_tags if tag.score > 0.5}
+        # Track which tags were detected above threshold
+        detected_tags = {
+            tag.tag for tag in log.inferred_tags 
+            if tag.score > self.DETECTION_THRESHOLD
+        }
         
         # Update stats for each prompt tag
         for tag in log.prompt_tags:
