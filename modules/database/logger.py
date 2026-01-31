@@ -13,6 +13,12 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
+# Get project root directory (parent of modules directory)
+_current_file = Path(__file__).resolve()
+_modules_dir = _current_file.parent.parent
+PROJECT_ROOT = _modules_dir.parent
+
+
 # ================================================================================
 # A. Generation Log Models
 # ================================================================================
@@ -76,14 +82,19 @@ class TagStats(BaseModel):
 class GenerationLogger:
     """Logger for generation records, saves to JSONL format."""
     
-    def __init__(self, records_path: str = "/assets/generation_records.jsonl"):
+    def __init__(self, records_path: str = "assets/generation_records.jsonl"):
         """
         Initialize GenerationLogger.
         
         Args:
-            records_path: Path to JSONL file for storing generation records
+            records_path: Path to JSONL file for storing generation records.
+                         Can be absolute or relative to project root.
         """
-        self.records_path = records_path
+        # Convert to absolute path if relative
+        if not os.path.isabs(records_path):
+            self.records_path = str(PROJECT_ROOT / records_path)
+        else:
+            self.records_path = records_path
         self._ensure_file_exists()
     
     def _ensure_file_exists(self):
@@ -189,14 +200,19 @@ class GenerationLogger:
 class TagStatsManager:
     """Manager for tag statistics, saves to individual JSON files."""
     
-    def __init__(self, stats_dir: str = "/assets/tag_stats"):
+    def __init__(self, stats_dir: str = "assets/tag_stats"):
         """
         Initialize TagStatsManager.
         
         Args:
-            stats_dir: Directory path for storing tag statistics JSON files
+            stats_dir: Directory path for storing tag statistics JSON files.
+                      Can be absolute or relative to project root.
         """
-        self.stats_dir = stats_dir
+        # Convert to absolute path if relative
+        if not os.path.isabs(stats_dir):
+            self.stats_dir = str(PROJECT_ROOT / stats_dir)
+        else:
+            self.stats_dir = stats_dir
         self._ensure_dir_exists()
     
     def _ensure_dir_exists(self):
