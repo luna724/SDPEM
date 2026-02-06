@@ -9,6 +9,8 @@ from logger import *
 from legacy.modules.lora_metadata_util import LoRAMetadataReader
 from safetensors import safe_open
 from modules.utils.prompt import PromptPiece
+from pathlib import Path
+from PIL import Image
 
 LORA_TRIGGER_PATTERN = r"^\<lora\:(.*)?\>$"
 
@@ -16,6 +18,7 @@ class LoRAMetadataReader:
     def __init__(self, fp):
         self.loadable = False
         self.fp = fp
+        self.fn = os.path.basename(fp)
         self.metadata = {}
         try:
             with safe_open(os.path.abspath(fp), framework="pt") as f:
@@ -58,7 +61,10 @@ class LoRAMetadataReader:
 
     def get_output_name(self, blank=None):
         metadata = self.metadata or {}
-        output_name = metadata.get("ss_output_name", blank)
+        output_name = metadata.get("ss_output_name", None)
+        if output_name is None:
+            output_name = op.splitext(self.fn)[0]
+        
         println(f"Detected lora trigger: {output_name}")
         return output_name
 
@@ -120,6 +126,25 @@ async def find_lora(lora_name: str, allow_none: bool = True) -> Optional[str | o
     if not allow_none and not os.path.exists(lp):
         raise FileNotFoundError(f"LoRA '{lora_name}' not found at {lp}")
     return lp if os.path.exists(lp) else None
+
+async def extract_external_lora_meta(lora_path: str) -> dict:
+    r = Path(lora_path).parent
+    fn = Path(lora_path).stem
+    p = r / f"{fn}.json"
+    img = r / f"{fn}.png"
+    
+    if p.exists():
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if img.exists():
+                    data["image"] = Image.open(img.resolve()).convert("RGBA")
+                
+                return data
+        except Exception as e:
+            critical(f"Error reading external LoRA metadata from {p}: {e}")
+            traceback.print_exc()
+    return {}
 
 
 async def get_tag_freq_from_lora(lora_name: str, test_frequency: bool = False) -> tuple[dict[str, int]]:

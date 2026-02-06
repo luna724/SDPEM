@@ -5,8 +5,11 @@ gradio==4.44.1
 starlette
 httpx
 pyjson5
-onnxruntime
+onnxruntime-gpu
 pillow
 numpy
 requests
 tensorflow
+pandas
+pyarrow
+zstandard

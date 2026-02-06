@@ -7,6 +7,17 @@ from modules.onnx_runtime import OnnxRuntime
 import shared
 
 class OnnxRuntimeTagger(OnnxRuntime):
+  @staticmethod
+  def find(model_path):
+    return next(
+        (
+            x["path"]
+            for x in shared.models["wd-tagger"]
+            if x["display_name"] == model_path
+        ),
+        model_path,
+    )
+  
   def __init__(self, model_path: str, find_path: bool = True):
     if find_path:
       model_path = next(
@@ -24,8 +35,8 @@ class OnnxRuntimeTagger(OnnxRuntime):
     self.general_indexes = []
     self.character_indexes = []
     
-  async def load_model(self, *args, **kw):
-    raise NotImplementedError("Tagger RuntimeはCUDAでのみ動作します.")
+  # async def load_model(self, *args, **kw):
+  #   raise NotImplementedError("Tagger RuntimeはCUDAでのみ動作します.")
   
   def load_labels(self) -> list[str]:
     """
@@ -73,7 +84,7 @@ class OnnxRuntimeTagger(OnnxRuntime):
     character_indexes = list(np.where(dataframe["category"] == 4)[0])
     return tag_names, rating_indexes, general_indexes, character_indexes # type: ignore
   
-  async def load_model_cuda(self) -> bool:
+  def load_label(self):
     tags = self.load_labels()
     self.tags = tags[0]
     self.rating_indexes = tags[1]
@@ -81,7 +92,13 @@ class OnnxRuntimeTagger(OnnxRuntime):
     self.character_indexes = tags[3]
     println(f"Loaded label {self.model_name} with {len(self.tags)} tags.")
     
-    return await super().load_model_cuda()
+  async def load_model(self) -> bool:
+    self.load_label()
+    return await super().load_model()
+  
+  async def load_model_cuda(self, allow_fallback: bool = True) -> bool:
+    self.load_label()
+    return await super().load_model_cuda(allow_fallback=allow_fallback)
   
   def get_model_size(self) -> int:
     """モデル内にある height の値を返す"""
@@ -173,3 +190,5 @@ class OnnxRuntimeTagger(OnnxRuntime):
       character_res,
       rating,
     ) # type: ignore
+
+sharedRuntime:OnnxRuntimeTagger = None
