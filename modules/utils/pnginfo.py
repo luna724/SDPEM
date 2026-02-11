@@ -12,7 +12,7 @@ def make_info(
 
 async def read_pnginfo(
         img: Image.Image,
-        clear_image: bool, only_prompt: bool, show_raw: bool
+        clear_image: bool = False, only_prompt: bool = False, show_raw: bool = False
     ) -> tuple[str, Image.Image|None]:
     if img is None: raise gr.Error("No image provided")
     if not hasattr(img, "info"):

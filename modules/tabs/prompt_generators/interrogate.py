@@ -3,7 +3,7 @@ import gradio as gr
 from utils import *
 import shared
 
-from modules.tagger.predictor import OnnxRuntimeTagger as WDTaggerPredictor
+from modules.tagger.predictor import OnnxRuntimeTagger as WDTaggerPredictor, sharedRuntime
 
 
 class Interrogate(UiTabs):
@@ -27,13 +27,15 @@ class Interrogate(UiTabs):
                         ),
                         None,
                     )
-                    instance = WDTaggerPredictor(model_path=model_path, find_path=False)
+                    if sharedRuntime is None or sharedRuntime.model_path != model_path:
+                        sharedRuntime = WDTaggerPredictor(model_path=model_path, find_path=False)
                     println("Loading WD-Tagger model into CUDA..")
-                    await instance.load_model_cuda()
+                    await sharedRuntime.load_model_cuda()
                     println("WD-Tagger model loaded successfully.")
-                    general, character, rating = await instance.predict(
+                    general, character, rating = await sharedRuntime.predict(
                         img, threshold=thres, character_threshold=c_thres
                     )
+                    await sharedRuntime.unload_model()
                     output_string = ", ".join(
                         [
                             x[0]

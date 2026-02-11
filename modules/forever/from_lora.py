@@ -262,6 +262,7 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
         save_metadata,
         save_infotext,
         booru_filter_enable,
+        booru_use_shared,
         booru_model,
         active_rp,
         rp_mode,
@@ -425,7 +426,7 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
             if timer is None:
                 raise gr.Error("Timer is not set. Please enable stop mode.")
 
-        await self.prepare_caption_model(booru_filter_enable, booru_model)
+        await self.prepare_caption_model(booru_filter_enable, booru_model, booru_use_shared)
 
         self.early_booru_filter = True
         self.booru_filter_enabled = booru_filter_enable

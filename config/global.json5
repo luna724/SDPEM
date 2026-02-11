@@ -1,1 +1,1 @@
-{"db_dir":"I:\\SDPEM\\assets\\db","save_booru_out":true,"calc_diff_on_save":true,"log_discriminator":true,"save_image_path":true,"embed_pnginfo":true,"booru_online_ram":2048,"booru_cuda_inference_memory_limit":2048,"booru_device":"cuda"}
+{"db_dir":"I:\\SDPEM\\assets\\db","save_booru_out":true,"booru_threshold":0.5,"calc_diff_on_save":true,"log_discriminator":true,"save_image_path":true,"embed_pnginfo":true,"booru_cuda_inference_memory_limit":0,"booru_device":"cuda","api_path":"/api","a1111_url":"http://localhost:7860","a1111_health_check_path":"/docs"}

@@ -6,17 +6,21 @@ from typing import Literal
 
 class GlobalConfig(BaseModel):
   # /config/global.json5
-  db_dir: str = Field(default="./assets/db")
+  db_dir: str = Field(default="./models/db")
   save_booru_out: bool = Field(default=True)
+  booru_threshold: float = Field(default=0.5)
   calc_diff_on_save: bool = Field(default=True)
   log_discriminator: bool = Field(default=True)
   save_image_path: bool = Field(default=True)
   
   embed_pnginfo: bool = Field(default=True)
 
-  booru_online_ram: int = Field(default=2048) # MB 
-  booru_cuda_inference_memory_limit: int = Field(default=2048) # MB
-  booru_device: Literal["cuda", "cpu"] = Field(default="cuda")
+  booru_cuda_inference_memory_limit: int = Field(default=0) # MB
+  booru_device: Literal["cuda", "cpu"] = Field(default="cpu")
+  
+  api_path: str = "/api"
+  a1111_url: str = "http://localhost:7860"
+  a1111_health_check_path: str = "/docs"
 
 def save_gconf(c: GlobalConfig):
   with open("config/global.json5", "w", encoding="utf-8") as f:

@@ -402,20 +402,30 @@ class LoRAToPrompt(UiTabs):
                         )
                     
                     with gr.Row():
-                        booru_filter_enable = r(
-                            "booru_filter_enable",
-                            gr.Checkbox(
-                                value=default.booru_filter_enable,
-                                label="Enable Caption Filter",
-                            ),
-                        )
+                        with gr.Column():
+                            booru_filter_enable = r(
+                                "booru_filter_enable",
+                                gr.Checkbox(
+                                    value=default.booru_filter_enable,
+                                    label="Enable Caption Filter",
+                                ),
+                            )
+                            booru_use_shared = r(
+                                "booru_use_shared",
+                                gr.Checkbox(
+                                    value=default.booru_use_shared,
+                                    label="Use Shared Instance",
+                                    info="Use shared instance for VRAM saving"
+                                ),
+                            )
+                        
                         booru_model = r(
                             "booru_model",
                             gr.Dropdown(
                                 choices=[
                                     x["display_name"]
                                     for x in shared.models["wd-tagger"]
-                                ],  # TODO: wd以外のtaggerからも取得するように
+                                ],
                                 value=default.booru_model,
                                 label="Tagger Model",
                             ),
@@ -805,6 +815,7 @@ class LoRAToPrompt(UiTabs):
                 save_metadata,
                 save_infotext,
                 booru_filter_enable,
+                booru_use_shared,
                 booru_model,
                 active_rp,
                 rp_mode,

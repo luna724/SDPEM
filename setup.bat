@@ -1,9 +1,8 @@
 python -m venv .venv
 call .venv\Scripts\activate.bat
 
+pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt
-
-rem ifnude などの依存関係で再インストールされた onnxruntime (CPU版) を再度削除
 pip uninstall -y onnxruntime
 
 python setup.py

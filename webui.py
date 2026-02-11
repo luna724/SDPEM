@@ -9,6 +9,7 @@ import asyncio
 import inspect
 import abc
 
+from modules.utils.health import HealthChecker
 from utils import println, critical
 
 
@@ -206,7 +207,7 @@ async def launch(args=None) -> None:
     os.makedirs("./config", exist_ok=True)
     
     level = logging.INFO
-    if args.debug is True: level = logging.DEBUG
+    if args and args.debug is True: level = logging.DEBUG
     logger.setup_logger("SDPEM", level)
     
     go_web = False
@@ -218,18 +219,28 @@ async def launch(args=None) -> None:
 
     shared.pem_api += str(shared.pem_api_port)
     from init_model import init_models
+    from modules.utils import health
     
-    
+    tasks = []
     init_models()
+    
     register_apps()
-    t = asyncio.create_task(
-        asyncio.to_thread(
-            uvicorn.run,
-            app=shared.app,
-            host="127.0.0.1",
-            port=shared.pem_api_port,
-            log_level="info",
-            timeout_keep_alive=120,
+    tasks.append(
+        asyncio.create_task(
+            asyncio.to_thread(
+                uvicorn.run,
+                app=shared.app,
+                host="127.0.0.1",
+                port=shared.pem_api_port,
+                log_level="info",
+                timeout_keep_alive=120,
+            )
+        )
+    )
+    
+    tasks.append(
+        asyncio.create_task(
+            health.a1111.checker()
         )
     )
     
@@ -245,7 +256,8 @@ async def launch(args=None) -> None:
         traceback.print_exc()
         
     finally:
-        t.cancel()
+        for t in tasks:
+            t.cancel()
     return
 
 

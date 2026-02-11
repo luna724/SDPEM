@@ -13,7 +13,7 @@ from PIL import Image, PngImagePlugin
 
 from modules.adetailer import ADetailerAPI, ADetailerResult
 from modules.generate import GenerationProgress, GenerationResult, Txt2imgAPI
-from modules.tagger.predictor import OnnxRuntimeTagger
+from modules.tagger.predictor import OnnxRuntimeTagger, sharedRuntime
 from modules.utils.pnginfo import make_info
 from modules.utils.state import StateManager
 from modules.utils.timer import TimerInstance
@@ -22,6 +22,7 @@ from modules.forever_generation import ForeverGeneration, ForeverGenerationRespo
 from modules.prompt_setting import setting
 from modules.booru_filter import BooruOptions, booru_filter
 from modules.utils.lora_util import is_lora_trigger
+from modules.utils.tagger import get_rating
 
 import shared
 from logger import println, debug, warn, error, critical
@@ -474,11 +475,15 @@ class ForeverGenerationTemplate(ForeverGeneration):
     
     async def prepare_caption_model(
         self,
-        booru_filter_enable: bool, booru_model: str,
+        booru_filter_enable: bool, booru_model: str, booru_use_shared: bool,
         **kwargs
     ):
-        caption: OnnxRuntimeTagger = None
-        if booru_filter_enable:
+        if booru_use_shared:
+            caption = sharedRuntime
+        else:
+            caption: OnnxRuntimeTagger = None
+        
+        if booru_filter_enable and caption is None:
             caption = OnnxRuntimeTagger(model_path=booru_model, find_path=True)
             self.stdout(f"[Booru] Caption model loaded. ({booru_model})")
             
@@ -995,37 +1000,29 @@ class ForeverGenerationTemplate(ForeverGeneration):
                 character_threshold=opt.booru_character_threshold,
             )
 
-            rate: str = max(rating, key=rating.get, default="general")
-            general_rate: float = rating.get("general", 0)
-            sensitive_rate: float = rating.get("sensitive", 0)
-            questionable_rate: float = rating.get("questionable", 0)
-            explicit_rate: float = rating.get("explicit", 0)
             txtprompt = ", ".join(
-                        [
-                            x[0]
-                            for x in sorted(
-                                tags.items(), key=lambda x: x[1], reverse=True
-                            )
-                        ]
-                    )
+                    [
+                        x[0]
+                        for x in sorted(
+                            tags.items(), key=lambda x: x[1], reverse=True
+                        )
+                    ]
+                )
             self.stdout(
                 f"[Caption]: output: {txtprompt}"
             )
             
-            if (
-                general_rate == 0
-                and sensitive_rate == 0
-                and questionable_rate == 0
-                and explicit_rate == 0
-            ):
+            rate, rate_thres, r_info = get_rating(rating, opt.booru_ignore_questionable)
+            if rate == "?":
                 self.stdout("No rating found in the image.")
-                questionable_rate = 1
-
-            if opt.booru_ignore_questionable and rate == "questionable":
-                d = rating.copy()
-                d.pop("questionable", None)
-                rate = max(d, key=d.get, default="general")
-                self.stdout(f"Ignoring questionable rating. (questionable -> {rate})")
+                rate = "questionable"
+                rate_thres = 1.0
+            
+            if r_info:
+                self.stdout(
+                    f"[Caption]: Ignored {r_info[0]} rating: ({r_info[0]}({r_info[1]}) -> {rate}({rate_thres}))"
+                )
+            
             if not rate in opt.booru_allow_rating and not opt.booru_save_each_rate:
                 save_blacklisted_image(img, rate)
                 continue

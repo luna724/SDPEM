@@ -79,6 +79,8 @@ def init_character_models():
     rsp = requests.get(data_url, timeout=180, headers={ 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
     if rsp.status_code == 200:
         data = rsp.json()
+        debug(f"waidb characters size: {len(bytes(data))} with {len(data['proj'])} characters")
+        debug(f"proj infom: {data['proj'][0].keys()}")
         data["proj"] = [
             {
                 "kv": k["kv"],

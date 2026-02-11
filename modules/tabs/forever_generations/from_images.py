@@ -13,7 +13,7 @@ from utils import *
 from pathlib import Path
 
 
-class LoRAToPrompt(UiTabs):
+class ImageToPrompt(UiTabs):
     def title(self) -> str:
         return "from Image"
 
@@ -376,13 +376,23 @@ class LoRAToPrompt(UiTabs):
                             )
                         )
                     with gr.Row():
-                        booru_filter_enable = r(
-                            "booru_filter_enable",
-                            gr.Checkbox(
-                                value=default.booru_filter_enable,
-                                label="Enable Caption Filter",
-                            ),
-                        )
+                        with gr.Column():
+                            booru_filter_enable = r(
+                                "booru_filter_enable",
+                                gr.Checkbox(
+                                    value=default.booru_filter_enable,
+                                    label="Enable Caption Filter",
+                                ),
+                            )
+                            booru_use_shared = r(
+                                "booru_use_shared",
+                                gr.Checkbox(
+                                    value=default.booru_use_shared,
+                                    label="Use Shared Instance",
+                                    info="Use shared instance for VRAM saving"
+                                ),
+                            )
+                        
                         booru_model = r(
                             "booru_model",
                             gr.Dropdown(
@@ -615,6 +625,7 @@ class LoRAToPrompt(UiTabs):
                 save_metadata,
                 save_infotext,
                 booru_filter_enable,
+                booru_use_shared,
                 booru_model,
                 enable_neveroom_unet,
                 enable_neveroom_vae,

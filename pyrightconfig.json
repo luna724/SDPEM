@@ -1,0 +1,6 @@
+{
+  "reportOptionalMemberAccess": "warning",
+  "reportAssignmentType": "information",
+  "reportGeneralTypeIssues": false,
+  "typeCheckingMode": "off"
+}

@@ -202,6 +202,7 @@ class ForeverGenerationFromImages(ForeverGenerationTemplate):
         save_metadata,
         save_infotext,
         booru_filter_enable,
+        booru_use_shared,
         booru_model,
         enable_neveroom_unet,
         enable_neveroom_vae,

@@ -5,6 +5,7 @@ from modules.utils.memory import get_current_ram_mb
 from modules.config import get_config
 import os
 import asyncio
+import torch
 import onnxruntime as ort
 config = get_config()
 
@@ -23,9 +24,17 @@ class OnnxRuntime:
     return await asyncio.to_thread(ort.InferenceSession, path, **kw)
   
   async def load_model(self) -> bool:
+    if config.booru_device == "cuda":
+      return await self.load_model_cuda()
+    else:
+      return await self.load_model_cpu()
+  
+  async def load_model_cpu(self) -> bool:
     """
     モデルをCPUにロードする
     """
+    if self.on_device == "cpu": return True
+    
     await self.unload_model()
     try:
       bef = get_current_ram_mb()
@@ -42,27 +51,27 @@ class OnnxRuntime:
     """
     モデルをCUDAにロードする
     """
+    if self.on_device == "cuda": return True
+    
     await self.unload_model()
     try:
-      if config.booru_cuda_inference_memory_limit <= 0:
-        pv = ["CUDAExecutionProvider"] 
-      else:
-        pv = [
-          ("CUDAExecutionProvider", {
-              "device_id": 0,
-              "gpu_mem_limit": config.booru_cuda_inference_memory_limit * 1024 * 1024,
-              "arena_extend_strategy": "kNextPowerOfTwo",
-          })]
-        self.model_size = config.booru_cuda_inference_memory_limit
+      pv = {
+            "device_id": 0,
+            "arena_extend_strategy": "kSameAsRequested",
+            "do_copy_in_default_stream": False,
+        }
+      self.model_size = config.booru_cuda_inference_memory_limit
+      if config.booru_cuda_inference_memory_limit >= 0:
+        pv["gpu_mem_limit"] = int(config.booru_cuda_inference_memory_limit * 1024 * 1024)
       
-      self.session = await self.load_with_async(self.model_path, providers=pv)
+      self.session = await self.load_with_async(self.model_path, providers=[("CUDAExecutionProvider", pv)])
       self.on_device = "cuda"
       return True
     except Exception as e:
       critical(f"Failed to load ONNX model with CUDA from {self.model_path}: {e}")
       traceback.print_exc()
       if allow_fallback:
-        return await self.load_model()
+        return await self.load_model_cpu()
       return False
     
   async def unload_model(self):

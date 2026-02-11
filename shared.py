@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from typing import Optional, Dict, Any
 from utils import warn, update_enviroments
 import httpx
-import os
 
 app = FastAPI()
 env: Dict[str, Any] = update_enviroments()

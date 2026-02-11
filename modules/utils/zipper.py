@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import pandas as pd
 import base64
 from io import BytesIO
+from modules.utils.prompt import Prompt
 
 @dataclass
 class PromptScore:
@@ -27,6 +28,11 @@ class Scores:
     buf = BytesIO(decoded)
     df = pd.read_parquet(buf, engine="pyarrow")
     return [PromptScore(tag=t, score=s) for t, s in zip(df['tag'], df['score'])]
+
+  @staticmethod
+  def from_dict(data: dict[str, float]) -> list['PromptScore']:
+    return [PromptScore(tag=t, score=float(s)) for t, s in data.items()]
+
 
 @dataclass
 class BooruResult:
