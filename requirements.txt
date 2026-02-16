@@ -13,3 +13,6 @@ pandas
 pyarrow
 zstandard
 onnxruntime-gpu
+tkfilebrowser
+# req by: tkfilebrowser
+pywin32

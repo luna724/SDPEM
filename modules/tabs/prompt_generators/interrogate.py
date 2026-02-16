@@ -11,7 +11,7 @@ class Interrogate(UiTabs):
         return "Interrogate"
 
     def index(self) -> int:
-        return 1
+        return 2
 
     def ui(self, outlet):
         with gr.Tabs():

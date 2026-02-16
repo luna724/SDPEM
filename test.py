@@ -14,12 +14,12 @@ async def setup():
 if __name__ == "__main__":
   # asyncio.run(setup())
 
-  from modules.database.inference import load_default_engine
+  from modules.calculator.inference import load_default_engine
 
   engine = load_default_engine()
   prompt = engine.generate_prompt_text(
     ["1girl", "<lora:Tentacles_Rape_XL:-1>", "tentacles", "smile"],
-    temperature=0.4,
+    temperature=0.7,
     top_k=15,
     similarity_threshold=0.7,
   )

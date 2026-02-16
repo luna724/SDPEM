@@ -6,7 +6,8 @@ from modules.forever.from_images import ForeverGenerationFromImages
 from modules.utils.browse import select_folder
 from modules.utils.ui.register import RegisterComponent
 from modules.utils.lora_util import list_lora_with_tags
-from modules.api.v1.items import sdapi
+# from modules.api.v1.items import sdapi
+from modules.sd_param import get_sampler, get_scheduler
 from webui import UiTabs
 from typing import Callable
 from utils import *
@@ -203,7 +204,7 @@ class ImageToPrompt(UiTabs):
                         s_method = r(
                             "s_method",
                             gr.Dropdown(
-                                choices=(await sdapi.get_samplers())[0],
+                                choices=await get_sampler(),
                                 label="Sampling Methods",
                                 value=default.s_method,
                                 multiselect=True,
@@ -213,7 +214,7 @@ class ImageToPrompt(UiTabs):
                         scheduler = r(
                             "scheduler",
                             gr.Dropdown(
-                                choices=(await sdapi.get_schedulers())[0],
+                                choices=await get_scheduler(),
                                 label="Scheduler",
                                 value=default.scheduler,
                                 multiselect=True,

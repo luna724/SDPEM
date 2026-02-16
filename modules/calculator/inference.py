@@ -1,14 +1,16 @@
+import json
 import math
 import random
 import re
 from pathlib import Path
+from typing import Literal
 
 from logger import warn
-from modules.database.conflict import ConflictMap
-from modules.database.lora_asc import LoRAAssociation
-from modules.database.matrix import CooccurrenceMatrix, is_lora_trigger
-from modules.database.preprocessing import PreProcessor
-from modules.database.similarity import SimilarityMatrix
+from modules.calculator.conflict import ConflictMap
+from modules.calculator.lora_asc import LoRAAssociation
+from modules.calculator.matrix import CooccurrenceMatrix, is_lora_trigger
+from modules.calculator.preprocessing import PreProcessor
+from modules.calculator.similarity import SimilarityMatrix
 
 
 class PromptInferenceEngine:
@@ -16,21 +18,17 @@ class PromptInferenceEngine:
 
   def __init__(self, data_dir: str | Path = "data"):
     self.data_dir = Path(data_dir)
-    self.matrix_path = self.data_dir / "prompt_cooccurrence.json"
-    self.conflict_path = self.data_dir / "conflict_map.json"
+    if not self.data_dir.exists():
+      raise FileNotFoundError(f"data directory not found at {self.data_dir}; run training first")
 
-    self.matrix = CooccurrenceMatrix.from_file(self.matrix_path)
-    self.conflict = self._load_conflicts()
+    with open(self.data_dir, "r", encoding="utf-8") as f:
+      data = json.load(f)
+    
+    self.matrix = CooccurrenceMatrix.from_file(data["matrix"])
+    self.conflict = ConflictMap.from_file(data["conflict"])
     self.similarity = SimilarityMatrix.from_cooccurrence_matrix(self.matrix)
     self.lora = LoRAAssociation(self.matrix)
-
-  def _load_conflicts(self) -> ConflictMap:
-    try:
-      return ConflictMap.from_file(self.conflict_path)
-    except FileNotFoundError:
-      warn(f"[PromptInference] conflict map missing at {self.conflict_path}, using empty map")
-      return ConflictMap()
-
+    
   @staticmethod
   def _normalize_tag(tag: str) -> str | None:
     norm = tag.strip()
@@ -75,11 +73,28 @@ class PromptInferenceEngine:
 
     return adjusted
 
-  def _filter_conflicts(self, candidates: dict[str, float], current: set[str]) -> dict[str, float]:
+  def _apply_rating_bias(self, candidates: dict[str, float], target_rating: str, force_rating: float, strength: float) -> dict[str, float]:
+    if not candidates or strength <= 0:
+      return candidates
+
+    biased: dict[str, float] = {}
+
+    for tag, score in candidates.items():
+      rating_prob = self.matrix.rating_matrix.get(tag, {}).get(str(target_rating), 0.0)
+      multiplier = 1.0 + (rating_prob - force_rating) * strength
+      biased[tag] = score * multiplier
+
+    return biased
+
+  def _filter_conflicts(self, candidates: dict[str, float], current: set[str], negatives: set[str]) -> dict[str, float]:
     filtered: dict[str, float] = {}
 
     for tag, score in candidates.items():
+      if tag in negatives:
+        continue
       if self.conflict.has_conflict(current, tag):
+        continue
+      if self.conflict.has_conflict(negatives, tag):
         continue
       filtered[tag] = score
 
@@ -90,6 +105,54 @@ class PromptInferenceEngine:
       if self.similarity.calculate_similarity(tag, existing) >= threshold:
         return True
     return False
+
+  def _apply_negative_penalty(
+    self,
+    candidates: dict[str, float],
+    negatives: set[str],
+    strength: float,
+    threshold: float,
+  ) -> dict[str, float]:
+    if not candidates or not negatives:
+      return candidates
+
+    adjusted: dict[str, float] = {}
+
+    for tag, score in candidates.items():
+      if tag in negatives:
+        continue
+
+      # 3. 高速化: 共通するネガティブタグだけを抽出 (Set Intersection)
+      # ループ回数を劇的に減らせる
+      common_negatives = negatives.intersection(self.matrix.matrix.get(tag, {}).keys())
+      
+      if not common_negatives:
+        # ネガティブ要素との関連が一切なければスコアはそのまま
+        adjusted[tag] = score
+        continue
+
+      max_pmi = 0.0
+      for neg in common_negatives:
+        pmi = self.matrix.matrix.get(tag, {}).get(neg, 0.0)
+        max_pmi = max(max_pmi, pmi)
+
+      if max_pmi < threshold:
+        adjusted[tag] = score
+        continue
+
+      if strength == float("inf"):
+        if max_pmi > 0:
+          continue
+        penalty = 1.0
+      else:
+        penalty = 1.0 + max(0.0, max_pmi) * strength
+
+      if not math.isfinite(penalty) or penalty <= 0:
+        continue
+
+      adjusted[tag] = score / penalty
+
+    return adjusted
 
   def _sample_candidates(
     self,
@@ -110,7 +173,16 @@ class PromptInferenceEngine:
       tags = list(pool.keys())
       scores = list(pool.values())
       max_score = max(scores)
-      weights = [math.exp((s - max_score) / temp) for s in scores]
+      weight_pairs = []
+      for tag, score in zip(tags, scores):
+        w = math.exp((score - max_score) / temp)
+        if math.isfinite(w) and w > 0:
+          weight_pairs.append((tag, w))
+
+      if not weight_pairs:
+        break
+
+      tags, weights = zip(*weight_pairs)
 
       choice = random.choices(tags, weights=weights, k=1)[0]
 
@@ -150,10 +222,18 @@ class PromptInferenceEngine:
   def generate_prompt(
     self,
     init_tags: list[str],
+    init_negatives: list[str] = ["worst quality", "1boy"],
     temperature: float = 1.0,
     top_k: int = 10,
     similarity_threshold: float = 0.7,
+    target_rating: Literal["general", "sensitive", "explicit"] = "general",
+    rating_strength: float = 1.0,
+    force_rating: float = 0.0,
+    negative_strength: float = float("inf"),
+    negative_threshold: float = 0.05,
+    append_always_tags: bool = True,
   ) -> list[str]:
+    original_init = list(dict.fromkeys(init_tags))
     active_loras: dict[str, float] = {}
     for t in init_tags:
       if not is_lora_trigger(t):
@@ -164,19 +244,36 @@ class PromptInferenceEngine:
       active_loras[norm] = self.get_lora_weight(t)
 
     normalized = PreProcessor.seprompt(init_tags)
+    negative_tags = PreProcessor.seprompt(init_negatives)
+    negative_set = set(negative_tags)
 
     if not normalized or len(normalized) == 0:
       return []
 
     base_set = list(dict.fromkeys(normalized))
 
-    for tag in self.matrix.always_tag:
-      if tag not in base_set and not self.conflict.has_conflict(set(base_set), tag):
-        base_set.append(tag)
+    always_added: list[str] = []
+    if append_always_tags:
+      for tag in self.matrix.always_tag:
+        if tag not in base_set and not self.conflict.has_conflict(set(base_set), tag):
+          base_set.append(tag)
+          always_added.append(tag)
 
     candidate_scores = self._collect_candidates(set(base_set), max(1, top_k))
     candidate_scores = self._apply_lora_boost(candidate_scores, active_loras)
-    candidate_scores = self._filter_conflicts(candidate_scores, set(base_set))
+    candidate_scores = self._apply_rating_bias(
+      candidate_scores,
+      target_rating,
+      force_rating,
+      rating_strength,
+    )
+    candidate_scores = self._apply_negative_penalty(
+      candidate_scores,
+      negative_set,
+      negative_strength,
+      negative_threshold,
+    )
+    candidate_scores = self._filter_conflicts(candidate_scores, set(base_set), negative_set)
 
     picks = self._sample_candidates(
       candidate_scores,
@@ -186,16 +283,34 @@ class PromptInferenceEngine:
       similarity_threshold=similarity_threshold,
     )
 
-    return base_set + picks
+    combined = original_init + always_added + picks
+    return combined
 
   def generate_prompt_text(
     self,
     init_tags: list[str],
+    init_negatives: list[str] = ["worst quality", "1boy"],
     temperature: float = 1.0,
     top_k: int = 10,
     similarity_threshold: float = 0.7,
+    target_rating: Literal["general", "sensitive", "explicit"] = "general",
+    rating_strength: float = 1.0,
+    force_rating: float = 0.0,
+    negative_strength: float = float("inf"),
+    negative_threshold: float = 0.05,
   ) -> str:
-    tags = self.generate_prompt(init_tags, temperature, top_k, similarity_threshold)
+    tags = self.generate_prompt(
+      init_tags,
+      init_negatives=init_negatives,
+      temperature=temperature,
+      top_k=top_k,
+      similarity_threshold=similarity_threshold,
+      target_rating=target_rating,
+      rating_strength=rating_strength,
+      force_rating=force_rating,
+      negative_strength=negative_strength,
+      negative_threshold=negative_threshold,
+    )
     return ", ".join(tags)
 
 

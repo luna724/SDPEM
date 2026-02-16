@@ -2,7 +2,8 @@ from modules.forever.from_lora import ForeverGenerationFromLoRA
 from modules.utils.browse import select_folder
 from modules.utils.ui.register import RegisterComponent
 from modules.utils.lora_util import list_lora_with_tags
-from modules.api.v1.items import sdapi
+# from modules.api.v1.items import sdapi
+from modules.sd_param import get_sampler, get_scheduler
 from webui import UiTabs
 import gradio as gr
 import os
@@ -178,7 +179,7 @@ class LoRAToPrompt(UiTabs):
                         s_method = r(
                             "s_method",
                             gr.Dropdown(
-                                choices=(await sdapi.get_samplers())[0],
+                                choices=await get_sampler(),
                                 label="Sampling Methods",
                                 value=default.s_method,
                                 multiselect=True,
@@ -188,7 +189,7 @@ class LoRAToPrompt(UiTabs):
                         scheduler = r(
                             "scheduler",
                             gr.Dropdown(
-                                choices=(await sdapi.get_schedulers())[0],
+                                choices=await get_scheduler(),
                                 label="Scheduler",
                                 value=default.scheduler,
                                 multiselect=True,
@@ -849,6 +850,11 @@ class LoRAToPrompt(UiTabs):
                 #
                 merge_adetailer_test
             ]
+            
+            with gr.Group():
+                preset_name = gr.Dropdown(
+                    
+                )
             save_all_param = gr.Button("Save current parameters", variant="secondary")
 
             generate.click(

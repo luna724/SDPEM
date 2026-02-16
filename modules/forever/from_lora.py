@@ -98,7 +98,7 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
         def select_lora() -> list[str]:
             current_lora = self.lora_list
             if self.enable_random_lora and len(self.lora_list) >= self.rnd_lora_select_count:
-                current_lora = random.choices(self.lora_list, k=self.rnd_lora_select_count)
+                current_lora = random.sample(self.lora_list, k=self.rnd_lora_select_count)
                 self.stdout(f"[Random LoRA] Selected: {current_lora}")
             return current_lora
         

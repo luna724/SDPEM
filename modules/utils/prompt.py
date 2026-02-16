@@ -9,7 +9,10 @@ def separate_prompt(prompt: str) -> list[str]:
         for x in prompt.split(",")
     ]
 
-def combine_prompt(prompt: list[str]) -> str:
+def combine_prompt(*prompts: list[str]) -> str:
+    prompt = []
+    for p in prompts:
+        prompt.extend(p)
     return ", ".join(prompt)
 
 _SPECIAL_WEIGHT_PREFIXES = ("lbw", "stop", "start")

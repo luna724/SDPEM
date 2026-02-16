@@ -65,10 +65,13 @@ class CooccurrenceMatrix:
             return 0.0
 
     @classmethod
-    def from_file(cls, path: Path) -> "CooccurrenceMatrix":
+    def from_file(cls, path: Path | dict) -> "CooccurrenceMatrix":
         """Load matrix from JSON file"""
-        with open(path, "r", encoding="utf-8") as f:
-          data = json.load(f)
+        if isinstance(path, dict):
+          data = path
+        else:
+          with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
         return cls(
             matrix=data.get("matrix", {}),
             counts=data.get("counts", {}),
@@ -79,12 +82,9 @@ class CooccurrenceMatrix:
             lora_conflict_matrix=data.get("lora_conflict_matrix", {})
         )
 
-    def to_file(self, path: Path) -> None:
+    def to_file(self, path: Path, build_data: bool = False) -> None:
         """Save matrix to JSON file"""
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(
-              {
+        data = {
                 "matrix": self.matrix,
                 "counts": self.counts,
                 "lora_matrix": self.lora_matrix,
@@ -92,7 +92,13 @@ class CooccurrenceMatrix:
                 "always_tag": self.always_tag,
                 "lora_similarity_matrix": self.lora_similarity_matrix,
                 "lora_conflict_matrix": self.lora_conflict_matrix
-              }, 
+            }
+        if build_data: return data
+        
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(
+              data, 
               f, ensure_ascii=False, indent=2
             )
     

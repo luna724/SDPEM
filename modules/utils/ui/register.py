@@ -43,6 +43,15 @@ class RegisterComponent:
     self.ordered_components[order] = [key, c]
     return c
   
+  def to_dict(self, *values):
+    return dict(
+      zip(
+        self.components.keys(),
+        values
+      )
+    )
+    # values = {k: v for k, v in values.items() if k not in dont_saves}
+  
   def insta_save(self, *values):
     """btn.click(fn=insta_save, inputs=[this.values()]) で使用可能"""
     self.save(values)

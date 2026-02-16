@@ -18,7 +18,7 @@ import math
 import json
 from pathlib import Path
 
-from modules.database.matrix import CooccurrenceMatrix
+from modules.calculator.matrix import CooccurrenceMatrix
 
 
 @dataclass
@@ -456,6 +456,11 @@ class ConflictMap:
             for tag, conflict_list in conflicts.items():
                 self.conflicts[tag] = set(conflict_list)
 
+    def copy(self) -> 'ConflictMap':
+      return ConflictMap(
+        conflicts={tag: conflicts.copy() for tag, conflicts in self.conflicts.items()}
+      )
+
     @classmethod
     def from_file(cls, path: Path) -> 'ConflictMap':
         """Load conflict map from JSON file."""
@@ -465,11 +470,13 @@ class ConflictMap:
             data = json.load(f)
         return cls(data)
 
-    def to_file(self, path: Path):
+    def to_file(self, path: Path, build_data: bool = False):
         """Save conflict map to JSON file."""
-        path.parent.mkdir(parents=True, exist_ok=True)
         # Convert sets to lists for JSON serialization
         data = {tag: list(conflicts) for tag, conflicts in self.conflicts.items()}
+        if build_data: return data
+        
+        path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     
@@ -539,26 +546,25 @@ class ConflictMap:
         Returns:
             Tuple of (ConflictMap, detected conflicts list)
         """
-        
-        conflict_map = base_map if base_map is not None else cls()
-        detector = HighConfidenceConflictDetector(
+        if base_map is not None:
+          if not merge_with_existing:
+            conflict_map = base_map.copy()
+          else:
+            conflict_map = base_map
+        else:
+          conflict_map = cls()
+          
+        detected = HighConfidenceConflictDetector(
             min_occurrences=min_occurrences,
             confidence_threshold=min_confidence,
             word2vec_model=word2vec_model
-        )
-
-        detected = detector.detect_conflicts(
+        ).detect_conflicts(
             matrix.matrix,
             tag_counts,
             total_documents
         )
-
-        # Add to conflict map if requested
-        results: list[tuple[str, str, float]] = []
+        
         for conflict in detected:
-            results.append((conflict.tag_a, conflict.tag_b, conflict.confidence))
-            
-            if merge_with_existing:
-                conflict_map.add_conflict(conflict.tag_a, conflict.tag_b)
+            conflict_map.add_conflict(conflict.tag_a, conflict.tag_b)
 
-        return conflict_map, results
+        return conflict_map
