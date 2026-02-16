@@ -71,6 +71,7 @@ class PngInfo(UiTabs):
             inputs=[in_image, clear_image, only_prompt, show_raw],
             outputs=[out_info, in_image]
         )
+        
         in_image.change(
             fn=pnginfo.insta_save,
             inputs=pnginfo.values(),

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import math
 import re
@@ -70,6 +71,8 @@ class CooccurrenceMatrix:
         if isinstance(path, dict):
           data = path
         else:
+          if not path.exists():
+            raise FileNotFoundError(f"Co-occurrence matrix not found at {path}")
           with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return cls(
@@ -103,12 +106,12 @@ class CooccurrenceMatrix:
             )
     
     @classmethod
-    def build_cls(
+    async def build_cls(
       cls, tag_lists: list[list[str]], rating: list[str], min_sample: int = 250
     ):
-      matrix_data, tag_counts, lora_matrix, always_tag = cls.create_matrix(tag_lists)
-      rating_matrix = cls.create_rating_matrix(tag_lists, rating, min_sample)
-      lora_similarity, lora_conflict = cls.create_lora_metrices(lora_matrix)
+      matrix_data, tag_counts, lora_matrix, always_tag = await asyncio.to_thread(cls.create_matrix, tag_lists=tag_lists)
+      rating_matrix = await asyncio.to_thread(cls.create_rating_matrix, tag_lists=tag_lists, each_ratings=rating, min_sample=min_sample)
+      lora_similarity, lora_conflict = await asyncio.to_thread(cls.create_lora_metrices, lora_matrix=lora_matrix)
       
       return cls(
         matrix_data, tag_counts, lora_matrix, rating_matrix, always_tag,

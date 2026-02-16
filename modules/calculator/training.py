@@ -61,10 +61,13 @@ def train_conflict(min_occr: int, confidence: float, matrix: dict, samples: int,
 
 async def train(
   dataset_dir: list[os.PathLike | Path], 
+  # dataset_dirは絶対パスである必要がある
   output: os.PathLike | Path,
   min_conflict_occurrences: int = 250,
   conflict_confidence: float = 0.7,
   processes: int = calculate_avail_processes(), # 1.5(safe) + 1.35(model) + 0.3(infer) * proc (GB)
+  ignore_questionable: bool = True,
+  booru_threshold: float = 0.45,
 ) -> AsyncGenerator[None, str]:
   """
   Train the database system on image data.
@@ -110,19 +113,21 @@ async def train(
   if len(dataset_dir) == 0:
     yield log("No dataset directories specified. Training aborted.")
     return
-  for directory in dataset_dir:
-    if isinstance(directory, Path): directory = str(directory)
-    info(f"Processing directory: {directory}")
-    preprocessor = PreProcessor(directory, "WD1.4 Vit Tagger v3 (large)")
-    pool = await preprocessor.prepare(processes)
-    
-    # pool = [prompts, booru_inferred, ratings]
-    all_prompts.extend(pool[0])
-    all_booru_inferred.extend(pool[1])
-    all_ratings.extend(pool[2])
+  
+  preprocessor = PreProcessor("WD1.4 Vit Tagger v3 (large)", ignore_questionable, booru_threshold=booru_threshold)
+
+  # pool = [prompts, booru_inferred, ratings]
+  pool = await preprocessor.prepare(
+    [str(p) for p in dataset_dir],
+    processes
+  )
+  
+  all_prompts.extend(pool[0])
+  all_booru_inferred.extend(pool[1])
+  all_ratings.extend(pool[2])
   
   total_samples = len(all_prompts)
-  info(f"Preprocessing complete. Total samples: {total_samples}")
+  yield log(f"Preprocessing complete. Total samples: {total_samples}")
   
   if total_samples == 0:
     yield log("No valid samples found. Training aborted.")
@@ -133,12 +138,12 @@ async def train(
   
   # Build prompt matrix
   yield log("  - Building prompt co-occurrence matrix...")
-  comtx = CooccurrenceMatrix.build_cls(
+  comtx = await CooccurrenceMatrix.build_cls(
     tag_lists=all_prompts,
     rating=all_ratings,
     min_sample=min_conflict_occurrences
   )
-  b_comtx = CooccurrenceMatrix.build_cls(
+  b_comtx = await CooccurrenceMatrix.build_cls(
     tag_lists=all_booru_inferred,
     rating=all_ratings,
     min_sample=min_conflict_occurrences

@@ -137,7 +137,7 @@ class LoRAToPrompt(UiTabs):
               top_k = r(
                 "top_k",
                 gr.Slider(
-                label="Top-K",
+                label="Top-K (Tag count w/o always-on tags)",
                 info="How many tags to consider/sample per round (engine default 10)",
                 minimum=1,
                 maximum=50,
@@ -257,6 +257,24 @@ class LoRAToPrompt(UiTabs):
         )
         
         with gr.Row():
+          ignore_questionable = r(
+            "ignore_questionable",
+            gr.Checkbox(
+              label="Ignore questionable ratings",
+              info="recommended to large datasets with rating-based filtering; will skip samples rated 'questionable' by the engine's predictor (engine default: enabled)",
+              value=d("ignore_questionable", True),
+            )
+          )
+          booru_threshold = r(
+            "booru_threshold",
+            gr.Slider(
+              label="Booru tag threshold",
+              value=d("booru_threshold", 0.45),
+              minimum=0.1, maximum=0.99, step=0.01,
+            )
+          )
+        
+        with gr.Row():
           min_cocc = r(
             "min_cocc",
             gr.Number(
@@ -280,6 +298,6 @@ class LoRAToPrompt(UiTabs):
         
         train_log = gr.Textbox(label="log", lines=10, max_lines=200, interactive=False)
         train_btn.click(
-          fn=train, inputs=[dataset_directory, datapth, min_cocc, cconfidence, proc], outputs=train_log, show_progress="minimal"
+          fn=train, inputs=[dataset_directory, datapth, min_cocc, cconfidence, proc, ignore_questionable, booru_threshold], outputs=train_log, show_progress="minimal"
         )
         

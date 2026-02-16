@@ -462,12 +462,15 @@ class ConflictMap:
       )
 
     @classmethod
-    def from_file(cls, path: Path) -> 'ConflictMap':
+    def from_file(cls, path: Path | dict) -> 'ConflictMap':
         """Load conflict map from JSON file."""
-        if not path.exists(): raise FileNotFoundError(f"Conflict map not found at {path}")
-
-        with open(path, 'r', encoding='utf-8') as f:
+        if isinstance(path, dict):
+          data = path
+        else:
+          if not path.exists(): raise FileNotFoundError(f"Conflict map not found at {path}")
+          with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
+            
         return cls(data)
 
     def to_file(self, path: Path, build_data: bool = False):

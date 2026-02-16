@@ -16,7 +16,7 @@ from modules.calculator.similarity import SimilarityMatrix
 class PromptInferenceEngine:
   """Co-occurrenceベースで追加タグを提案するための簡易推論エンジン。"""
 
-  def __init__(self, data_dir: str | Path = "data"):
+  def __init__(self, data_dir: str | Path, base: Literal["matrix", "booru"] = "matrix"):
     self.data_dir = Path(data_dir)
     if not self.data_dir.exists():
       raise FileNotFoundError(f"data directory not found at {self.data_dir}; run training first")
@@ -24,8 +24,8 @@ class PromptInferenceEngine:
     with open(self.data_dir, "r", encoding="utf-8") as f:
       data = json.load(f)
     
-    self.matrix = CooccurrenceMatrix.from_file(data["matrix"])
-    self.conflict = ConflictMap.from_file(data["conflict"])
+    self.matrix = CooccurrenceMatrix.from_file(data[base])
+    self.conflict = ConflictMap.from_file(data[base+".conflict"])
     self.similarity = SimilarityMatrix.from_cooccurrence_matrix(self.matrix)
     self.lora = LoRAAssociation(self.matrix)
     

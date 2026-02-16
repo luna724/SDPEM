@@ -23,7 +23,7 @@ class PngInfo(UiTabs):
         async def read_pnginfo(
             img: Image.Image, 
             do_booru, booru_model, thres: float,
-            apt: str, bapt: str
+            apt: str = "", bapt: str = ""
         ): 
             if img is None: return gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update()
             if not hasattr(img, "info"):
@@ -184,12 +184,13 @@ class PngInfo(UiTabs):
         
         in_image.change(
             fn=read_pnginfo,
-            inputs=[in_image, do_booru, booru_model, booru_threshold, appeared_tags, booru_appeared_tags],
+            inputs=[in_image, do_booru, booru_model, booru_threshold],
             outputs=[out_info, filtered_out, filtered_tags, booru_out, booru_rate, appeared_tags, booru_appeared_tags],
         )
         async def save(*values):
             pnginfo_advanced.save(values, dont_saves=["in_image"])
+        save_inputs = [c for k, c in pnginfo_advanced.components.items() if k != "in_image"]
         in_image.change(
             fn=save,
-            inputs=pnginfo_advanced.values()
+            inputs=save_inputs,
         )

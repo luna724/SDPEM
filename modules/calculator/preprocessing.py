@@ -1,11 +1,13 @@
+import asyncio
 from typing import Optional
 from pydantic import BaseModel
 import os
 import os.path as op
 import re
 from PIL import Image
+import aiofiles
 
-from logger import warn, debug
+from logger import warn, debug, info
 from modules.utils.pnginfo import read_pnginfo
 from modules.utils.prompt import separate_prompt
 from modules.tagger.predictor import OnnxRuntimeTagger, OnnxTaggerMulti
@@ -16,18 +18,17 @@ from modules.config import get_config
 from concurrent.futures import ThreadPoolExecutor
 config = get_config()
 
-class CalculationTarget(BaseModel):
-  tagCounting: bool = True
-  cooccurrenceMatrix: bool = True
-
 class PreProcessor:
   def __init__(
-    self, target_dir: os.PathLike, booru_model: str, trustability: float = 1,
-    calculation: CalculationTarget = CalculationTarget(),
+    self, 
+    booru_model: str,
+    ignore_questionable: bool = True,
+    booru_threshold: float = 0.45,
+    trustability: float = 1.0,
   ):
-    self.target_dir = target_dir
+    self.ignore_questionable = ignore_questionable
+    self.booru_threshold = booru_threshold
     self.trustability = trustability
-    self.calculation = calculation
     self.pred: OnnxRuntimeTagger = OnnxRuntimeTagger(booru_model)
   
   @staticmethod
@@ -106,47 +107,58 @@ class PreProcessor:
         else:
           a.append(f)
       else:
-        debug(f"[PreProc] Skipping: {t}")
+        ignore = ["score_8_up", "score_7_up", "score_9", ""]
+        if not t.strip() in ignore:
+          debug(f"[PreProc] Skipping: {t}")
     return a
   
-  async def prepare(self, c: int = 1):
+  async def prepare(self, dataset_dir: list[str], c: int = 1):
     if c is None: c = max(1, os.cpu_count() - 2)
     pool = [[], [], []] # prompts, booru inferred, rating
-    if self.calculation.cooccurrenceMatrix:
-      await self.pred.load_model_cuda()
+    await self.pred.load_model_cuda()
     
-    files = [f for f in os.listdir(self.target_dir) if os.path.splitext(f)[1].lower() == ".png"]
+    files = []
+    for d in dataset_dir:
+      if not op.exists(d) or not op.isdir(d):
+        info(f"Directory {d} does not exist or is not a directory. Skipping.")
+        continue
+      for f in os.listdir(d):
+        if op.splitext(f)[1].lower() == ".png":
+          files.append((d, f))
     
-    def p(f):
+    def p(file):
+      basedir = file[0]
+      f = file[1]
       b = os.path.basename(f)
-      cap = op.join(self.target_dir, b + ".txt")
+      cap = op.join(basedir, b + ".txt")
+      
       if op.exists(cap):
         info = open(cap, "r", encoding="utf-8").read()
         prompt = info.split("Negative prompt:")[0].strip()
       else:
-        info = self.read_pnginfo(Image.open(op.join(self.target_dir, f)))
+        info = self.read_pnginfo(Image.open(op.join(basedir, f)))
         prompt = info
         
-        pd = self.pred.predict_sync(
-          Image.open(op.join(self.target_dir, f)).convert("RGBA"),
-          threshold=config.booru_threshold,
-          character_threshold=0.8,
-        )
-        inferred = pd[0] | pd[1]
-        rate, _, _ = get_rating(pd[2], True)
-        
-        if rate != "?":
-          pool[0].append(self.seprompt(prompt))
-          pool[1].append(self.seprompt(list(inferred.keys())))
-          pool[2].append(rate)
-        else:
-          warn(f"Skipping {b} due to no rating found.")
-          return
+      pd = self.pred.predict_sync(
+        Image.open(op.join(basedir, f)).convert("RGBA"),
+        threshold=self.booru_threshold,
+        character_threshold=0.8,
+      )
+      inferred = pd[0] | pd[1]
+      rate, _, _ = get_rating(pd[2], self.ignore_questionable)
+      
+      if rate != "?":
+        pool[0].append(self.seprompt(prompt))
+        pool[1].append(self.seprompt(list(inferred.keys())))
+        pool[2].append(rate)
+      else:
+        warn(f"Skipping {b} due to no rating found.")
+        return
     
-    with ThreadPoolExecutor(max_workers=c) as executor:
-      list(executor.map(p, files))
-    
-    if self.calculation.cooccurrenceMatrix:
-      await self.pred.unload_model()
+    def run_pool():
+      with ThreadPoolExecutor(max_workers=c) as executor:
+        list(executor.map(p, files))
+    await asyncio.to_thread(run_pool)
+    await self.pred.unload_model()
     
     return pool
