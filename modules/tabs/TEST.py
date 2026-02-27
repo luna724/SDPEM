@@ -15,20 +15,4 @@ class Define(UiTabs):
         return 999999
     
     def ui(self, outlet):
-        with gr.Row():
-            inp = gr.Textbox(label="Input")
-            out = gr.Textbox(label="Output")
-            
-        async def test(
-            inp: str
-        ) -> str:
-            from modules.prompt_placeholder import placeholder
-            return await placeholder.process_prompt(
-                inp
-            )
-        
-        inp.change(
-            fn=test,
-            inputs=[inp],
-            outputs=[out]
-        )
+        pass

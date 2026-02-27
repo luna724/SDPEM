@@ -73,13 +73,13 @@ class ModelInstaller:
 def init_character_models():
     data_url = "https://files.catbox.moe/6holoy.json"
     data_dir = "./models/characters.json"
-    println("Downloading waidb characters..")
     if os.path.exists(data_dir):
         return
+    println("Downloading waidb characters..")
     rsp = requests.get(data_url, timeout=180, headers={ 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
-    if rsp.status_code == 200:
+    if 200 <= rsp.status_code < 300:
         data = rsp.json()
-        debug(f"waidb characters size: {len(bytes(data))} with {len(data['proj'])} characters")
+        debug(f"waidb characters size: {len(rsp.content)} with {len(data['proj'])} characters")
         debug(f"proj infom: {data['proj'][0].keys()}")
         data["proj"] = [
             {
@@ -236,3 +236,4 @@ def init_models():
 
     # print_critical(shared.models)
     init_character_models()
+    import modules.utils.character # init waic

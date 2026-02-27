@@ -2,7 +2,7 @@ import json
 import gradio as gr
 import inspect
 from pathlib import Path
-from utils import error
+from utils import error, warn
 from modules.utils.ui.globals import register_instance
 
 class ValuesMap:
@@ -14,7 +14,7 @@ class ValuesMap:
     try:
       return self.values[name]
     except KeyError:
-      error(f"[{self.name}]: default value isn't set! ({name})")
+      warn(f"[{self.name}]: default value isn't set! ({name})")
       return None
 
 class RegisterComponent:
@@ -34,7 +34,8 @@ class RegisterComponent:
       self.conf = self.load()
     register_instance(self.instance_name, self)
 
-  def register(self, key: str, c: gr.components.Component, order: int = None):
+  def register(self, key: str, c: gr.components.Component, order: int = None, objName: bool = False):
+    if objName: return self.instance_name # for template use
     if not isinstance(key, str): raise TypeError(f"Key aren't str: {key}")
     self.components[key] = c
     if not isinstance(order, int):
