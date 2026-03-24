@@ -7,9 +7,9 @@ from modules.utils.ui.utils import range_check
 from utils import error
 
 class rWrapper:
-  def __init__(self, r: "RegisterComponent.register", disc: str):
+  def __init__(self, r: "RegisterComponent", disc: str):
     self.r = r
-    self.i = r(objName=True)
+    self.i = r.instance_name.replace("/", "-")
     self.registered = []
     
     self.disc = disc
@@ -17,11 +17,9 @@ class rWrapper:
   def __call__(self, key, comp):
     if isinstance(comp, Component):
       comp.elem_id = f"{self.i}.{self.disc}^{key}"
-      self.r(key, comp)
+      obj = self.r(key, comp)
       self.registered.append(comp.elem_id)
-    elif isinstance(comp, dict):
-      for k, c in comp.items():
-        self.r(k, c)
+      return obj
     else:
       error(f"Invalid component type for key '{key}' in template definition.")
 

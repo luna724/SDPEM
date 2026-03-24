@@ -18,9 +18,9 @@ class Prompt(UiTabs):
     async def ui(self, outlet: Callable[[str, gr.components.Component], None]):
         booru_filter_rc = RegisterComponent(
             Path("./defaults/booru_filter.json"),
-            "settings/booru_filter",
+            "booru_filter",
         )
-        r = booru_filter_rc.register
+        r = booru_filter_rc
         default = booru_filter_rc.get()
 
         with gr.Row():

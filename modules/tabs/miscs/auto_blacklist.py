@@ -314,8 +314,9 @@ class AutoBlacklistManager(UiTabs):
             
             # Save config
             save_btn = gr.Button("Save Configuration", variant="secondary")
+            d=gr.Textbox(value="default",visible=False)
             save_btn.click(
-                fn=blacklist_config.insta_save,
-                inputs=blacklist_config.values(),
+                fn=blacklist_config.save_ui,
+                inputs=[d] + blacklist_config.values(),
                 outputs=[],
             )

@@ -219,8 +219,10 @@ async def launch(args=None) -> None:
 
     shared.pem_api += str(shared.pem_api_port)
     from init_model import init_models
+    import backcompat
     from modules.utils import health
     
+    backcompat.backcompat()
     tasks = []
     init_models()
     

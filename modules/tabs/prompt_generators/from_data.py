@@ -15,7 +15,7 @@ class LoRAToPrompt(UiTabs):
     return 2
   def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> None:
     rc = RegisterComponent(Path("./defaults/prompt_generator.from_data.json"), "prompt_generators/from_data")
-    r = rc.register
+    r = rc
     default = rc.get()
 
     def d(key, fallback):

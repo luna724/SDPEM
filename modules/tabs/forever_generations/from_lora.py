@@ -2,7 +2,7 @@ from modules.forever.from_lora import ForeverGenerationFromLoRA
 from modules.utils.browse import select_folder
 from modules.utils.ui.register import RegisterComponent
 from modules.utils.lora_util import list_lora_with_tags
-# from modules.api.v1.items import sdapi
+from modules.preset import PresetManager
 from modules.sd_param import get_sampler, get_scheduler
 from webui import UiTabs
 import gradio as gr
@@ -24,9 +24,10 @@ class LoRAToPrompt(UiTabs):
         instance = ForeverGenerationFromLoRA()
         forever_generation_from_lora = RegisterComponent(
             Path("./defaults/forever_generation.from_lora.json"),
-            "forever_generations/from_lora",
+            "forever_generation/from_lora",
         )
-        r = forever_generation_from_lora.register
+        r = forever_generation_from_lora
+        pmgr = forever_generation_from_lora.pmgr
         default = forever_generation_from_lora.get()
 
         with gr.Blocks():
@@ -851,11 +852,24 @@ class LoRAToPrompt(UiTabs):
                 merge_adetailer_test
             ]
             
-            with gr.Group():
-                preset_name = gr.Dropdown(
-                    
-                )
-            save_all_param = gr.Button("Save current parameters", variant="secondary")
+            with gr.Blocks():
+                with gr.Row():
+                    preset_name = gr.Dropdown(
+                        choices=pmgr.list_presets(),
+                        label="Presets (type to create new)",
+                        value=pmgr.current_preset,
+                        scale=9,
+                        allow_custom_value=True
+                    )
+                    rld_preset = gr.Button("Reload", variant="secondary", scale=1)
+                    rld_preset.click(
+                        lambda: gr.Dropdown(choices=pmgr.list_presets()),
+                        outputs=preset_name,
+                        show_progress=False,
+                    )
+                
+                load_all_param = gr.Button("Load preset", variant="secondary", size="sm")
+                save_all_param = gr.Button("Save current parameters", variant="secondary")
 
             generate.click(
                 fn=instance.start,
@@ -864,9 +878,14 @@ class LoRAToPrompt(UiTabs):
             )
             stop.click(fn=instance.stop_generation, inputs=[], outputs=[])
 
+            load_all_param.click(
+                fn=lambda name: list(pmgr.load(name).values()),
+                inputs=preset_name,
+                outputs=forever_generation_from_lora.values()
+            )
             save_all_param.click(
-                fn=forever_generation_from_lora.insta_save,
-                inputs=forever_generation_from_lora.values(),
+                fn=forever_generation_from_lora.save_ui,
+                inputs=[preset_name] + forever_generation_from_lora.values(),
                 outputs=[],
             )
             

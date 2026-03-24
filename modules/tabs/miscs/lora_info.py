@@ -194,7 +194,7 @@ class LoRAInfo(UiTabs):
             Path("./defaults/miscs.lora_info.json"),
             "miscs/lora_info",
         )
-        r = lora_info_config.register
+        r = lora_info_config
         default = lora_info_config.get()
         
         with gr.Blocks():

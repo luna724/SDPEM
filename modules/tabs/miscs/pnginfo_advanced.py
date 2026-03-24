@@ -82,7 +82,7 @@ class PngInfo(UiTabs):
             Path("./defaults/miscs.pnginfo_advanced.json"),
             "miscs/pnginfo_advanced"
         )
-        r = pnginfo_advanced.register
+        r = pnginfo_advanced
         default = pnginfo_advanced.get()
         
         with gr.Row():

@@ -25,7 +25,7 @@ class ImageToPrompt(UiTabs):
         instance = ForeverGenerationFromImages()
         forever_generation_from_images = RegisterComponent(
             Path("./defaults/forever_generation.from_images.json"),
-            "forever_generations/from_images",
+            "forever_generation/from_images",
         )
         r = forever_generation_from_images.register
         default = forever_generation_from_images.get()
@@ -637,9 +637,10 @@ class ImageToPrompt(UiTabs):
                 stop_after_datetime,
             ]
             save_all_param = gr.Button("Save current parameters", variant="secondary")
+            c=gr.Textbox(visible=False, value="default")
             save_all_param.click(
-                fn=forever_generation_from_images.insta_save,
-                inputs=forever_generation_from_images.values(),
+                fn=forever_generation_from_images.save_ui,
+                inputs=[c] + forever_generation_from_images.values(),
                 outputs=[],
             )
             

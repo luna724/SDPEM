@@ -15,10 +15,10 @@ class Prompt(UiTabs):
     async def ui(self, outlet: Callable[[str, gr.components.Component], None]):
         prompt_settings = RegisterComponent(
             Path("./defaults/prompt_settings.json"),
-            "settings/prompt_settings",
+            "prompt_settings",
         )
         self.register_comp_instance = prompt_settings
-        r = prompt_settings.register
+        r = prompt_settings
         default = prompt_settings.get()
         
         with gr.Blocks():

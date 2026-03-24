@@ -27,7 +27,7 @@ class PngInfo(UiTabs):
             Path("./defaults/miscs.pnginfo.json"),
             "miscs/pnginfo"
         )
-        r = pnginfo.register
+        r = pnginfo
         default = pnginfo.get()
         
         with gr.Row():
@@ -72,9 +72,10 @@ class PngInfo(UiTabs):
             outputs=[out_info, in_image]
         )
         
+        d=gr.Textbox(value="default",visible=False)
         in_image.change(
-            fn=pnginfo.insta_save,
-            inputs=pnginfo.values(),
+            fn=pnginfo.save_ui,
+            inputs=[d] + pnginfo.values(),
         )
         
         def through(v): return v

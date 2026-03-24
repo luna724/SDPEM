@@ -16,9 +16,9 @@ class Prompt(UiTabs):
     async def ui(self, outlet: Callable[[str, gr.components.Component], None]):
         placeholder_setting = RegisterComponent(
             Path("./defaults/prompt_placeholder.json"),
-            "settings/prompt_placeholder",
+            "prompt_placeholder",
         )
-        r = placeholder_setting.register
+        r = placeholder_setting
         default = placeholder_setting.get()
         VERSION = 1.0
         DATA_VERSION = 1.0

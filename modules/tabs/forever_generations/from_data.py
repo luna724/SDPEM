@@ -17,12 +17,11 @@ class DataToPrompt(UiTabs):
 		return 2
 
 	async def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> None:
-		config = RegisterComponent(
+		rc = RegisterComponent(
 			Path("./defaults/forever_generation.from_data.json"),
-			"forever_generations/from_data",
+			"forever_generation/from_data",
 		)
-		r = config.register
-		default = config.get()
+		default = rc.get()
 
 		def d(key, fallback):
 			val = getattr(default, key, None)
@@ -30,7 +29,7 @@ class DataToPrompt(UiTabs):
 
 		with gr.Blocks():
 			with gr.Row():
-				datapath = r(
+				datapath = rc(
 					"datapath",
 					gr.Textbox(
 						label="Data filepath",
@@ -42,7 +41,7 @@ class DataToPrompt(UiTabs):
 				browse_btn.click(fn=select_file, outputs=datapath, show_progress=False)
 
 			with gr.Accordion(label="Prompt Settings", open=False):
-				header = r(
+				header = rc(
 					"header",
 					gr.Textbox(
 						label="Prompt Header",
@@ -52,7 +51,7 @@ class DataToPrompt(UiTabs):
 						value=d("header", ""),
 					),
 				)
-				footer = r(
+				footer = rc(
 					"footer",
 					gr.Textbox(
 						label="Prompt Footer",
@@ -62,7 +61,7 @@ class DataToPrompt(UiTabs):
 						value=d("footer", ""),
 					),
 				)
-				negative = r(
+				negative = rc(
 					"negative",
 					gr.Textbox(
 						label="Negative Prompt",
@@ -73,7 +72,7 @@ class DataToPrompt(UiTabs):
 					),
 				)
 
-			await TabContent.render_tmpl("sd_params", r, default)
+			await TabContent.render_tmpl("sd_params", rc, default)
 
 			with gr.Row():
 				generate = gr.Button("Start generation", variant="primary")
