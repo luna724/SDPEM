@@ -90,6 +90,21 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
         self.lora_list: list[str] = []
         self.enable_random_lora: bool = False
         self.rnd_lora_select_count: int = 0
+    
+    def dictnization(self) -> dict:
+        return {}
+        return {
+            "payload": self.payload,
+            "param": self.param,
+            "default_prompt_request_param": self.default_prompt_request_param,
+            "processor_prompt_param": self.processor_prompt_param,
+            "disable_lora_in_adetailer": self.disable_lora_in_adetailer,
+            "adetailer": self.adetailer,
+            "separate_adetailer": self.separate_adetailer,
+            "booru_blacklist": self.booru_blacklist,
+            "booru_pattern_blacklist": self.booru_pattern_blacklist,
+        }
+    
 
     async def get_payload(self) -> dict:
         p = self.param.copy()
@@ -647,7 +662,7 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
                         info = make_info(
                             {
                                 "parameters": txtinfo,
-                                "pem_payload": json.dumps(i["payload"]),
+                                "pem_payload": json.dumps(self.dictnization()), # TODO: もっとちゃんとした仕様にする
                             }
                         )
                         image_obj.save(fn, format=output_format, pnginfo=info)

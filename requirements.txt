@@ -16,3 +16,7 @@ onnxruntime-gpu
 tkfilebrowser
 # req by: tkfilebrowser
 pywin32
+# gradio 4.44.1 compatibility
+huggingface_hub<0.25.0
+fastapi==0.111.0
+starlette==0.37.2

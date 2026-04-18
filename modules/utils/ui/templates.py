@@ -203,7 +203,30 @@ class _templates:
         )
     return r
 
-  
+  async def conditional_prompts(r, default, **k):
+    r = rWrapper(r, "conditional_prompts")
+    with gr.Accordion(label="Conditional Prompts", open=False):
+      cond = r(
+        "conditional_prompts",
+        gr.JSON(visible=False, value=default.conditional_prompts)
+      )
+      # TODO: Condのロード処理
+      
+      with gr.Row():
+        cond_type2add = r(
+          "cond_type2add",
+          gr.Dropdown(
+            label="Condition Type to Add",
+            choices=[
+              "percentage", "if_has", "if_not_has",
+            ],
+            value="Steps"
+          )
+        )
+        
+        add = gr.Button("Add Condition", variant="primary")
+      
+    return r
 
 # type-hint (変更、実用禁止)
 class uiStructure:

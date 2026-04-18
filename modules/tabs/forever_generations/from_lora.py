@@ -32,16 +32,22 @@ class LoRAToPrompt(UiTabs):
 
         with gr.Blocks():
             with gr.Group():
-                lora = r(
-                    "lora",
-                    gr.Dropdown(
-                        choices=list_lora_with_tags(),
-                        multiselect=True,
-                        value=default.lora,
-                        label="Target LoRA",
-                        scale=8,
-                    ),
-                )
+                with gr.Row():
+                    lora = r(
+                        "lora",
+                        gr.Dropdown(
+                            choices=list_lora_with_tags(),
+                            multiselect=True,
+                            value=default.lora,
+                            label="Target LoRA",
+                            scale=19,
+                        ),
+                    )
+                    lora_add_all_btn = gr.Button("*", variant="secondary", scale=1)
+                    lora_add_all_btn.click(
+                        fn=lambda: list_lora_with_tags(),
+                        outputs=[lora],
+                    )
                 with gr.Row():
                     enable_random_lora = r(
                         "enable_random_lora",
