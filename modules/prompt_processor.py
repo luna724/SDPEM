@@ -7,7 +7,7 @@ from modules.prompt_placeholder import placeholder
 from modules.blacklist import blacklist_filter_rules
 from modules.utils.character import waic
 from modules.utils.exceptions import notEnoughTag
-from modules.utils.lora_util import find_lora, get_tag_freq_from_lora, read_lora_name, is_lora_trigger
+from modules.utils.lora_util import find_lora, get_tag_freq_from_lora, read_lora_info, read_lora_name, is_lora_trigger
 from modules.utils.prompt import Prompt, separate_prompt, combine_prompt
 
 from logger import debug, warn
@@ -106,8 +106,8 @@ class PromptProcessor:
     @classmethod
     async def gather_from_lora_rnd_prompt(
         cls, lora_name: list[str], header: str, footer: str,
-        tags: int, random_rate: float, add_lora_name: bool,
-        lora_weight: str, 
+        tags: int, random_rate: float, add_lora_name: bool, add_trigger_word: bool, add_trig_to,
+        lora_weight: str, lora_weight_prio: str,
         weight_multiplier: float,
         weight_multiplier_target_min: float,
         weight_multiplier_target_max: float,
@@ -154,12 +154,24 @@ class PromptProcessor:
             proc_kw=proc_kw,
         )
         
+        for name in lora_name:
+            lorainfo = await read_lora_info(name, allow_none=True, keysafe=True)
+            if lorainfo:
+                if add_lora_name:
+                    n = await read_lora_name(name, allow_none=True)
+                    if n:
+                        if lora_weight_prio == "lorainfo":
+                            lw = lorainfo.get("preferred weight", lora_weight)
+                        else: lw = lora_weight
+                        res.append(f"<lora:{n}:{lw}>")
+                        
+                if add_trigger_word:
+                    if "positive" in add_trig_to and lorainfo.get("activation text", "") != "":
+                        res.append(lorainfo["activation text"])
+                    if "negative" in add_trig_to and lorainfo.get("negative text", "") != "":
+                        res.append(lorainfo["negative text"])
+
         p = combine_prompt(res)
-        if add_lora_name:
-            for name in lora_name:
-                n = await read_lora_name(name, allow_none=True)
-                if n:
-                    p = p.rstrip(", ") + f", <lora:{n}:{str(lora_weight)}>"
         c = cls(p)
         main = await c.process(**proc_kw)
         return separate_prompt(header) + main + separate_prompt(footer)

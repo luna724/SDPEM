@@ -220,7 +220,35 @@ async def read_lora_name(lora_name: str, allow_none: bool = True) -> str:
             return ""
         raise ValueError(f"LoRA '{lora_name}' has no output name")
     return output
-  
+
+async def read_lora_info(lora_name: str, allow_none: bool = True, keysafe: bool = False) -> dict[str, any]:
+    """LoRA名を読み取り、存在しない場合は例外を投げる"""
+    lora = await find_lora(lora_name, allow_none=allow_none).replace(".safetensors", "")
+    if not lora:
+        if allow_none:
+            return None
+        raise FileNotFoundError(f"LoRA '{lora_name}' not found")
+    
+    d = {}
+    if os.path.exists(lora+".json"):
+        try:
+            with open(lora+".json", "r", encoding="utf-8") as f:
+                d = json.load(f)
+        except Exception as e:
+            critical(f"Error reading LoRA info from {lora+'.json'}: {e}")
+            traceback.print_exc()
+    if os.path.exists(lora+".png"):
+        try:
+            d["image"] = lora+".png"
+        except Exception as e:
+            critical(f"Error reading LoRA image from {lora+'.png'}: {e}")
+            traceback.print_exc()
+    if keysafe:
+        key = ['description', 'sd version', 'activation text', 'preferred weight', 'negative text', 'notes']
+        s = {k:"" for k in key}
+        s.update(d)
+        return s
+    return d if d != {} else None
 
 def list_lora() -> list[str]:
     """LoRA一覧を取得する"""

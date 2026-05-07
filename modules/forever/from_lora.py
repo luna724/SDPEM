@@ -199,7 +199,7 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
     
     async def update_prompt_settings(
         self, lora, header, footer,
-        tags, random_rate, add_lora_name, lora_weight,
+        tags, random_rate, add_lora_name, add_trigger_word, add_trig_to, lora_weight, lora_weight_prio,
         prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character,
         enable_random_lora, rnd_lora_selection, blacklist: str,
     ):
@@ -216,7 +216,10 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
             "tags": tags,
             "random_rate": random_rate,
             "lora_weight": lora_weight,
+            "lora_weight_prio": lora_weight_prio,
             "add_lora_name": add_lora_name,
+            "add_trigger_word": add_trigger_word,
+            "add_trig_to": add_trig_to,
             "prompt_weight_chance": prompt_weight_chance,
             "prompt_weight_min": prompt_weight_min,
             "prompt_weight_max": prompt_weight_max,
@@ -310,12 +313,15 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
         
         #
         merge_adetailer_test: bool,
+        add_trigger_word: bool,
+        lora_weight_prio: str,
+        add_trig_to,
     ) -> AsyncGenerator[tuple[str, Image.Image], None]:
         self.default_prompt_request_param = setting.request_param().copy()
         
         # テスト呼び出し + 必要ならLoRA名取得
         await self.update_prompt_settings(
-            lora, header, footer, max_tags, base_chance, add_lora_name, lora_weight, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character, enable_random_lora, rnd_lora_select_count, blacklist
+            lora, header, footer, max_tags, base_chance, add_lora_name, add_trigger_word, add_trig_to, lora_weight, lora_weight_prio, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character, enable_random_lora, rnd_lora_select_count, blacklist
         )
         
         if disable_lora_in_adetailer:

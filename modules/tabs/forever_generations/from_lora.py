@@ -66,6 +66,9 @@ class LoRAToPrompt(UiTabs):
                         ),
                     )
                 
+                with gr.Row():
+                    pass
+                
             with gr.Row():
                 with gr.Accordion(label="Prompt Settings", open=False):
                     with gr.Row():
@@ -97,9 +100,29 @@ class LoRAToPrompt(UiTabs):
                                 value=default.add_lora_name,
                                 label="Add LoRA name to prompt",
                                 info="If enabled, the LoRA name will be added to the prompt",
-                                scale=2,
+                                scale=1,
                             ),
                         )
+                        add_trigger_word = r(
+                            "add_trigger_word",
+                            gr.Checkbox(
+                                value=default.add_trigger_word,
+                                label="Add LoRA trigger to prompt",
+                                info="If enabled, the trigger word (lorajson) will be added to the prompt",
+                                scale=1,
+                            ),
+                        )
+                        add_trig_to = r(
+                            "add_trig_to",
+                            gr.Dropdown(
+                                multiselect=True,
+                                label="Add trigger to",
+                                choices=["positive", "negative"],
+                                value=default.add_trig_to,
+                            )
+                        )
+                    
+                    with gr.Row():
                         lora_weight = r(
                             "lora_weight",
                             gr.Textbox(
@@ -108,6 +131,15 @@ class LoRAToPrompt(UiTabs):
                             value=str(default.lora_weight) if default.lora_weight else "0.5", lines=1, max_lines=1, scale=2
                             ),
                         )
+                        lora_weight_prio = r(
+                            "lora_weight_prio",
+                            gr.Radio(
+                                choices=["lorainfo", "setting"],
+                                value=default.lora_weight_prio,
+                                label="LoRA weight src priority",
+                            )
+                        )
+                        
                     header = r(
                         "header",
                         gr.Textbox(
@@ -745,8 +777,8 @@ class LoRAToPrompt(UiTabs):
                     fn=instance.update_prompt_settings,
                     inputs=[
                         lora, header, footer,
-                        max_tags, base_chance, add_lora_name,
-                        lora_weight, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character,
+                        max_tags, base_chance, add_lora_name, add_trigger_word, add_trig_to, 
+                        lora_weight, lora_weight_prio, prompt_weight_chance, prompt_weight_min, prompt_weight_max, remove_character,
                         enable_random_lora, rnd_lora_select_count, blacklist
                     ],
                 )
@@ -855,7 +887,10 @@ class LoRAToPrompt(UiTabs):
                 blacklist,
                 
                 #
-                merge_adetailer_test
+                merge_adetailer_test,
+                add_trigger_word,
+                lora_weight_prio,
+                add_trig_to
             ]
             
             with gr.Blocks():
