@@ -25,7 +25,7 @@ class ImageToPrompt(UiTabs):
         instance = ForeverGenerationFromImages()
         forever_generation_from_images = RegisterComponent(
             Path("./defaults/forever_generation.from_images.json"),
-            "forever_generation/from_images",
+            "legacy_forever/from_images",
         )
         r = forever_generation_from_images.register
         default = forever_generation_from_images.get()

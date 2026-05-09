@@ -17,3 +17,4 @@ session: httpx.AsyncClient = httpx.AsyncClient(
 )
 
 models: dict = {} # モデルのタイプ、名前、ファイルパスを保管する
+fv_instances: dict = {}

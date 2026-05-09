@@ -2,7 +2,7 @@ import os
 import shutil
 from pathlib import Path
 
-VERSION = 1
+VERSION = 2
 
 def backcompat():
   try:
@@ -34,6 +34,13 @@ def backcompat():
       # os.remove(src)
     shutil.rmtree("defaults")
     bc_version = 1
+    
+  # version 2
+  # forever_generation/common の統合
+  if bc_version < 2:
+    from modules.backcompat._2 import bc
+    if bc():
+      bc_version = 2
   
   with open("config/backcompat", "w") as f:
     f.write(str(bc_version))

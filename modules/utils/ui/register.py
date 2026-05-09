@@ -6,6 +6,8 @@ from modules.preset import PresetManager
 from utils import error, warn
 from modules.utils.ui.globals import register_instance
 
+rcMap: dict = {} # instance_name: RegisterComponent
+
 class ValuesMap:
   def __init__(self, rc: "RegisterComponent", values: dict, pname: str):
     self.values = values
@@ -18,8 +20,21 @@ class ValuesMap:
     except KeyError:
       warn(f"[{self.name}]: default value isn't set! ({name})")
       return None
+  
+  def __call__(self, key: str, default=None):
+    if key in self.values:
+      return self.values[key]
+    else:
+      warn(f"[{self.name}]: default value isn't set! ({key})")
+      return default
 
 class RegisterComponent:
+  @staticmethod
+  def get_rc(instance_name: str) -> "RegisterComponent":
+    if instance_name not in rcMap:
+      raise KeyError(f"RegisterComponent instance '{instance_name}' not found.")
+    return rcMap[instance_name]
+  
   def __init__(self, fp: Path, instance_name: str):
     # self.fp: Path = fp
     if not instance_name or not isinstance(instance_name, str):
@@ -31,6 +46,7 @@ class RegisterComponent:
     self.conf: ValuesMap = None
     
     register_instance(self.instance_name, self)
+    rcMap[instance_name] = self
 
   def register(self, key: str, c: gr.components.Component, order: int = None):
     if not isinstance(key, str): raise TypeError(f"Key aren't str: {key}")

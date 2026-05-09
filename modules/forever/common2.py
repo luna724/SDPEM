@@ -1,9 +1,6 @@
-# TODO 将来的な実装のためのコード
-from typing import TYPE_CHECKING
-if not TYPE_CHECKING:
-    raise NotImplementedError()
-
 import asyncio
+import importlib
+import pkgutil
 import base64
 from io import BytesIO
 from itertools import chain
@@ -30,7 +27,7 @@ from modules.utils.lora_util import is_lora_trigger
 from modules.utils.tagger import get_rating
 
 import shared
-from logger import println, debug, warn, error, critical
+from logger import println, debug, warn, error, critical, info
 
 class SDParamParser:
   # TODO: impl to template
@@ -231,8 +228,6 @@ class ForeverGenerationTemplate(ForeverGeneration):
         
         """
         p = await self._get_payload()
-        p["prompt"] = "example"
-        
         return p 
     
     # abstract
@@ -423,14 +418,24 @@ class ForeverGenerationTemplate(ForeverGeneration):
         self.enable_auto_stop = enable_auto_stop
         self.stdout("done.")
         return timer
+    
+    def combine_header_footer(self, prompt: str) -> str:
+        if isinstance(prompt, list): prompt = ", ".join(prompt)
+        header = self.header.strip(",").strip()
+        footer = self.footer.strip(",").strip()
+        if header:
+            prompt = header + ", " + prompt
+        if footer:
+            prompt = prompt.rstrip(", ") + ", " + footer
+        return prompt
 
     async def update_prompt_settings(
         self,
-        # s_method: list[str], scheduler: list[str],
-        # steps_min: int, steps_max: int,
-        # cfg_min: float, cfg_max: float,
-        # size: str,
-        # disable_lora_in_adetailer: bool,
+        s_method: list[str], scheduler: list[str],
+        steps_min: int, steps_max: int,
+        cfg_min: float, cfg_max: float,
+        size: str,
+        disable_lora_in_adetailer: bool,
         save_tmp_images: bool,
         prompt_generation_max_tries: int,
         header: str, footer: str,
@@ -458,6 +463,8 @@ class ForeverGenerationTemplate(ForeverGeneration):
 
         self.save_image_to_tmp = save_tmp_images
         self.prompt_generation_max_tries = min(5000000, max(1, prompt_generation_max_tries)) # 1 ~ 5,000,000
+        self.header = header
+        self.footer = footer
         
         new_param = {
             "header": header,
@@ -1062,3 +1069,44 @@ class ForeverGenerationTemplate(ForeverGeneration):
             else:
                 allow_image.append(img)
         return allow_image
+    
+
+def register_instances():
+    base_classes = [ForeverGenerationTemplate]
+    module_pkg = importlib.import_module("modules.forever")
+    module_names: list[str] = []
+    for _, module_name, is_pkg in pkgutil.iter_modules(module_pkg.__path__, module_pkg.__name__ + "."):
+        if is_pkg:
+            continue
+        module_names.append(module_name)
+
+    if not module_names:
+        module_dir = os.path.dirname(__file__)
+        for filename in os.listdir(module_dir):
+            if not filename.endswith(".py"):
+                continue
+            if filename.startswith("_"):
+                continue
+            module_names.append(f"modules.forever.{filename[:-3]}")
+
+    for module_name in module_names:
+        if module_name.endswith(".common") or module_name.endswith(".common2"):
+            continue
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as e:
+            warn(f"Failed to import {module_name}: {e}")
+            continue
+        module_key = module_name.rsplit(".", 1)[1]
+        for obj in module.__dict__.values():
+            if not isinstance(obj, type):
+                continue
+            if obj in base_classes:
+                continue
+            if not any(issubclass(obj, base) for base in base_classes):
+                continue
+            if module_key in shared.fv_instances:
+                break
+            shared.fv_instances[module_key] = obj()
+            info(f"Registered instance '{module_key}' with class {obj}.")
+            break

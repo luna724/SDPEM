@@ -68,40 +68,39 @@ class UiTabs:
         )
         return tabs
 
-    async def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> None:
+    async def ui(self, outlet: Callable[[str, gr.components.Component], None]) -> gr.Tabs:
         """make ui data
         don't return"""
-        with gr.Blocks():
+        with gr.Tabs() as ttttttttt:
+            tabs = self.get_ui()
+            for tab in tabs:
+                with gr.Tab(tab.title(), elem_id=tab._id(), elem_classes=tab._class(), id=tab.title()):
+                    tab_ui_elements = {}
 
-            with gr.Tabs():
-                tabs = self.get_ui()
-                for tab in tabs:
-                    with gr.Tab(tab.title(), elem_id=tab._id(), elem_classes=tab._class()):
-                        tab_ui_elements = {}
+                    # タブ内のUIを生成し、そのエレメントを辞書に格納
+                    def capture_ui(component_name, component):
+                        # print(f"Captured UI: {component_name}, {component}")
+                        tab_ui_elements[component_name] = component
 
-                        # タブ内のUIを生成し、そのエレメントを辞書に格納
-                        def capture_ui(component_name, component):
-                            # print(f"Captured UI: {component_name}, {component}")
-                            tab_ui_elements[component_name] = component
-
-                        # 実際のUI生成 (async/sync両対応)
-                        ui_method = tab.ui
-                        if inspect.iscoroutinefunction(ui_method):
-                            await ui_method(
-                                lambda component_name, component: capture_ui(
-                                    component_name, component
-                                )
+                    # 実際のUI生成 (async/sync両対応)
+                    ui_method = tab.ui
+                    if inspect.iscoroutinefunction(ui_method):
+                        await ui_method(
+                            lambda component_name, component: capture_ui(
+                                component_name, component
                             )
-                        else:
-                            ui_method(
-                                lambda component_name, component: capture_ui(
-                                    component_name, component
-                                )
+                        )
+                    else:
+                        ui_method(
+                            lambda component_name, component: capture_ui(
+                                component_name, component
                             )
+                        )
 
-                        # タブ全体のエレメントを保存
-                        # tab_ui_elements
+                    # タブ全体のエレメントを保存
+                    # tab_ui_elements
         # shared.ui_obj[self.title()] = tab_elements
+        return ttttttttt
 
     # def has_child(self):
     #   return [rootID, child_rel_import_path, importlib's Path]
@@ -221,12 +220,14 @@ async def launch(args=None) -> None:
     from init_model import init_models
     import backcompat
     from modules.utils import health
+    from modules.forever.common2 import register_instances
     
     backcompat.backcompat()
     tasks = []
     init_models()
     
     register_apps()
+    register_instances()
     tasks.append(
         asyncio.create_task(
             asyncio.to_thread(
