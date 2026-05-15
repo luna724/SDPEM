@@ -43,3 +43,37 @@ def bc():
       json.dump(com, f, indent=2)
     return True# True
   return False
+
+def bc_3():
+  # legacy_forever/from_lora -> forever_generation/from_lora
+  # legacy_forever/from_images -> forever_generation/from_images
+  # forever_generation/common -> 分散
+  
+  if os.path.exists("config/presets/legacy_forever.from_lora"):
+    shutil.copytree("config/presets/legacy_forever.from_lora", "config/presets/forever_generation.from_lora", dirs_exist_ok=True)
+    shutil.rmtree("config/presets/legacy_forever.from_lora", ignore_errors=True)
+  if os.path.exists("config/presets/legacy_forever.from_images"):
+    shutil.copytree("config/presets/legacy_forever.from_images", "config/presets/forever_generation.from_images", dirs_exist_ok=True)
+    shutil.rmtree("config/presets/legacy_forever.from_images", ignore_errors=True)
+  if os.path.exists("config/presets/forever_generation.common"):
+    for f in os.listdir("config/presets/forever_generation.common"):
+      if not f.endswith(".json"):
+        continue
+      src = os.path.join("config/presets/forever_generation.common", f)
+      with open(src, "r", encoding="utf-8") as f:
+        data = json.load(f)
+      for r in ["from_lora", "from_images", "from_data"]:
+        dst_dir = os.path.join(f"config/presets/forever_generation.{r}")
+        os.makedirs(dst_dir, exist_ok=True)
+        dst = os.path.join(dst_dir, f)
+        if os.path.exists(dst):
+          with open(dst, "r", encoding="utf-8") as f:
+            dst_data = json.load(f)
+        else: dst_data = {}
+        dst_data.update(data)
+        with open(dst, "w", encoding="utf-8") as f:
+          json.dump(dst_data, f, separators=(',', ':'))
+        
+      # shutil.copy(src, dst)
+    # shutil.rmtree("config/presets/forever_generation.common", ignore_errors=True)
+    return True

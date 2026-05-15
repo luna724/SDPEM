@@ -42,5 +42,10 @@ def backcompat():
     if bc():
       bc_version = 2
   
+  if bc_version < 3:
+    from modules.backcompat._2 import bc_3
+    if bc_3():
+      bc_version = 3
+  
   with open("config/backcompat", "w") as f:
     f.write(str(bc_version))

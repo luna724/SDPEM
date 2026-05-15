@@ -24,14 +24,20 @@ class PresetManager:
   
   @property
   def current_preset(self) -> str:
-    return self.read_pmgr().get(self.name, "default")
+    d = self.read_pmgr().get(self.name, "default")
+    return d if d in self.list_presets() else "default"
   
   def __init__(self, mname: str):
     self.name = mname
     self.path = proot / mname
     self.path.mkdir(parents=True, exist_ok=True)
+    self.vpreset_dir = {}
   
   def load(self, pname: str) -> dict:
+    if pname in self.vpreset_dir:
+      self.update_current_preset(pname)
+      return self.vpreset_dir[pname]
+    
     ppath = self.path / f"{pname}.json"
     if not ppath.exists():
       if pname == "default":
@@ -46,10 +52,19 @@ class PresetManager:
     return data
 
   def save(self, pname: str, data: dict = None) -> None:
+    if pname in self.vpreset_dir:
+      self.vpreset_dir.pop(pname)
+    
     ppath = self.path / f"{pname}.json"
     with open(ppath, "w", encoding="utf-8") as f:
       json.dump(data, f, indent=2, ensure_ascii=False)
     println(f"Preset '{pname}' saved successfully in module '{self.name}'.")
+    self.update_current_preset(pname)
+  
+  def save_ram(self, pname: str, data: dict = None) -> None:
+    self.vpreset_dir[pname] = data
+    println(f"Preset '{pname}' saved in RAM for module '{self.name}'.")
+    self.update_current_preset(pname)
   
   def list_presets(self) -> list[str]:
-    return [f.stem for f in self.path.glob("*.json")]
+    return list(self.vpreset_dir.keys()) + [f.stem for f in self.path.glob("*.json")] 

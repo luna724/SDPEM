@@ -35,6 +35,17 @@ class RegisterComponent:
       raise KeyError(f"RegisterComponent instance '{instance_name}' not found.")
     return rcMap[instance_name]
   
+  def get_ordered_preset(self, pname: str = "default"):
+    """return (ordered_values, unordered_values)"""
+    v = self.pmgr.load(pname)
+    ordered_v = []
+    for key in self.ordered_keys():
+      i = v.pop(key, gr.update())
+      if i == gr.update():
+        warn(f"[preset/{pname}]: default value isn't set! ({key})")
+      ordered_v.append(i)
+    return ordered_v, v
+  
   def __init__(self, fp: Path, instance_name: str):
     # self.fp: Path = fp
     if not instance_name or not isinstance(instance_name, str):

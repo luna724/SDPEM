@@ -159,7 +159,9 @@ class ForeverGenerationTemplate(ForeverGeneration):
         self.param = {}
         self.default_prompt_request_param = {}
         self.processor_prompt_param = {}
+        self.adetailer = False
         self.adetailer_param = {}
+        self.separate_adetailer = True
         self.freeu_param = {}
         self.neveroom_param = {}
         self.sag_param = {}
@@ -264,6 +266,27 @@ class ForeverGenerationTemplate(ForeverGeneration):
         p["alwayson_scripts"].update(self.freeu_param)
         p["alwayson_scripts"].update(self.neveroom_param)
         p["alwayson_scripts"].update(self.sag_param)
+        
+        if self.adetailer and not self.separate_adetailer:
+            adp = self.adetailer_param.copy()
+            try:
+                ad_prompt = p.prompt
+                if self.disable_lora_in_adetailer:
+                    ad_prompt = ", ".join(
+                        [
+                            p
+                            for p in ad_prompt.split(",")
+                            if not p.strip() in self.lora_names
+                        ]
+                    )
+                adp["ADetailer"]["args"][2]["ad_prompt"] = ad_prompt
+                adp["ADetailer"]["args"][3]["ad_prompt"] = ad_prompt
+            except (IndexError, KeyError):
+                warn(
+                    "IndexError or KeyError occurred while updating ADetailer parameters."
+                )
+            finally:
+                p["alwayson_scripts"].update(adp)
         return p
     
     # protected
@@ -307,6 +330,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
         enable_freeu: bool, freeu_preset: str,
         enable_neveroom_unet: bool, enable_neveroom_vae: bool,
         enable_sag: bool, sag_strength: float,
+        merge_adetailer_test: bool,
         **kwargs
     ):
         """start():1"""
@@ -322,7 +346,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
             "alwayson_scripts": {}
         }
 
-        arg_list = [
+        adetailer_args_list = [
             True,
             True,
             {
@@ -332,7 +356,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
             },
         ]
         if enable_hand_tap:
-            arg_list.append(
+            adetailer_args_list.append(
                 {
                     "ad_model": "hand_yolov8n.pt",
                     "ad_prompt": None,
@@ -342,12 +366,15 @@ class ForeverGenerationTemplate(ForeverGeneration):
         self.adetailer_param = (
             {
                 "ADetailer": {
-                    "args": arg_list,
+                    "args": adetailer_args_list,
                 }
             }
             if adetailer
             else {}
         )
+        self.adetailer = adetailer
+        self.separate_adetailer = not merge_adetailer_test
+        self.disable_lora_in_adetailer = disable_lora_in_adetailer
 
         freeu_preset = (
             [1.3, 1.4, 0.9, 0.2] if freeu_preset == "SDXL" else [1.5, 1.6, 0.9, 0.2]
@@ -386,7 +413,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
             if enable_sag
             else {}
         )
-        self.stdout("done.")
+        self.stdout("prepare param done.")
         return
 
     async def prepare_timer(
@@ -400,7 +427,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
 
         timer = None
         if enable_auto_stop:
-            timer = TimerInstance(name="Forever Generation/LoRA Timer")
+            timer = TimerInstance(name="Forever Generation Timer")
             if stop_mode == "After Minutes":
                 timer.set_end_at(time.time() + stop_minutes * 60)
             elif stop_mode == "At Datetime":
@@ -416,7 +443,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
         
         self.timer = timer
         self.enable_auto_stop = enable_auto_stop
-        self.stdout("done.")
+        self.stdout("prepare timer done.")
         return timer
     
     def combine_header_footer(self, prompt: str) -> str:
@@ -443,12 +470,12 @@ class ForeverGenerationTemplate(ForeverGeneration):
         prompt_weight_chance, prompt_weight_min, prompt_weight_max,
         remove_character,
         booru_filter_enable: bool,
+        instance_blacklist: str,
         **kwargs
     ): 
         """
         一時停止せずにself内の引数を変えるためのやつ
         """
-        await self.on_update_prompt_settings(**self.resize_locals(locals()|kwargs))
         
         self.disable_lora_in_adetailer = disable_lora_in_adetailer
         self.sampling_methods = s_method
@@ -477,10 +504,14 @@ class ForeverGenerationTemplate(ForeverGeneration):
         } | setting.request_param(pop_for_processor=True)
         new_kp = {
             "remove_character": remove_character,
+            "special_blacklist": [re.compile(x.strip(), re.IGNORECASE) for x in instance_blacklist.split(",") if x.strip()],
         }
+        
+        force_valid = await self.on_update_prompt_settings(_new_param=new_param, _new_kp=new_kp,
+        **self.resize_locals(locals()|kwargs))
         new_param, new_kp, is_valid = await self.test_new_setting(new_param, new_kp)
         
-        if is_valid is True:
+        if is_valid is True or force_valid is True:
             self.default_prompt_request_param = new_param
             gr.Info("Prompt settings updated successfully.")
             self.stdout("Prompt settings updated successfully.")
@@ -601,7 +632,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
     
     async def on_update_prompt_settings(
         self, **kw
-    ): return
+    ) -> bool: return None
     ###########################
     ###########################
     
@@ -787,6 +818,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
                 progress = "100%"
                 progress_bar_html = self.resize_progress_bar(100, -1)
                 image = await p.convert_images_into_gr()
+                yield self.yielding(eta, progress, progress_bar_html, image)
                 
                 if self.image_skipped:
                     self.skipped()
@@ -797,7 +829,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
                 self.num_of_image += len(p.images)
                 to_proc = await self.booru_filter(i, p, await p.convert_images(), is_early=True, **kw)
                 
-                if adetailer:
+                if adetailer and self.separate_adetailer:
                     ad_param = await self.prepare_adetailer(p)
                     yield self.yielding(
                         eta, progress, progress_bar_html, image,
@@ -900,7 +932,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
                             info = make_info(
                                 {
                                     "parameters": txtinfo,
-                                    "pem_payload": json.dumps(i["payload"]),
+                                    "pem_payload": json.dumps({"todo":"add pem payload"}),
                                 }
                             )
                             image_obj.save(fn, format=output_format, pnginfo=info)
