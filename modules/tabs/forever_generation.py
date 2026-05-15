@@ -52,9 +52,8 @@ class Define(UiTabs):
                 ei = len(all_components)-1
                 all_rc[key.replace("forever_generation/", "")] = rc
                 components_index[key.replace("forever_generation/", "")] = (si, ei)
-
-            async def start_generation(*args):
-                current_tab = current_tab_str.replace(" ", "_").lower()
+            
+            def slice_args(current_tab, args):
                 if current_tab not in components_index:
                     raise gr.Error(f"No components data found for the current tab. ({current_tab})")
                 target_index = components_index[current_tab]
@@ -64,16 +63,21 @@ class Define(UiTabs):
                 # slice args
                 base = args[:base_count]
                 tab_args = args[target_index[0]+base_count:target_index[1]+1+base_count]
-                
-                println(f"Starting generation: {current_tab})")
-                println(shared.fv_instances)
                 kw = dict(zip(
                     forever_generation.keys() + rc.keys(), 
                     base+tab_args
                 ))
-                println(f"Generation params: {kw}")
+                return (kw, base, tab_args)
+
+            async def start_generation(*args):
+                current_tab = current_tab_str.replace(" ", "_").lower()
+                
+                println(f"Starting generation: {current_tab})")
+                println(shared.fv_instances)
+                kw = slice_args(current_tab, args)[0]
+                debug(f"Generation params: {kw}")
                 if current_tab in shared.fv_instances.keys():
-                    async for r in await shared.fv_instances[current_tab].start(**kw):
+                    async for r in shared.fv_instances[current_tab].start(**kw):
                         yield r
                 else:
                     raise gr.Error(f"No instance found for the current tab. ({current_tab})")
@@ -92,16 +96,21 @@ class Define(UiTabs):
                 current_tab = current_tab_str.replace(" ", "_").lower()
                 println(f"updating param: {current_tab})")
                 println(shared.fv_instances)
-                kw = dict(zip(
-                    forever_generation.keys() + ["current_tab"], 
-                    args
-                ))
-                print(forever_generation.keys())
+                kw = slice_args(current_tab, args)[0]
+                # print(forever_generation.keys())
                 if current_tab in shared.fv_instances.keys():
                     async for r in await shared.fv_instances[current_tab].update_prompt_settings(**kw):
                         yield r
                 else:
                     raise gr.Error(f"No instance found for the current tab. ({current_tab})")
+            
+            async def load_param(name):
+                current_tab = current_tab_str.replace(" ", "_").lower()
+                pmgr = all_rc[current_tab].pmgr
+                if name not in pmgr.list_presets():
+                    raise gr.Error(f"Preset '{name}' not found for the current tab. ({current_tab})")
+                target_index = components_index[current_tab]
+                
         
             # current_tab_str = "from_lora"
             current_tab = gr.State(value="from LoRA")
@@ -669,6 +678,25 @@ class Define(UiTabs):
                             image = gr.Image(
                                 label="Generated Image", type="pil", scale=3, interactive=False
                             )
+                    
+                    with gr.Row():
+                        preset_name = gr.Dropdown(
+                            choices=pmgr.list_presets(),
+                            label="Presets (type to create new)",
+                            value=pmgr.current_preset,
+                            scale=9,
+                            allow_custom_value=True
+                        )
+                        rld_preset = gr.Button("Reload", variant="secondary", scale=1)
+                        rld_preset.click(
+                            lambda: gr.Dropdown(choices=pmgr.list_presets()),
+                            outputs=preset_name,
+                            show_progress=False,
+                        )
+                    
+                    load_all_param = gr.Button("Load preset", variant="secondary", size="sm")
+                    save_all_param = gr.Button("Save current parameters", variant="secondary")
+                
                 generate.click(
                     start_generation, 
                     inputs=forever_generation.values() + all_components + [current_tab],
