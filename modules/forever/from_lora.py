@@ -10,6 +10,10 @@ from utils import *
 
 # ForeverGeneration instanceは tab/.. によって保持され生涯有効
 class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
+    def __init__(self, payload: dict | None = None) -> None:
+        super().__init__({})
+        self.instance_name = "From LoRA"
+    
     def on_reset(self):
         self.lora_names: list[str]
         
@@ -17,8 +21,8 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
         self.lora_list: list[str] = []
         self.enable_random_lora: bool = False
         self.rnd_lora_select_count: int = 0
-        self.default_prompt_request_param = setting.request_param().copy()
-
+        # self.default_prompt_request_param = setting.request_param().copy()
+    
     async def get_payload(self) -> dict:
         p = await self._get_payload()
         
@@ -94,14 +98,16 @@ class ForeverGenerationFromLoRA(ForeverGenerationTemplate):
                 raise gr.Error(f"Not enough LoRAs selected for random selection ({len(lora)} < {self.rnd_lora_select_count})")
         self.enable_random_lora = enable_random_lora
         
-        new_param = _new_param | {
+        _new_param.update({
             "lora_name": lora,
             "lora_weight": lora_weight,
             "lora_weight_prio": lora_weight_prio,
             "add_lora_name": add_lora_name,
             "add_trigger_word": add_trigger_word,
             "add_trig_to": add_trig_to,
-        } | setting.request_param(pop_for_processor=True)
+        })
+        _new_param.update(setting.request_param(pop_for_processor=True))
+        new_param = _new_param
         new_kp = _new_kp
         self.lora_list = lora
         

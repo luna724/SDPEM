@@ -223,11 +223,12 @@ async def read_lora_name(lora_name: str, allow_none: bool = True) -> str:
 
 async def read_lora_info(lora_name: str, allow_none: bool = True, keysafe: bool = False) -> dict[str, any]:
     """LoRA名を読み取り、存在しない場合は例外を投げる"""
-    lora = await find_lora(lora_name, allow_none=allow_none).replace(".safetensors", "")
+    lora = await find_lora(lora_name, allow_none=allow_none)
     if not lora:
         if allow_none:
             return None
         raise FileNotFoundError(f"LoRA '{lora_name}' not found")
+    lora = lora.replace(".safetensors", "")
     
     d = {}
     if os.path.exists(lora+".json"):
