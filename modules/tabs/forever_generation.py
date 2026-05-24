@@ -114,8 +114,7 @@ class Define(UiTabs):
                 kw = slice_args(current_tab, args)[0]
                 # print(forever_generation.keys())
                 if current_tab in shared.fv_instances.keys():
-                    async for r in await shared.fv_instances[current_tab].update_prompt_settings(**kw):
-                        yield r
+                    return await shared.fv_instances[current_tab].update_prompt_settings(**kw)
                 else:
                     raise gr.Error(f"No instance found for the current tab. ({current_tab})")
             
@@ -670,7 +669,7 @@ class Define(UiTabs):
                 )
                 update_psettings.click(
                     fn=update_prompt_settings,
-                    inputs=forever_generation.values() + [current_tab],
+                    inputs=forever_generation.values() + all_components,
                     outputs=[],
                 )
                 skip_img.click(fn=skip_image, inputs=[], outputs=[skipped_img])
