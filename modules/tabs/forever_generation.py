@@ -443,6 +443,69 @@ class Define(UiTabs):
                                 value=default.freeu_preset,
                             ),
                         )
+                        with gr.Row():
+                            freeu_b1 = r(
+                                "freeu_b1",
+                                gr.Slider(
+                                    0.0,
+                                    2.0,
+                                    step=0.01,
+                                    value=default.freeu_b1 or 1.3,
+                                    label="FreeU B1",
+                                ),
+                            )
+                            freeu_b2 = r(
+                                "freeu_b2",
+                                gr.Slider(
+                                    0.0,
+                                    2.0,
+                                    step=0.01,
+                                    value=default.freeu_b2 or 1.4,
+                                    label="FreeU B2",
+                                ),
+                            )
+                        with gr.Row():
+                            freeu_s1 = r(
+                                "freeu_s1",
+                                gr.Slider(
+                                    0.0,
+                                    4.0,
+                                    step=0.01,
+                                    value=default.freeu_s1 or 0.9,
+                                    label="FreeU S1",
+                                ),
+                            )
+                            freeu_s2 = r(
+                                "freeu_s2",
+                                gr.Slider(
+                                    0.0,
+                                    4.0,
+                                    step=0.01,
+                                    value=default.freeu_s2 or 0.2,
+                                    label="FreeU S2",
+                                ),
+                            )
+                        with gr.Row():
+                            freeu_start = r(
+                                "freeu_start",
+                                gr.Slider(
+                                    0.0,
+                                    1.0,
+                                    step=0.01,
+                                    value=default.freeu_start or 0.0,
+                                    label="FreeU Start Step",
+                                ),
+                            )
+                            freeu_stop = r(
+                                "freeu_stop",
+                                gr.Slider(
+                                    0.0,
+                                    1.0,
+                                    step=0.01,
+                                    value=default.freeu_stop or 1.0,
+                                    label="FreeU Stop Step",
+                                ),
+                            )
 
                     with gr.Accordion(
                         label="SelfAttentionGuidance (Integrated for ForgeUI)", open=False
@@ -465,6 +528,762 @@ class Define(UiTabs):
                                 value=default.sag_strength,
                             ),
                         )
+                        with gr.Row():
+                            sag_scale_min = r(
+                                "sag_scale_min",
+                                gr.Slider(
+                                    -2.0,
+                                    5.0,
+                                    step=0.01,
+                                    value=default.sag_scale_min or 0.0,
+                                    label="Min SAG Scale",
+                                ),
+                            )
+                            sag_scale_max = r(
+                                "sag_scale_max",
+                                gr.Slider(
+                                    -2.0,
+                                    5.0,
+                                    step=0.01,
+                                    value=default.sag_scale_max or 0.55,
+                                    label="Max SAG Scale",
+                                ),
+                            )
+
+                    with gr.Accordion(
+                        label="PerturbedAttentionGuidance (Integrated for ForgeUI)", open=False
+                    ):
+                        enable_pag = r(
+                            "enable_pag",
+                            gr.Checkbox(
+                                value=default.enable_pag or False,
+                                label="Enable PerturbedAttentionGuidance",
+                                info="Enable PerturbedAttentionGuidance for image generation",
+                            ),
+                        )
+                        with gr.Row():
+                            pag_scale_min = r(
+                                "pag_scale_min",
+                                gr.Slider(
+                                    0.0,
+                                    100.0,
+                                    step=0.1,
+                                    value=default.pag_scale_min or 0.0,
+                                    label="Min PAG Scale",
+                                ),
+                            )
+                            pag_scale_max = r(
+                                "pag_scale_max",
+                                gr.Slider(
+                                    0.0,
+                                    100.0,
+                                    step=0.1,
+                                    value=default.pag_scale_max or 3.0,
+                                    label="Max PAG Scale",
+                                ),
+                            )
+                        with gr.Row():
+                            pag_attn_min = r(
+                                "pag_attn_min",
+                                gr.Slider(
+                                    0.0,
+                                    100.0,
+                                    step=0.1,
+                                    value=default.pag_attn_min or 0.0,
+                                    label="Min PAG Attenuation",
+                                ),
+                            )
+                            pag_attn_max = r(
+                                "pag_attn_max",
+                                gr.Slider(
+                                    0.0,
+                                    100.0,
+                                    step=0.1,
+                                    value=default.pag_attn_max or 0.0,
+                                    label="Max PAG Attenuation",
+                                ),
+                            )
+                        with gr.Row():
+                            pag_start = r(
+                                "pag_start",
+                                gr.Slider(
+                                    0.0,
+                                    1.0,
+                                    step=0.01,
+                                    value=default.pag_start or 0.0,
+                                    label="PAG Start Step",
+                                ),
+                            )
+                            pag_stop = r(
+                                "pag_stop",
+                                gr.Slider(
+                                    0.0,
+                                    1.0,
+                                    step=0.01,
+                                    value=default.pag_stop or 1.0,
+                                    label="PAG Stop Step",
+                                ),
+                            )
+
+                    with gr.Accordion(label="Adaptive Projected Guidance (APG)", open=False):
+                        enable_apg = r(
+                            "enable_apg",
+                            gr.Checkbox(
+                                value=default.enable_apg or False,
+                                label="Enable Adaptive Projected Guidance",
+                            ),
+                        )
+                        apg_eta = r(
+                            "apg_eta",
+                            gr.Slider(
+                                -1.0,
+                                1.0,
+                                step=0.01,
+                                value=default.apg_eta or 0.0,
+                                label="ETA (Contrast)",
+                            ),
+                        )
+                        with gr.Row():
+                            apg_rescale_min = r(
+                                "apg_rescale_min",
+                                gr.Slider(
+                                    0.0,
+                                    20.0,
+                                    step=0.01,
+                                    value=default.apg_rescale_min or 0.0,
+                                    label="Min Rescale Threshold",
+                                ),
+                            )
+                            apg_rescale_max = r(
+                                "apg_rescale_max",
+                                gr.Slider(
+                                    0.0,
+                                    20.0,
+                                    step=0.01,
+                                    value=default.apg_rescale_max or 12.0,
+                                    label="Max Rescale Threshold",
+                                ),
+                            )
+                        with gr.Row():
+                            icg_scale_min = r(
+                                "icg_scale_min",
+                                gr.Slider(
+                                    0.0,
+                                    0.2,
+                                    step=0.001,
+                                    value=default.icg_scale_min or 0.0,
+                                    label="Min ICG Scale",
+                                ),
+                            )
+                            icg_scale_max = r(
+                                "icg_scale_max",
+                                gr.Slider(
+                                    0.0,
+                                    0.2,
+                                    step=0.001,
+                                    value=default.icg_scale_max or 0.0,
+                                    label="Max ICG Scale",
+                                ),
+                            )
+                        with gr.Row():
+                            icg_start = r(
+                                "icg_start",
+                                gr.Slider(
+                                    0.0,
+                                    1.0,
+                                    step=0.01,
+                                    value=default.icg_start or 0.4,
+                                    label="ICG Start Step",
+                                ),
+                            )
+                            apg_momentum = r(
+                                "apg_momentum",
+                                gr.Slider(
+                                    -1.0,
+                                    1.0,
+                                    step=0.01,
+                                    value=default.apg_momentum or -0.5,
+                                    label="Momentum",
+                                ),
+                            )
+                        post_cfg_method = r(
+                            "post_cfg_method",
+                            gr.Dropdown(
+                                choices=["None", "APG", "Rescale", "Reinhard"],
+                                value=default.post_cfg_method or "None",
+                                label="Post CFG Method",
+                                allow_custom_value=True,
+                            ),
+                        )
+
+                    with gr.Accordion(label="LayerDiffuse", open=False):
+                        enable_ld = r(
+                            "enable_ld",
+                            gr.Checkbox(
+                                value=default.enable_ld or False,
+                                label="Enable LayerDiffuse",
+                            ),
+                        )
+                        ld_method = r(
+                            "ld_method",
+                            gr.Dropdown(
+                                choices=[
+                                    "(SDXL) Only Generate Transparent Image (Attention Injection)",
+                                    "(SDXL) Only Generate Transparent Image (Conv Injection)",
+                                    "(SDXL) From Foreground to Blended",
+                                    "(SDXL) From Background to Blended",
+                                    "(SDXL) From Blended to Foreground",
+                                    "(SDXL) From Blended to Background",
+                                    "(SD15) Only Generate Transparent Image (Attention Injection)",
+                                    "(SD15) Only Generate Transparent Image (Conv Injection)",
+                                    "(SD15) From Foreground to Blended",
+                                    "(SD15) From Background to Blended",
+                                    "(SD15) From Blended to Foreground",
+                                    "(SD15) From Blended to Background",
+                                ],
+                                value=default.ld_method or "(SDXL) Only Generate Transparent Image (Attention Injection)",
+                                label="Method",
+                                allow_custom_value=True,
+                            ),
+                        )
+                        with gr.Row():
+                            ld_weight = r(
+                                "ld_weight",
+                                gr.Slider(
+                                    0.0,
+                                    2.0,
+                                    step=0.001,
+                                    value=default.ld_weight or 1.0,
+                                    label="Weight",
+                                ),
+                            )
+                            ld_stop = r(
+                                "ld_stop",
+                                gr.Slider(
+                                    0.0,
+                                    1.0,
+                                    step=0.01,
+                                    value=default.ld_stop or 1.0,
+                                    label="Stop At",
+                                ),
+                            )
+                        ld_img_resize = r(
+                            "ld_img_resize",
+                            gr.Dropdown(
+                                choices=["Crop and Resize", "Resize and Fill", "Just Resize"],
+                                value=default.ld_img_resize or "Crop and Resize",
+                                label="Resize Mode",
+                                allow_custom_value=True,
+                            ),
+                        )
+                        ld_fore_back_ground = r(
+                            "ld_fore_back_ground",
+                            gr.Textbox(
+                                value=default.ld_fore_back_ground or "",
+                                label="Foreground/Background Additional Prompt",
+                            ),
+                        )
+                        ld_blend = r(
+                            "ld_blend",
+                            gr.Textbox(
+                                value=default.ld_blend or "",
+                                label="Blended Additional Prompt",
+                            ),
+                        )
+
+                    with gr.Accordion(label="StyleAlign", open=False):
+                        enable_sa = r(
+                            "enable_sa",
+                            gr.Checkbox(
+                                value=default.enable_sa or False,
+                                label="Enable StyleAlign",
+                            ),
+                        )
+                        sa_share_attn = r(
+                            "sa_share_attn",
+                            gr.Checkbox(
+                                value=default.sa_share_attn or False,
+                                label="Share attention in batch",
+                            ),
+                        )
+                        sa_str = r(
+                            "sa_str",
+                            gr.Slider(
+                                0.0,
+                                1.0,
+                                step=0.01,
+                                value=default.sa_str or 1.0,
+                                label="Strength",
+                            ),
+                        )
+
+                    with gr.Accordion(label="LatentModifier", open=False):
+                        enable_lm = r(
+                            "enable_lm",
+                            gr.Checkbox(
+                                value=default.enable_lm or False,
+                                label="Enable LatentModifier",
+                            ),
+                        )
+                        with gr.Row():
+                            lms_multiplier = r(
+                                "lms_multiplier",
+                                gr.Slider(
+                                    -100.0,
+                                    100.0,
+                                    step=0.1,
+                                    value=default.lms_multiplier or 0.0,
+                                    label="Sharpness Multiplier",
+                                ),
+                            )
+                            lms_method = r(
+                                "lms_method",
+                                gr.Dropdown(
+                                    choices=["anisotropic", "isotropic"],
+                                    value=default.lms_method or "anisotropic",
+                                    label="Sharpness Method",
+                                    allow_custom_value=True,
+                                ),
+                            )
+                        with gr.Row():
+                            lmt_multiplier = r(
+                                "lmt_multiplier",
+                                gr.Slider(
+                                    0.0,
+                                    100.0,
+                                    step=0.01,
+                                    value=default.lmt_multiplier or 0.0,
+                                    label="Tonemap Multiplier",
+                                ),
+                            )
+                            lmt_method = r(
+                                "lmt_method",
+                                gr.Dropdown(
+                                    choices=[
+                                        "reinhard",
+                                        "reinhard_extended",
+                                        "reinhard_lum",
+                                        "reinhard_lum_extended",
+                                        "filmic",
+                                        "aces",
+                                    ],
+                                    value=default.lmt_method or "reinhard",
+                                    label="Tonemap Method",
+                                    allow_custom_value=True,
+                                ),
+                            )
+                            lmt_p = r(
+                                "lmt_p",
+                                gr.Slider(
+                                    0.0,
+                                    100.0,
+                                    step=0.005,
+                                    value=default.lmt_p or 100.0,
+                                    label="Tonemap Percentile",
+                                ),
+                            )
+                        with gr.Row():
+                            lm_contrast = r(
+                                "lm_contrast",
+                                gr.Slider(
+                                    -100.0,
+                                    100.0,
+                                    step=0.1,
+                                    value=default.lm_contrast or 0.0,
+                                    label="Contrast Multiplier",
+                                ),
+                            )
+                            lmc_method = r(
+                                "lmc_method",
+                                gr.Dropdown(
+                                    choices=["subtract", "divide"],
+                                    value=default.lmc_method or "subtract",
+                                    label="Combat Method",
+                                    allow_custom_value=True,
+                                ),
+                            )
+                        with gr.Row():
+                            lmc_drift = r(
+                                "lmc_drift",
+                                gr.Slider(
+                                    -10.0,
+                                    10.0,
+                                    step=0.01,
+                                    value=default.lmc_drift or 0.0,
+                                    label="Combat Cfg Drift",
+                                ),
+                            )
+                            lm_cfg_phi = r(
+                                "lm_cfg_phi",
+                                gr.Slider(
+                                    -10.0,
+                                    10.0,
+                                    step=0.01,
+                                    value=default.lm_cfg_phi or 0.0,
+                                    label="Rescale Cfg Phi",
+                                ),
+                            )
+                        with gr.Row():
+                            lme_multiplier = r(
+                                "lme_multiplier",
+                                gr.Slider(
+                                    0.0,
+                                    100.0,
+                                    step=0.1,
+                                    value=default.lme_multiplier or 0.0,
+                                    label="Extra Noise Multiplier",
+                                ),
+                            )
+                            lme_lowpass = r(
+                                "lme_lowpass",
+                                gr.Slider(
+                                    0,
+                                    1000,
+                                    step=1,
+                                    value=default.lme_lowpass or 100,
+                                    label="Extra Noise Lowpass",
+                                ),
+                            )
+                        with gr.Row():
+                            lmn_size = r(
+                                "lmn_size",
+                                gr.Slider(
+                                    1,
+                                    255,
+                                    step=1,
+                                    value=default.lmn_size or 127,
+                                    label="Divisive Norm Size",
+                                ),
+                            )
+                            lmn_multiplier = r(
+                                "lmn_multiplier",
+                                gr.Slider(
+                                    0.0,
+                                    1.0,
+                                    step=0.01,
+                                    value=default.lmn_multiplier or 0.0,
+                                    label="Divisive Norm Multiplier",
+                                ),
+                            )
+                        with gr.Row():
+                            lmm_mode = r(
+                                "lmm_mode",
+                                gr.Dropdown(
+                                    choices=["hard_clamp", "soft_clamp"],
+                                    value=default.lmm_mode or "hard_clamp",
+                                    label="Spectral Mod Mode",
+                                    allow_custom_value=True,
+                                ),
+                            )
+                            lmm_p = r(
+                                "lmm_p",
+                                gr.Slider(
+                                    0.0,
+                                    50.0,
+                                    step=0.01,
+                                    value=default.lmm_p or 5.0,
+                                    label="Spectral Mod Percentile",
+                                ),
+                            )
+                            lmm_multiplier = r(
+                                "lmm_multiplier",
+                                gr.Slider(
+                                    -15.0,
+                                    15.0,
+                                    step=0.01,
+                                    value=default.lmm_multiplier or 0.0,
+                                    label="Spectral Mod Multiplier",
+                                ),
+                            )
+                        with gr.Row():
+                            lm_uncond = r(
+                                "lm_uncond",
+                                gr.Dropdown(
+                                    choices=["None", "Zero", "Random"],
+                                    value=default.lm_uncond or "None",
+                                    label="Affect Uncond",
+                                    allow_custom_value=True,
+                                ),
+                            )
+                            lm_dyn_cfg = r(
+                                "lm_dyn_cfg",
+                                gr.Dropdown(
+                                    choices=["None", "Linear", "Cosine"],
+                                    value=default.lm_dyn_cfg or "None",
+                                    label="Dyn Cfg Augmentation",
+                                    allow_custom_value=True,
+                                ),
+                            )
+
+                    with gr.Accordion(label="Kohya HRFix", open=False):
+                        enable_hrfx = r(
+                            "enable_hrfx",
+                            gr.Checkbox(
+                                value=default.enable_hrfx or False,
+                                label="Enable Kohya HRFix",
+                            ),
+                        )
+                        with gr.Row():
+                            hrfx_block = r(
+                                "hrfx_block",
+                                gr.Slider(
+                                    1,
+                                    32,
+                                    step=1,
+                                    value=default.hrfx_block or 3,
+                                    label="Block Number",
+                                ),
+                            )
+                            hrfx_downscale = r(
+                                "hrfx_downscale",
+                                gr.Slider(
+                                    0.1,
+                                    9.0,
+                                    step=0.001,
+                                    value=default.hrfx_downscale or 2.0,
+                                    label="Downscale Factor",
+                                ),
+                            )
+                        with gr.Row():
+                            hrfx_start = r(
+                                "hrfx_start",
+                                gr.Slider(
+                                    0.0,
+                                    1.0,
+                                    step=0.001,
+                                    value=default.hrfx_start or 0.0,
+                                    label="Start Percent",
+                                ),
+                            )
+                            hrfx_stop = r(
+                                "hrfx_stop",
+                                gr.Slider(
+                                    0.0,
+                                    1.0,
+                                    step=0.001,
+                                    value=default.hrfx_stop or 0.35,
+                                    label="End Percent",
+                                ),
+                            )
+                        with gr.Row():
+                            hrfx_dmethod = r(
+                                "hrfx_dmethod",
+                                gr.Dropdown(
+                                    choices=["bicubic", "bilinear", "nearest", "area", "lanczos"],
+                                    value=default.hrfx_dmethod or "bicubic",
+                                    label="Downscale Method",
+                                    allow_custom_value=True,
+                                ),
+                            )
+                            hrfx_umethod = r(
+                                "hrfx_umethod",
+                                gr.Dropdown(
+                                    choices=["bicubic", "bilinear", "nearest", "area", "lanczos"],
+                                    value=default.hrfx_umethod or "bicubic",
+                                    label="Upscale Method",
+                                    allow_custom_value=True,
+                                ),
+                            )
+                        hrfx_downscale_skipped = r(
+                            "hrfx_downscale_skipped",
+                            gr.Checkbox(
+                                value=default.hrfx_downscale_skipped or True,
+                                label="Downscale After Skip",
+                            ),
+                        )
+
+                    with gr.Accordion(label="Hires.fix", open=False):
+                        enable_hr = r(
+                            "enable_hr",
+                            gr.Checkbox(
+                                value=default.enable_hr or False,
+                                label="Enable Hires.fix",
+                            ),
+                        )
+                        with gr.Row():
+                            hr_upscaler = r(
+                                "hr_upscaler",
+                                gr.Dropdown(
+                                    choices=[
+                                        "Latent",
+                                        "Latent (antialiased)",
+                                        "Latent (bicubic)",
+                                        "Latent (bicubic antialiased)",
+                                        "Latent (nearest)",
+                                        "Latent (nearest-exact)",
+                                        "Lanczos",
+                                        "Nearest",
+                                        "ESRGAN_4x",
+                                        "R-ESRGAN 4x+",
+                                        "R-ESRGAN 4x+ Anime6B",
+                                        "ScuNET GAN",
+                                        "ScuNET PSNR",
+                                        "SwinIR_4x",
+                                    ],
+                                    value=default.hr_upscaler or "Latent",
+                                    label="Upscaler",
+                                    allow_custom_value=True,
+                                ),
+                            )
+                            hr_scaler_method = r(
+                                "hr_scaler_method",
+                                gr.Dropdown(
+                                    choices=["Scale by", "Resize to"],
+                                    value=default.hr_scaler_method or "Scale by",
+                                    label="Resize Mode",
+                                    allow_custom_value=True,
+                                ),
+                            )
+                        with gr.Row():
+                            hr_scale = r(
+                                "hr_scale",
+                                gr.Slider(
+                                    1.0,
+                                    4.0,
+                                    step=0.05,
+                                    value=default.hr_scale or 2.0,
+                                    label="Upscale by",
+                                ),
+                            )
+                            hr_w = r(
+                                "hr_w",
+                                gr.Number(
+                                    label="Resize Width",
+                                    value=default.hr_w or 0,
+                                    precision=0,
+                                ),
+                            )
+                            hr_h = r(
+                                "hr_h",
+                                gr.Number(
+                                    label="Resize Height",
+                                    value=default.hr_h or 0,
+                                    precision=0,
+                                ),
+                            )
+                        with gr.Row():
+                            hr_step = r(
+                                "hr_step",
+                                gr.Slider(
+                                    0,
+                                    150,
+                                    step=1,
+                                    value=default.hr_step or 0,
+                                    label="Hires Steps",
+                                ),
+                            )
+                            hr_denoise = r(
+                                "hr_denoise",
+                                gr.Slider(
+                                    0.0,
+                                    1.0,
+                                    step=0.01,
+                                    value=default.hr_denoise or 0.7,
+                                    label="Denoising Strength",
+                                ),
+                            )
+                            hr_cfg = r(
+                                "hr_cfg",
+                                gr.Slider(
+                                    1.0,
+                                    30.0,
+                                    step=0.5,
+                                    value=default.hr_cfg or 7.0,
+                                    label="Hires CFG Scale",
+                                ),
+                            )
+                        with gr.Row():
+                            hr_i2i_mode = r(
+                                "hr_i2i_mode",
+                                gr.Dropdown(
+                                    choices=["None", "img2img", "inpaint"],
+                                    value=default.hr_i2i_mode or "None",
+                                    label="img2img Hires Mode",
+                                    allow_custom_value=True,
+                                ),
+                            )
+                            hr_sampler = r(
+                                "hr_sampler",
+                                gr.Dropdown(
+                                    choices=[
+                                        "Use same sampler",
+                                        "Euler a",
+                                        "Euler",
+                                        "LMS",
+                                        "Heun",
+                                        "DPM2",
+                                        "DPM2 a",
+                                        "DPM++ 2S a",
+                                        "DPM++ 2M",
+                                        "DPM++ SDE",
+                                        "DPM++ 2M SDE",
+                                        "DDIM",
+                                        "PLMS",
+                                        "UniPC",
+                                    ],
+                                    value=default.hr_sampler or "Use same sampler",
+                                    label="Hires Sampler",
+                                    allow_custom_value=True,
+                                ),
+                            )
+                            hr_scheduler = r(
+                                "hr_scheduler",
+                                gr.Dropdown(
+                                    choices=[
+                                        "Use same scheduler",
+                                        "Automatic",
+                                        "Karras",
+                                        "Exponential",
+                                        "SGM Uniform",
+                                        "Simple",
+                                        "Normal",
+                                    ],
+                                    value=default.hr_scheduler or "Use same scheduler",
+                                    label="Hires Scheduler",
+                                    allow_custom_value=True,
+                                ),
+                            )
+                        hr_prompt = r(
+                            "hr_prompt",
+                            gr.Textbox(
+                                value=default.hr_prompt or "",
+                                label="Hires Prompt",
+                            ),
+                        )
+                        hr_negative = r(
+                            "hr_negative",
+                            gr.Textbox(
+                                value=default.hr_negative or "",
+                                label="Hires Negative Prompt",
+                            ),
+                        )
+
+                    with gr.Accordion(label="Refiner", open=False):
+                        enable_refiner = r(
+                            "enable_refiner",
+                            gr.Checkbox(
+                                value=default.enable_refiner or False,
+                                label="Enable Refiner",
+                            ),
+                        )
+                        with gr.Row():
+                            refiner_cp = r(
+                                "refiner_cp",
+                                gr.Textbox(
+                                    value=default.refiner_cp or "",
+                                    label="Refiner Checkpoint",
+                                ),
+                            )
+                            refiner_swap_at = r(
+                                "refiner_swap_at",
+                                gr.Slider(
+                                    0.0,
+                                    1.0,
+                                    step=0.01,
+                                    value=default.refiner_swap_at or 0.8,
+                                    label="Switch at",
+                                ),
+                            )
 
                 with gr.Accordion(label="Advanced Settings", open=False):
                     with gr.Group():

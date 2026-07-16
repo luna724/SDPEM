@@ -220,7 +220,7 @@ async def launch(args=None) -> None:
     from init_model import init_models
     import backcompat
     from modules.utils import health
-    from modules.forever.common2 import register_instances
+    from modules.forever.common import register_instances
     
     backcompat.backcompat()
     tasks = []

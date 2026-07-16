@@ -1,7 +1,7 @@
 import random
 
 from modules.calculator.inference import PromptInferenceEngine
-from modules.forever.common2 import ForeverGenerationTemplate
+from modules.forever.common import ForeverGenerationTemplate
 import gradio as gr
 
 from modules.utils.prompt import combine_prompt

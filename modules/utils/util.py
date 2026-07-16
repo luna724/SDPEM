@@ -11,5 +11,9 @@ def safe_rndrange(start: int, stop: int, step: int = 1) -> int:
     return start
   return random.randrange(start, stop, step)
 
-def rndrange(i):
-  return safe_rndrange(i[0], i[1])
+def rndrange(arg, stop=None):
+  if stop is None:
+    if isinstance(arg, (list, tuple)):
+      return safe_rndrange(arg[0], arg[1])
+    raise TypeError('rndrange requires a sequence of two ints or two int arguments')
+  return safe_rndrange(arg, stop)

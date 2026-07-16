@@ -5,7 +5,7 @@ import random
 
 from modules.prompt_setting import setting
 from modules.prompt_processor import PromptProcessor
-from modules.forever.common2 import ForeverGenerationTemplate
+from modules.forever.common import ForeverGenerationTemplate
 from utils import *
 
 # ForeverGeneration instanceは tab/.. によって保持され生涯有効

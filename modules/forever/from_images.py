@@ -5,7 +5,7 @@ from typing import Pattern
 import gradio as gr
 from PIL import Image
 
-from modules.forever.common2 import ForeverGenerationTemplate
+from modules.forever.common import ForeverGenerationTemplate
 from modules.prompt_processor import PromptProcessor
 from modules.utils.pnginfo import read_pnginfo
 from modules.utils.prompt import separate_prompt

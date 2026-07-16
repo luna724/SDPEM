@@ -1,4 +1,6 @@
 import asyncio
+import importlib
+import pkgutil
 import base64
 from io import BytesIO
 from itertools import chain
@@ -17,7 +19,7 @@ from modules.tagger.predictor import OnnxRuntimeTagger, sharedRuntime
 from modules.utils.pnginfo import make_info
 from modules.utils.state import StateManager
 from modules.utils.timer import TimerInstance
-from modules.utils.util import sha256
+from modules.utils.util import rndrange, sha256
 from modules.forever_generation import ForeverGeneration, ForeverGenerationResponse
 from modules.prompt_setting import setting
 from modules.booru_filter import BooruOptions, booru_filter
@@ -25,7 +27,16 @@ from modules.utils.lora_util import is_lora_trigger
 from modules.utils.tagger import get_rating
 
 import shared
-from logger import println, debug, warn, error, critical
+from logger import println, debug, warn, error, critical, info
+
+class SDParamParser:
+  # TODO: impl to template
+  def __init__(self, all_d: dict = None, **all):
+    all = all_d or all
+    params = {
+      k.split("^", 1)[1]: v for k, v in all.items() if k.split(".")[1].startswith("sd_param^")
+    }
+    ...
 
 class VariableStorage:
     __slots__ = ("_storage",)
@@ -148,10 +159,14 @@ class ForeverGenerationTemplate(ForeverGeneration):
         self.param = {}
         self.default_prompt_request_param = {}
         self.processor_prompt_param = {}
+        self.adetailer = False
         self.adetailer_param = {}
-        self.freeu_param = {}
-        self.neveroom_param = {}
-        self.sag_param = {}
+        self.separated_adetailer_param = {}
+        self.separate_adetailer = True
+        # self.freeu_param = {}
+        # self.neveroom_param = {}
+        # self.sag_param = {}
+        self.alwayson_scripts = {}
 
         self.sampling_methods: list[str]
         self.schedulers: list[str]
@@ -217,8 +232,6 @@ class ForeverGenerationTemplate(ForeverGeneration):
         
         """
         p = await self._get_payload()
-        p["prompt"] = "example"
-        
         return p 
     
     # abstract
@@ -252,9 +265,39 @@ class ForeverGenerationTemplate(ForeverGeneration):
             }
         )
 
-        p["alwayson_scripts"].update(self.freeu_param)
-        p["alwayson_scripts"].update(self.neveroom_param)
-        p["alwayson_scripts"].update(self.sag_param)
+        # p["alwayson_scripts"].update(self.alwayson_scripts)
+        alwayson = {}
+        for k, v in self.alwayson_scripts.items():
+            if not isinstance(v, dict) or "_pem" not in v.keys():
+                alwayson[k] = v
+                continue
+            rnd_tmpl = v.pop("_pem")
+            for rk, rr in rnd_tmpl.items():
+                r_index = v["args"].index(rk)
+                v["args"][r_index] = rndrange(rr[0], rr[1])
+            
+        p["alwayson_scripts"] = alwayson
+
+        if self.adetailer and not self.separate_adetailer:
+            adp = self.adetailer_param.copy()
+            try:
+                ad_prompt = p["prompt"]
+                if self.disable_lora_in_adetailer:
+                    ad_prompt = ", ".join(
+                        [
+                            p
+                            for p in ad_prompt.split(",")
+                            if not p.strip() in self.lora_names
+                        ]
+                    )
+                adp["ADetailer"]["args"][2]["ad_prompt"] = ad_prompt
+                adp["ADetailer"]["args"][3]["ad_prompt"] = ad_prompt
+            except (IndexError, KeyError):
+                warn(
+                    "IndexError or KeyError occurred while updating ADetailer parameters."
+                )
+            finally:
+                p["alwayson_scripts"].update(adp)
         return p
     
     # protected
@@ -296,8 +339,22 @@ class ForeverGenerationTemplate(ForeverGeneration):
         batch_size: int, batch_count: int,
         adetailer: bool, enable_hand_tap: bool, disable_lora_in_adetailer: bool,
         enable_freeu: bool, freeu_preset: str,
+        freeu_b1, freeu_b2, freeu_s1, freeu_s2, freeu_start, freeu_stop,
         enable_neveroom_unet: bool, enable_neveroom_vae: bool,
-        enable_sag: bool, sag_strength: float,
+        enable_sag: bool, sag_scale_min: float, sag_scale_max: float,
+        enable_pag: bool, pag_scale_min: float, pag_scale_max: float, pag_attn_min: float, pag_attn_max: float, pag_start, pag_stop, 
+        enable_apg: bool, apg_eta, apg_rescale_min, apg_rescale_max, icg_scale_min, icg_scale_max, icg_start, apg_momentum, post_cfg_method,
+        enable_ld, ld_method, ld_weight, ld_stop, ld_img_resize, ld_fore_back_ground, ld_blend, #LayerDiffuse
+        enable_sa, sa_share_attn, sa_str, # StyleAlign
+        enable_lm, lms_multiplier, lms_method, lmt_multiplier, lmt_method, lmt_p, lm_contrast, lmc_method, lmc_drift, lm_cfg_phi, 
+        lme_multiplier, lme_lowpass, lmn_size, lmn_multiplier, lmm_mode, lmm_p, lmm_multiplier, lm_uncond, lm_dyn_cfg, 
+        # LatentModifier (sharpness, tonemap, . combat, . extra noise, norm, spectral mod,)
+        enable_hrfx, hrfx_block, hrfx_downscale, hrfx_start, hrfx_stop, hrfx_dmethod, hrfx_umethod, hrfx_downscale_skipped, # Kohya HRFix
+        enable_hr, hr_upscaler, hr_step, hr_denoise, hr_scaler_method, hr_scale, hr_w, hr_h, hr_cfg, # Hires.fix(builtin)
+        hr_i2i_mode, hr_prompt, hr_negative, hr_sampler, hr_scheduler, # img2img hires.fix
+        enable_refiner, refiner_cp, refiner_swap_at,
+        # TODO: below
+        merge_adetailer_test: bool, adetailer_sep_param_test: dict = None, is_flux: bool = False,# dcfg option
         **kwargs
     ):
         """start():1"""
@@ -313,7 +370,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
             "alwayson_scripts": {}
         }
 
-        arg_list = [
+        adetailer_args_list = [
             True,
             True,
             {
@@ -323,7 +380,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
             },
         ]
         if enable_hand_tap:
-            arg_list.append(
+            adetailer_args_list.append(
                 {
                     "ad_model": "hand_yolov8n.pt",
                     "ad_prompt": None,
@@ -333,51 +390,172 @@ class ForeverGenerationTemplate(ForeverGeneration):
         self.adetailer_param = (
             {
                 "ADetailer": {
-                    "args": arg_list,
+                    "args": adetailer_args_list,
                 }
             }
             if adetailer
             else {}
         )
+        self.adetailer = adetailer
+        self.separate_adetailer = not merge_adetailer_test
+        self.separated_adetailer_param = adetailer_sep_param_test 
+        self.disable_lora_in_adetailer = disable_lora_in_adetailer
 
-        freeu_preset = (
-            [1.3, 1.4, 0.9, 0.2] if freeu_preset == "SDXL" else [1.5, 1.6, 0.9, 0.2]
-        )
-        self.freeu_param = (
-            {
-                "FreeU Integrated (SD 1.x, SD 2.x, SDXL)": {
-                    "args": [True] + freeu_preset + [0, 1]
+        if enable_freeu:
+            if freeu_preset == "SDXL":
+                freeu = [1.3, 1.4, 0.9, 0.2]
+            elif freeu_preset == "SD 1.X":
+                freeu = [1.5, 1.6, 0.9, 0.2]
+            else:
+                freeu = [freeu_b1, freeu_b2, freeu_s1, freeu_s2]
+            self.alwayson_scripts.update(
+                {
+                    "freeu integrated (sd 1.x, sd 2.x, sdxl)": {
+                        "args": [True] + freeu + [freeu_start, freeu_stop],
+                    }
                 }
-            }
-            if enable_freeu
-            else {}
-        )
+            )
         
-        self.neveroom_param = (
-            {
-                "Never OOM Integrated": {
-                    "args": [
-                        {
-                            "unet_enabled": enable_neveroom_unet,
-                            "vae_enabled": enable_neveroom_vae
-                        },
-                    ],
+        if enable_neveroom_unet or enable_neveroom_vae:
+            self.alwayson_scripts.update(
+                {
+                    "never oom integrated": {
+                        "args": [
+                            {
+                                "unet_enabled": enable_neveroom_unet,
+                                "vae_enabled": enable_neveroom_vae
+                            },
+                        ],
+                    }
                 }
-            }
-            if (enable_neveroom_unet or enable_neveroom_vae)
-            else {}
-        )
+            )
         
-        self.sag_param = (
-            {
-                "SelfAttentionGuidance Integrated (SD 1.x, SD 2.x, SDXL)": {
-                    "args": [True, sag_strength, 2, 1.0]
+        if enable_sag:
+            self.alwayson_scripts.update(
+                {
+                    "selfattentionguidance integrated (sd 1.x, sd 2.x, sdxl)": {
+                        "args": [True, "sag_scale", 2, 1.0],
+                        "_pem": {"sag_scale": [sag_scale_min, sag_scale_max]}
+                    }
                 }
-            }
-            if enable_sag
-            else {}
-        )
-        self.stdout("done.")
+            )
+
+        if enable_pag:
+            self.alwayson_scripts.update(
+                {
+                    "perturbedattentionguidance integrated": {
+                        "args": [True, "pag_scale", "pag_attn", pag_start, pag_stop],
+                        "_pem": {"pag_scale": [pag_scale_min, pag_scale_max], "pag_attn": [pag_attn_min, pag_attn_max]}
+                    }
+                }
+            )
+        
+        if enable_apg:
+            self.alwayson_scripts.update(
+                {
+                    "adaptive projected guidance": {
+                        "args": [
+                            True, "APG", post_cfg_method, apg_eta, "apg_rescale", apg_momentum, "*1.1, 1.5", "icg_scale", icg_start, False, False, 
+                            2.7, "7, 8, 9", 0.01, 0.2, 
+                            False, False, 0.2, 0.4, 1, 0.5, 0.7, 1, 0.1, 0.8, 0, 0, 0, 0],
+                        "_pem": {"apg_rescale": [apg_rescale_min, apg_rescale_max], "icg_scale": [icg_scale_min, icg_scale_max]}
+                    }
+                    #(apg_enabled, apg_method, apg_post_cfg, apg_eta, apg_r, apg_m, apg_fdg_scale, apg_icg, apg_icg_s, apg_star, apg_tdamp, 
+                    #apg_slg_scale, apg_slg_layers, apg_slg_start, apg_slg_end,
+                    #fade_enabled, cntrMean, boostStep, highStep, maxScale, fadeStep, zeroStep, minScale, lowCFG1, highCFG1, reinhard, rescale, heuristic, hStart)
+                }
+            )
+        
+        if enable_ld:
+            lda = [
+                True, "(SDXL) " + ld_method if not ld_method.startswith("(") else ld_method, ld_weight, ld_stop,
+                None, None, None,
+                ld_img_resize, False, ld_fore_back_ground, ld_fore_back_ground, ld_blend,
+            ]
+            
+            self.alwayson_scripts.update(
+                {
+                    "layerdiffuse": {
+                        "args": lda
+                    }
+                }
+            )
+
+        if enable_sa:
+            self.alwayson_scripts.update(
+                {
+                    "stylealign integrated": {
+                        "args": [sa_share_attn, sa_str]
+                    }
+                }
+            )
+
+        if enable_lm:
+            self.alwayson_scripts.update(
+                {
+                    "latentmodifier integrated": {
+                        "args": [
+                            True,
+                            lms_multiplier, lms_method,
+                            lmt_multiplier, lmt_method, lmt_p,
+                            lm_contrast,
+                            lmc_method, lmc_drift,
+                            lm_cfg_phi,
+                            "gaussian", "add", lme_multiplier, lme_lowpass,
+                            lmn_size, lmn_multiplier,
+                            lmm_mode, lmm_p, lmm_multiplier,
+                            lm_uncond, lm_dyn_cfg,
+                        ]
+                    }
+                }
+            )
+
+        if enable_hrfx:
+            self.alwayson_scripts.update(
+                {
+                    "kohya hrfix integrated": {
+                        "args": [
+                            True, hrfx_block, hrfx_downscale, hrfx_start, hrfx_stop,
+                            hrfx_downscale_skipped, hrfx_dmethod, hrfx_umethod,
+                        ]
+                    }
+                }
+            )
+
+        if hr_i2i_mode and hr_i2i_mode != "None":
+            self.alwayson_scripts.update(
+                {
+                    "img2img hires fix": {
+                        "args": [
+                            True, hr_scale, hr_w, hr_h, hr_step, hr_upscaler,
+                            hr_prompt, hr_negative, hr_denoise, hr_sampler, hr_cfg, hr_scheduler,
+                        ]
+                    }
+                }
+            )
+
+        if enable_refiner:
+            self.alwayson_scripts.update(
+                {
+                    "refiner": {
+                        "args": [True, refiner_cp, refiner_swap_at]
+                    }
+                }
+            )
+
+        if enable_hr:
+            # TODO(#0): Hires.fix(builtin) is a core txt2img parameter (not in alwayson_scripts).
+            self.param.update({
+                "enable_hr": True,
+                "hr_scale": hr_scale,
+                "hr_upscaler": hr_upscaler,
+                "hr_second_pass_steps": hr_step,
+                "hr_resize_x": hr_w,
+                "hr_resize_y": hr_h,
+                "denoising_strength": hr_denoise,
+            })
+
+        self.stdout("prepare param done.")
         return
 
     async def prepare_timer(
@@ -391,7 +569,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
 
         timer = None
         if enable_auto_stop:
-            timer = TimerInstance(name="Forever Generation/LoRA Timer")
+            timer = TimerInstance(name="Forever Generation Timer")
             if stop_mode == "After Minutes":
                 timer.set_end_at(time.time() + stop_minutes * 60)
             elif stop_mode == "At Datetime":
@@ -407,8 +585,18 @@ class ForeverGenerationTemplate(ForeverGeneration):
         
         self.timer = timer
         self.enable_auto_stop = enable_auto_stop
-        self.stdout("done.")
+        self.stdout("prepare timer done.")
         return timer
+    
+    def combine_header_footer(self, prompt: str) -> str:
+        if isinstance(prompt, list): prompt = ", ".join(prompt)
+        header = self.header.strip(",").strip()
+        footer = self.footer.strip(",").strip()
+        if header:
+            prompt = header + ", " + prompt
+        if footer:
+            prompt = prompt.rstrip(", ") + ", " + footer
+        return prompt
 
     async def update_prompt_settings(
         self,
@@ -424,12 +612,12 @@ class ForeverGenerationTemplate(ForeverGeneration):
         prompt_weight_chance, prompt_weight_min, prompt_weight_max,
         remove_character,
         booru_filter_enable: bool,
+        instance_blacklist: str,
         **kwargs
     ): 
         """
         一時停止せずにself内の引数を変えるためのやつ
         """
-        await self.on_update_prompt_settings(**self.resize_locals(locals()|kwargs))
         
         self.disable_lora_in_adetailer = disable_lora_in_adetailer
         self.sampling_methods = s_method
@@ -444,6 +632,8 @@ class ForeverGenerationTemplate(ForeverGeneration):
 
         self.save_image_to_tmp = save_tmp_images
         self.prompt_generation_max_tries = min(5000000, max(1, prompt_generation_max_tries)) # 1 ~ 5,000,000
+        self.header = header
+        self.footer = footer
         
         new_param = {
             "header": header,
@@ -456,10 +646,14 @@ class ForeverGenerationTemplate(ForeverGeneration):
         } | setting.request_param(pop_for_processor=True)
         new_kp = {
             "remove_character": remove_character,
+            "special_blacklist": [re.compile(x.strip(), re.IGNORECASE) for x in instance_blacklist.split(",") if x.strip()],
         }
+        
+        force_valid = await self.on_update_prompt_settings(_new_param=new_param, _new_kp=new_kp,
+        **self.resize_locals(locals()|kwargs))
         new_param, new_kp, is_valid = await self.test_new_setting(new_param, new_kp)
         
-        if is_valid is True:
+        if is_valid is True or force_valid is True:
             self.default_prompt_request_param = new_param
             gr.Info("Prompt settings updated successfully.")
             self.stdout("Prompt settings updated successfully.")
@@ -580,7 +774,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
     
     async def on_update_prompt_settings(
         self, **kw
-    ): return
+    ) -> bool: return None
     ###########################
     ###########################
     
@@ -766,6 +960,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
                 progress = "100%"
                 progress_bar_html = self.resize_progress_bar(100, -1)
                 image = await p.convert_images_into_gr()
+                yield self.yielding(eta, progress, progress_bar_html, image)
                 
                 if self.image_skipped:
                     self.skipped()
@@ -776,7 +971,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
                 self.num_of_image += len(p.images)
                 to_proc = await self.booru_filter(i, p, await p.convert_images(), is_early=True, **kw)
                 
-                if adetailer:
+                if adetailer and self.separate_adetailer:
                     ad_param = await self.prepare_adetailer(p)
                     yield self.yielding(
                         eta, progress, progress_bar_html, image,
@@ -879,7 +1074,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
                             info = make_info(
                                 {
                                     "parameters": txtinfo,
-                                    "pem_payload": json.dumps(i["payload"]),
+                                    "pem_payload": json.dumps({"todo":"add pem payload"}),
                                 }
                             )
                             image_obj.save(fn, format=output_format, pnginfo=info)
@@ -1048,3 +1243,44 @@ class ForeverGenerationTemplate(ForeverGeneration):
             else:
                 allow_image.append(img)
         return allow_image
+    
+
+def register_instances():
+    base_classes = [ForeverGenerationTemplate]
+    module_pkg = importlib.import_module("modules.forever")
+    module_names: list[str] = []
+    for _, module_name, is_pkg in pkgutil.iter_modules(module_pkg.__path__, module_pkg.__name__ + "."):
+        if is_pkg:
+            continue
+        module_names.append(module_name)
+
+    if not module_names:
+        module_dir = os.path.dirname(__file__)
+        for filename in os.listdir(module_dir):
+            if not filename.endswith(".py"):
+                continue
+            if filename.startswith("_"):
+                continue
+            module_names.append(f"modules.forever.{filename[:-3]}")
+
+    for module_name in module_names:
+        if module_name.endswith(".common") or module_name.endswith(".common2"):
+            continue
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as e:
+            warn(f"Failed to import {module_name}: {e}")
+            continue
+        module_key = module_name.rsplit(".", 1)[1]
+        for obj in module.__dict__.values():
+            if not isinstance(obj, type):
+                continue
+            if obj in base_classes:
+                continue
+            if not any(issubclass(obj, base) for base in base_classes):
+                continue
+            if module_key in shared.fv_instances:
+                break
+            shared.fv_instances[module_key] = obj()
+            info(f"Registered instance '{module_key}' with class {obj}.")
+            break
