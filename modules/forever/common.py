@@ -25,6 +25,7 @@ from modules.prompt_setting import setting
 from modules.booru_filter import BooruOptions, booru_filter
 from modules.utils.lora_util import is_lora_trigger
 from modules.utils.tagger import get_rating
+from modules.events.generation_ended import onGenerationEnded
 
 import shared
 from logger import println, debug, warn, error, critical, info
@@ -766,6 +767,24 @@ class ForeverGenerationTemplate(ForeverGeneration):
         """
         return False
     
+    async def on_after_save_image(
+        self, image: Image.Image | None,
+        p: GenerationResult, fn: str | None, saved: bool, index: int, **kw
+    ) -> None:
+        """
+        画像ごとに保存処理後に呼ばれる
+        """
+        return
+
+    async def on_after_save_images(
+        self, images: list[Image.Image],
+        p: GenerationResult, saved: bool, **kw
+    ) -> None:
+        """
+        バッチの全画像保存処理後に呼ばれる
+        """
+        return
+    
     def on_reset(self):
         """
         reset()実行時に呼ばれる
@@ -1070,21 +1089,34 @@ class ForeverGenerationTemplate(ForeverGeneration):
                             with open(fn + ".txt", "w", encoding="utf-8") as f:
                                 f.write(txtinfo)
 
-                        if save_metadata:
-                            info = make_info(
-                                {
-                                    "parameters": txtinfo,
-                                    "pem_payload": json.dumps({"todo":"add pem payload"}),
-                                }
-                            )
-                            image_obj.save(fn, format=output_format, pnginfo=info)
+                        if not isinstance(image_obj, Image.Image):
+                            self.stdout(f"Image object is not a PIL Image")
+                            self.stdout(f"Image object type: {type(image_obj)}")
+                            self.stdout(f"Image object: {image_obj}")
+                            self.stdout(f"Image object info: {p}")
+                        
                         else:
-                            image_obj.save(fn, format=output_format)
+                            if save_metadata:
+                                info = make_info(
+                                    {
+                                        "parameters": txtinfo,
+                                        "pem_payload": json.dumps({"todo":"add pem payload"}),
+                                    }
+                                )
+                                image_obj.save(fn, format=output_format, pnginfo=info)
+                            else:
+                                image_obj.save(fn, format=output_format)
                         yield self.yielding(
                             eta="100%", progress="100%", progress_bar_html=self.resize_progress_bar(100, -1),
                             stdout=self.stdout(f"[{index+1}/{len(images)}] Image saved as {fn}"),
                             image=image_obj
-                            )
+                        )
+                        await onGenerationEnded.trigger_from_result(p, saved=True, image_fp=fn, ts=time.time())
+                        await self.on_after_save_image(image_obj, p, fn=fn, saved=True, index=index, **kw)
+                else:
+                    await onGenerationEnded.trigger_from_result(p, saved=False, image_fp=None, ts=time.time())
+                    await self.on_after_save_image(None, p, fn=None, saved=False, index=-1, **kw)
+                await self.on_after_save_images(images if not skip_save else [], p, saved=not skip_save, **kw)
                 yield self.yielding(
                     eta="N/A", progress="N/A", progress_bar_html=self.resize_progress_bar(0, -1), image=gr.Image(value=None, interactive=False),
                 )

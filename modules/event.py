@@ -109,12 +109,13 @@ class Event:
     return False
   
   async def trigger(
-    self, type: str, # should be Literal[..]
-    obj: EventType, 
+    self, type: str,
+    obj: EventType,
   ):
     callbacks = sorted(self.callbacks, key=lambda x: x.order)
-    
     try:
+      if not callbacks:
+        return
       chain = await callbacks[0].run(self, obj)
       for cb in callbacks[1:]:
         if cb.chain:
@@ -122,11 +123,15 @@ class Event:
         else:
           await cb.run(self, obj)
     except Exception:
-      critical(f"{EventEnum[self.EventId]} ({type}): Callback Error")
+      critical(f"{EventEnum.get(self.EventId, 'unknown')} ({type}): Callback Error")
       traceback.print_exc()
-    
-  
-  # @abstract
+
   async def auto_trig(self, *args, **kw) -> None:
-    if self.target_cls is None: raise NotImplementedError("target_cls is not defined")
-    
+    if self.target_cls is None:
+      raise NotImplementedError("target_cls is not defined")
+    try:
+      ev = self.target_cls(*args, **kw)
+      await self.trigger(getattr(ev, "event_name", "blank"), ev)
+    except Exception:
+      critical(f"{EventEnum.get(self.EventId, 'unknown')}: Callback Error in auto_trig")
+      traceback.print_exc()
