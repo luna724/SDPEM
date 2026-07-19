@@ -1,6 +1,6 @@
 import logging
 import datetime
-from typing import Any
+from typing import Any, Callable
 
 class AnsiColors:
     GREEN = '\033[92m'
@@ -77,6 +77,10 @@ def critical(*args: Any, **kw: Any) -> None:
 
 def debug(*args: Any, **kw: Any) -> None:
     logger.debug(' '.join(map(str, args)))
+
+def conditional_debug(condition: bool) -> Callable:
+    if condition: return debug
+    else: return lambda *args, **kw: None
 
 # 追加のログ関数
 def info(*args: Any, **kw: Any) -> None:

@@ -96,7 +96,8 @@ class Txt2imgAPI:
 
     @staticmethod
     async def _get_requests(path: str, params: dict) -> dict:
-        debug(f"GET request to {path} with params: {params}")
+        if not path == "/sdapi/v1/progress":
+            debug(f"GET request to {path} with params: {params}")
         response = await shared.session.get(
             url=f"{shared.api_url}{path}",
             params=params,

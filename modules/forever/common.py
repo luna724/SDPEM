@@ -173,7 +173,6 @@ class ForeverGenerationTemplate(ForeverGeneration):
         self.schedulers: list[str]
         self.auto_cast_scheduler = False
         self.steps: tuple[int, int]
-        self.adetailer_steps: int = 120
         self.cfg_scales: tuple[float, float]
         self.sizes: list[tuple[int, int]]
         self.disable_lora_in_adetailer: bool
@@ -910,7 +909,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
                 "cfg_scale": p.cfg_scale,
                 "scheduler": "Automatic",
                 "batch_size": 1,
-                "steps": self.adetailer_steps,
+                "steps": int(p.steps // 2),
                 "alwayson_scripts": adp,
             }
         
@@ -1049,7 +1048,11 @@ class ForeverGenerationTemplate(ForeverGeneration):
                         eta, progress, progress_bar_html, image,
                         self.stdout(f"Generation completed. ({len(to_proc)})"),
                     )
-                    images = to_proc # fallback: ADetailer無効時
+                    images = [
+                      Image.open(BytesIO(base64.b64decode(img))) if isinstance(img, str) else img
+                      for img in to_proc
+                      if img != ""
+                    ]
                 
                 images = await self.booru_filter(i, p, images, is_early=False, **kw)
                 
