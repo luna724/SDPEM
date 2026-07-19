@@ -124,7 +124,7 @@ class PromptProcessor:
         raise: RuntimeError 50000回思考してもできなかった場合
         """
         if random_rate <= 0: raise ValueError("random_rate must be greater than 0")
-        if tags <= 0: raise ValueError("tags must be greater than 0")
+        if tags < 0: raise ValueError("tags must be greater than 0")
         if prompt_weight_min > prompt_weight_max:
             warn("prompt_weight_min is greater than prompt_weight_max, casting into equal")
             prompt_weight_min = prompt_weight_max
@@ -139,20 +139,23 @@ class PromptProcessor:
                 n1, n2 = await get_tag_freq_from_lora(lora)
                 fq.update(n1 | n2)
                 debug(f"[Lora] Gathered tags from {ln}: {fq}")
-        if len(fq) < 1: raise ValueError("No tags found in the provided LoRA(s)")
+        if tags > 0 and len(fq) < 1: raise ValueError("No tags found in the provided LoRA(s)")
         
-        res = await cls.from_frequency_like(
-            fq,
-            weight_multiplier,
-            weight_multiplier_target_min,
-            weight_multiplier_target_max,
-            random_rate,
-            tags, disallow_duplicate,
-            prompt_weight_chance,
-            prompt_weight_min, prompt_weight_max,
-            max_tries=max_tries,
-            proc_kw=proc_kw,
-        )
+        if tags > 0:
+            res = await cls.from_frequency_like(
+                fq,
+                weight_multiplier,
+                weight_multiplier_target_min,
+                weight_multiplier_target_max,
+                random_rate,
+                tags, disallow_duplicate,
+                prompt_weight_chance,
+                prompt_weight_min, prompt_weight_max,
+                max_tries=max_tries,
+                proc_kw=proc_kw,
+            )
+        else:
+            res = []
         
         for name in lora_name:
             lorainfo = await read_lora_info(name, allow_none=True, keysafe=True)
@@ -170,7 +173,7 @@ class PromptProcessor:
                         res.append(lorainfo["activation text"])
                     if "negative" in add_trig_to and lorainfo.get("negative text", "") != "":
                         res.append(lorainfo["negative text"])
-
+        
         p = combine_prompt(res)
         c = cls(p)
         main = await c.process(**proc_kw)

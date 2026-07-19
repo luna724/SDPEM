@@ -6,13 +6,15 @@ starlette
 httpx
 pyjson5
 pillow
-numpy
+numpy<2
 requests
 tensorflow
 pandas
 pyarrow
 zstandard
 onnxruntime-gpu
+opencv-python
+
 tkfilebrowser
 # req by: tkfilebrowser
 pywin32

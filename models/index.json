@@ -1,5 +1,5 @@
 {
-	"index": ["wd-tagger"],
+	"index": ["wd-tagger", "anime-seg"],
 	"values": [
 		{
 			"name": "wd-tagger",
@@ -73,6 +73,35 @@
           "name": "SD-WebUI DeepDanbooru Tagger",
           "skip": true
         }
+			]
+		},
+		{
+			"name": "anime-seg",
+			"schema": {
+				"type": ["hf.co"],
+				"signature": ["onnx", "safetensors"],
+				"url": "SmilingWolf/wd-vit-large-tagger-v3 | or directly path",
+				"name": "wd-vit-large-tagger-v3",
+        "skip": false,
+        "fn": "unknown.model",
+				"depend": []
+			},
+			"items": [
+					{
+					"type": "hf.co",
+					"signature": "onnx",
+					"url": "skytnt/anime-seg:isnetis.onnx",
+					"name": "isnetis",
+					"skip": false,
+					"fn": "isnetis.onnx",
+					"depend": [
+						{
+							"type": "hf.co",
+							"url": "skytnt/anime-seg:config.json",
+							"fn": "isnetis_config.json"
+						}
+					]
+				}
 			]
 		}
 	]

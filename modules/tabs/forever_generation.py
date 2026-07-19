@@ -204,7 +204,7 @@ class Define(UiTabs):
                         tags = r(
                             "tags",
                             gr.Number(
-                                label="Max tags",
+                                label="random tags count",
                                 value=default.tags,
                                 precision=0,
                                 scale=3,
