@@ -8,6 +8,7 @@ from webui import UiTabs
 import gradio as gr
 import os
 import shared
+import re
 from typing import Callable
 from utils import *
 from pathlib import Path
@@ -43,11 +44,21 @@ class LoRAToPrompt(UiTabs):
                             scale=19,
                         ),
                     )
-                    lora_add_all_btn = gr.Button("*", variant="secondary", scale=1)
+                    with gr.Column():
+                        lora_add_all_btn = gr.Button("*", variant="secondary", scale=1)
+                        with gr.Row():
+                            lora_add_by_name = gr.Textbox("\[Pose\]", placeholder="regex", label="Add LoRA by name", scale=1)
+                            lora_add_by_name_btn = gr.Button("+", variant="secondary", scale=1)
                     lora_add_all_btn.click(
                         fn=lambda: list_lora_with_tags(),
                         outputs=[lora],
                     )
+                    lora_add_by_name_btn.click(
+                        fn=lambda name: [x for x in list_lora_with_tags() if re.search(name, x)],
+                        inputs=[lora_add_by_name],
+                        outputs=[lora],
+                    )
+
                 with gr.Row():
                     enable_random_lora = r(
                         "enable_random_lora",

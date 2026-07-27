@@ -163,6 +163,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
         self.adetailer = False
         self.adetailer_param = {}
         self.separated_adetailer_param = {}
+        self.ad_step_multiplier = 1
         self.separate_adetailer = True
         # self.freeu_param = {}
         # self.neveroom_param = {}
@@ -241,6 +242,18 @@ class ForeverGenerationTemplate(ForeverGeneration):
         return: 修正された new_param, new_kp, is_valid
         """
         return new_param, new_kp, True
+
+    def get_alwayson(self) -> dict:
+        alwayson = {}
+        for k, v in self.alwayson_scripts.items():
+            if not isinstance(v, dict) or "_pem" not in v.keys():
+                alwayson[k] = v
+                continue
+            rnd_tmpl = v.pop("_pem")
+            for rk, rr in rnd_tmpl.items():
+                r_index = v["args"].index(rk)
+                v["args"][r_index] = rndrange(rr[0], rr[1])
+        return alwayson
         
     async def _get_payload(self) -> dict:
         p = self.param.copy()
@@ -265,18 +278,8 @@ class ForeverGenerationTemplate(ForeverGeneration):
             }
         )
 
-        # p["alwayson_scripts"].update(self.alwayson_scripts)
-        alwayson = {}
-        for k, v in self.alwayson_scripts.items():
-            if not isinstance(v, dict) or "_pem" not in v.keys():
-                alwayson[k] = v
-                continue
-            rnd_tmpl = v.pop("_pem")
-            for rk, rr in rnd_tmpl.items():
-                r_index = v["args"].index(rk)
-                v["args"][r_index] = rndrange(rr[0], rr[1])
-            
-        p["alwayson_scripts"] = alwayson
+        # p["alwayson_scripts"].update(self.alwayson_scripts)    
+        p["alwayson_scripts"] = self.get_alwayson()
 
         if self.adetailer and not self.separate_adetailer:
             adp = self.adetailer_param.copy()
@@ -604,6 +607,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
         steps_min: int, steps_max: int,
         cfg_min: float, cfg_max: float,
         size: str,
+        ad_step_multiplier,
         disable_lora_in_adetailer: bool,
         save_tmp_images: bool,
         prompt_generation_max_tries: int,
@@ -618,7 +622,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
         """
         一時停止せずにself内の引数を変えるためのやつ
         """
-        
+        self.ad_step_multiplier = ad_step_multiplier
         self.disable_lora_in_adetailer = disable_lora_in_adetailer
         self.sampling_methods = s_method
         self.schedulers = scheduler
@@ -890,9 +894,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
                 )
             adp["ADetailer"]["args"][2]["ad_prompt"] = ad_prompt
             adp["ADetailer"]["args"][3]["ad_prompt"] = ad_prompt
-            adp.update(self.freeu_param)
-            adp.update(self.neveroom_param)
-            adp.update(self.sag_param)
+            adp.update(self.get_alwayson())
             
         except (IndexError, KeyError):
             self.stdout(
@@ -909,7 +911,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
                 "cfg_scale": p.cfg_scale,
                 "scheduler": "Automatic",
                 "batch_size": 1,
-                "steps": int(p.steps // 2),
+                "steps": int(p.steps * self.ad_step_multiplier),
                 "alwayson_scripts": adp,
             }
         

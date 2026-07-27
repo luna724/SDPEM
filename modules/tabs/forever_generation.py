@@ -204,7 +204,7 @@ class Define(UiTabs):
                         tags = r(
                             "tags",
                             gr.Number(
-                                label="random tags count",
+                                label="n of tags",
                                 value=default.tags,
                                 precision=0,
                                 scale=3,
@@ -409,6 +409,14 @@ class Define(UiTabs):
                                 label="Enable ADetailer with Template",
                                 info="Enable ADetailer for image generation",
                             ),
+                        )
+                        ad_step_multiplier = r(
+                            "ad_step_multiplier",
+                            gr.Number(
+                                label="ADetailer Step Multiplier",
+                                value=default.ad_step_multiplier or 0.5,
+                                precision=2,
+                            )
                         )
                         enable_hand_tap = r(
                             "enable_hand_tap",
