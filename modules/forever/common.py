@@ -15,7 +15,7 @@ from PIL import Image, PngImagePlugin
 
 from modules.adetailer import ADetailerAPI, ADetailerResult
 from modules.generate import GenerationProgress, GenerationResult, Txt2imgAPI
-from modules.tagger.predictor import OnnxRuntimeTagger, sharedRuntime
+from modules.tagger.predictor import OnnxRuntimeTagger, onnx_tagger
 from modules.utils.pnginfo import make_info
 from modules.utils.state import StateManager
 from modules.utils.timer import TimerInstance
@@ -677,7 +677,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
         **kwargs
     ):
         if booru_use_shared:
-            caption = sharedRuntime
+            caption = onnx_tagger
         else:
             caption: OnnxRuntimeTagger = None
         

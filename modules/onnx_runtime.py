@@ -61,7 +61,7 @@ class OnnxRuntime:
             "do_copy_in_default_stream": False,
         }
       self.model_size = config.booru_cuda_inference_memory_limit
-      if config.booru_cuda_inference_memory_limit >= 0:
+      if config.booru_cuda_inference_memory_limit > 0:
         pv["gpu_mem_limit"] = int(config.booru_cuda_inference_memory_limit * 1024 * 1024)
       
       self.session = await self.load_with_async(self.model_path, providers=[("CUDAExecutionProvider", pv)])
@@ -78,5 +78,7 @@ class OnnxRuntime:
     if self.session is not None:
       del self.session
       self.session = None
+      import gc
+      gc.collect()
       println(f"Unloaded ONNX model from {self.model_path}")
       self.on_device = "unload"

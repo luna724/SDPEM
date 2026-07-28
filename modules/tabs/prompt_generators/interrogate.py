@@ -28,15 +28,15 @@ class Interrogate(UiTabs):
                         ),
                         None,
                     )
-                    if pdd.sharedRuntime is None or pdd.sharedRuntime.model_path != model_path:
-                        pdd.sharedRuntime = WDTaggerPredictor(model_path=model_path, find_path=False)
+                    if pdd.onnx_tagger is None or pdd.onnx_tagger.model_path != model_path:
+                        pdd.onnx_tagger = WDTaggerPredictor(model_path=model_path, find_path=False)
                     println("Loading WD-Tagger model into CUDA..")
-                    await pdd.sharedRuntime.load_model_cuda()
+                    await pdd.onnx_tagger.load_model_cuda()
                     println("WD-Tagger model loaded successfully.")
-                    general, character, rating = await pdd.sharedRuntime.predict(
+                    general, character, rating = await pdd.onnx_tagger.predict(
                         img, threshold=thres, character_threshold=c_thres
                     )
-                    await pdd.sharedRuntime.unload_model()
+                    await pdd.onnx_tagger.unload_model()
                     output_string = ", ".join(
                         [
                             x[0]

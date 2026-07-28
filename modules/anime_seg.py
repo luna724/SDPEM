@@ -59,3 +59,11 @@ class AsyncAnimeSegmentation:
       result = np.concatenate((img, mask * img, mask.repeat(3, 2) * 255), axis=1).astype(np.uint8)
       result = cv2.cvtColor(result, cv2.COLOR_RGB2BGR)
     return result
+
+isnetis_seg = None
+
+def get_anime_seg():
+  global isnetis_seg
+  if isnetis_seg is None:
+    isnetis_seg = AsyncAnimeSegmentation()
+  return isnetis_seg

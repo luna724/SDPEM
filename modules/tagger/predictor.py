@@ -316,9 +316,9 @@ class OnnxTaggerMulti(OnnxRuntimeTagger):
     
     return await self.exc(format_tags, preds_all, c*10)
 
-sharedRuntime: Optional[OnnxRuntimeTagger] = None
-def auto_init_sharedRuntime():
-  global sharedRuntime
-  if sharedRuntime is None:
-    sharedRuntime = OnnxRuntimeTagger(shared.models["wd-tagger"][0]["display_name"])
-    # await sharedRuntime.load_model()
+onnx_tagger: Optional[OnnxRuntimeTagger] = None
+def get_onnx_tagger():
+  global onnx_tagger
+  if onnx_tagger is None:
+    onnx_tagger = OnnxRuntimeTagger(shared.models["wd-tagger"][0]["display_name"])
+  return onnx_tagger

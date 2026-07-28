@@ -11,8 +11,8 @@ import numpy as np
 import cv2
 import asyncio
 
-from modules.anime_seg import AsyncAnimeSegmentation
-from modules.tagger.predictor import auto_init_sharedRuntime, sharedRuntime
+from modules.anime_seg import AsyncAnimeSegmentation, get_anime_seg
+from modules.tagger.predictor import get_onnx_tagger, onnx_tagger
 
 class PngInfo(UiTabs):
   def title(self) -> str:
@@ -39,7 +39,7 @@ class PngInfo(UiTabs):
     if img is None:
       return None, None
       
-    seg = AsyncAnimeSegmentation()
+    seg = get_anime_seg()
     await seg.load_model()
     
     mask = await seg.get_mask(img)
@@ -48,8 +48,8 @@ class PngInfo(UiTabs):
     target_tags = [t.strip().lower() for t in tags.split(",") if t.strip()]
     
     if target_tags:
-      auto_init_sharedRuntime()
-      await sharedRuntime.load_model()
+      onnx_tagger = get_onnx_tagger()
+      await onnx_tagger.load_model()
       
       mask_uint8 = (mask[:, :, 0] * 255).astype(np.uint8)
       _, binary_mask = cv2.threshold(mask_uint8, 127, 255, cv2.THRESH_BINARY)
@@ -72,7 +72,7 @@ class PngInfo(UiTabs):
         comp_img_rgba = np.concatenate((comp_img_np, comp_mask_cropped[:, :, np.newaxis] * 255), axis=2)
         comp_img_pil = Image.fromarray(comp_img_rgba).convert("RGBA")
         
-        gen, char, rating = await sharedRuntime.predict(comp_img_pil, threshold=0.35, character_threshold=0.35)
+        gen, char, rating = await onnx_tagger.predict(comp_img_pil, threshold=0.35, character_threshold=0.35)
         pred_tags = list(gen.keys()) + list(char.keys())
         pred_tags = [t.lower() for t in pred_tags]
         
