@@ -19,7 +19,7 @@ class GlobalConfig(BaseModel):
   booru_device: Literal["cuda", "cpu"] = Field(default="cpu")
   
   api_path: str = "/api"
-  a1111_url: str = "http://localhost:7860"
+  a1111_url: str = "http://localhost:30000"
   a1111_health_check_path: str = "/docs"
 
 def save_gconf(c: GlobalConfig):

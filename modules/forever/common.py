@@ -210,6 +210,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
         self.prompt_generation_max_tries = 500000
         self.generation_error_count = 0
         self.generation_error_count_limit = 5
+        self.pem_var = None
         
         self.history = VariableStorage({
             "eta": "N/A",
@@ -253,6 +254,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
             for rk, rr in rnd_tmpl.items():
                 r_index = v["args"].index(rk)
                 v["args"][r_index] = rndrange(rr[0], rr[1])
+            alwayson[k] = v
         return alwayson
         
     async def _get_payload(self) -> dict:
@@ -315,6 +317,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
         
         # await self.auto_chain(**self.resize_locals(locals())) # 適当に全部つなげるやつ
         # 初期化
+        self.pem_var = kw
         self.reset()
         self.clear_stdout()
         
@@ -1105,7 +1108,7 @@ class ForeverGenerationTemplate(ForeverGeneration):
                                 info = make_info(
                                     {
                                         "parameters": txtinfo,
-                                        "pem_payload": json.dumps({"todo":"add pem payload"}),
+                                        "pem_payload": json.dumps(self.pem_var),
                                     }
                                 )
                                 image_obj.save(fn, format=output_format, pnginfo=info)

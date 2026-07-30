@@ -228,18 +228,26 @@ async def launch(args=None) -> None:
     
     register_apps()
     register_instances()
-    tasks.append(
-        asyncio.create_task(
-            asyncio.to_thread(
-                uvicorn.run,
-                app=shared.app,
-                host="127.0.0.1",
-                port=shared.pem_api_port,
-                log_level="info",
-                timeout_keep_alive=120,
-            )
-        )
+    def uvicorn_done_callback(t: asyncio.Task) -> None:
+      try:
+        exc = t.exception()
+        if exc:
+          critical(f"uvicorn server failed: {exc}")
+          traceback.print_exception(type(exc), exc, exc.__traceback__)
+      except asyncio.CancelledError:
+        pass
+
+    config = uvicorn.Config(
+      app=shared.app,
+      host="127.0.0.1",
+      port=shared.pem_api_port,
+      log_level="info",
+      timeout_keep_alive=120,
     )
+    server = uvicorn.Server(config)
+    uvicorn_task = asyncio.create_task(server.serve())
+    uvicorn_task.add_done_callback(uvicorn_done_callback)
+    tasks.append(uvicorn_task)
     
     tasks.append(
         asyncio.create_task(
@@ -253,8 +261,10 @@ async def launch(args=None) -> None:
         ui.launch(
             server_name="0.0.0.0",
             server_port=shared.ui_port,
-            inbrowser=go_web
+            inbrowser=go_web,
+            prevent_thread_lock=True
         )
+        await uvicorn_task
     except:
         traceback.print_exc()
         
